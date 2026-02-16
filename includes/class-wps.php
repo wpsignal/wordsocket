@@ -60,6 +60,15 @@ class WPS {
 	/** @var Admin_Page Admin pages and settings. */
 	private $admin_instance;
 
+	/** @var Triggers_REST REST endpoint for trigger management. */
+	private $triggers_rest;
+
+	/** @var Triggers_Page Admin submenu page for triggers. */
+	private $triggers_page;
+
+	/** @var Custom_Triggers Hydrates saved trigger configs into the registry. */
+	private $custom_triggers;
+
 	/**
 	 * Get the singleton instance.
 	 *
@@ -104,6 +113,10 @@ class WPS {
 		// Register built-in triggers.
 		$this->trigger_registry_instance->register_defaults();
 
+		// Hydrate custom triggers saved via the admin UI.
+		$this->custom_triggers = new Custom_Triggers( $this->trigger_registry_instance );
+		$this->custom_triggers->register_saved();
+
 		/**
 		 * Fires when WPSignal is fully loaded and ready for trigger registration.
 		 *
@@ -124,13 +137,17 @@ class WPS {
 
 		// REST routes.
 		add_action( 'rest_api_init', array( $this->token_instance, 'register_routes' ) );
+		$this->triggers_rest = new Triggers_REST();
+		add_action( 'rest_api_init', array( $this->triggers_rest, 'register_routes' ) );
 
 		// Frontend client.
 		$this->client_instance->init();
 
 		// Admin pages.
+		$this->triggers_page = new Triggers_Page();
 		if ( is_admin() ) {
 			$this->admin_instance->init();
+			$this->triggers_page->init();
 		}
 	}
 
