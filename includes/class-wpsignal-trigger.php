@@ -1,6 +1,6 @@
 <?php
 /**
- * WPSignal_Trigger — fluent builder for registering custom event triggers.
+ * WPSignal\Trigger - fluent builder for registering custom event triggers.
  *
  * Each trigger maps a WordPress action hook to a WPSignal event. When the
  * hook fires, the trigger evaluates an optional condition, builds a data
@@ -9,7 +9,7 @@
  * Usage — register a trigger in your theme or plugin:
  *
  *     // In functions.php or on the 'init' / 'wpsignal_loaded' action:
- *     WPSignal::trigger( 'post.updated' )
+ *     WPS::trigger( 'post.updated' )
  *         ->on( 'save_post', 20, 3 )
  *         ->channel( 'events' )
  *         ->data( function ( $post_id, $post, $update ) {
@@ -29,7 +29,7 @@
  *
  * Usage — minimal trigger (no condition, default channel "events"):
  *
- *     WPSignal::trigger( 'user.login' )
+ *     WPS::trigger( 'user.login' )
  *         ->on( 'wp_login', 10, 2 )
  *         ->data( function ( $user_login, $user ) {
  *             return [ 'user_id' => $user->ID, 'login' => $user_login ];
@@ -38,7 +38,7 @@
  *
  * Usage — cross-plugin trigger with custom channel:
  *
- *     WPSignal::trigger( 'order.completed' )
+ *     WPS::trigger( 'order.completed' )
  *         ->on( 'woocommerce_order_status_completed' )
  *         ->channel( 'orders' )
  *         ->data( function ( $order_id ) {
@@ -50,11 +50,13 @@
  * @package WPSignal
  */
 
+ namespace WPSignal;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class WPSignal_Trigger {
+class Trigger {
 
 	/** @var string Event name (e.g. "post.updated"). Sent as the event field in the publish payload. */
 	private $event;
@@ -80,7 +82,7 @@ class WPSignal_Trigger {
 	/**
 	 * Create a new trigger builder.
 	 *
-	 * Typically called via WPSignal::trigger() rather than directly.
+	 * Typically called via WPS::trigger() rather than directly.
 	 *
 	 * @param string $event Event name (e.g. "post.updated", "comment.created").
 	 */
@@ -94,7 +96,7 @@ class WPSignal_Trigger {
 	 * Example:
 	 *
 	 *     ->on( 'save_post', 20, 3 )    // priority 20, 3 args
-	 *     ->on( 'wp_login' )             // defaults: priority 10, 1 arg
+	 *     ->on( 'wp_login' )            // defaults: priority 10, 1 arg
 	 *
 	 * @param string $hook          WordPress action hook name.
 	 * @param int    $priority      Optional. Hook priority. Default 10.
@@ -180,10 +182,10 @@ class WPSignal_Trigger {
 	 * @return void
 	 */
 	public function register() {
-		WPSignal::instance()->trigger_registry()->add( $this );
+		WPS::instance()->trigger_registry()->add( $this );
 	}
 
-	// -- Accessors (used by WPSignal_Trigger_Registry) ----------------------
+	// -- Accessors (used by Trigger_Registry) ----------------------
 
 	/**
 	 * Get the event name.

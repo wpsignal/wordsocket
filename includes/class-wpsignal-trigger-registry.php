@@ -1,8 +1,8 @@
 <?php
 /**
- * WPSignal_Trigger_Registry — stores triggers and wires WordPress hooks.
+ * WPSignal\Trigger_Registry - stores triggers and wires WordPress hooks.
  *
- * The registry is the glue between WPSignal_Trigger (builder) and WordPress
+ * The registry is the glue between Trigger (builder) and WordPress
  * action hooks. When a trigger is added, the registry attaches an
  * `add_action()` callback that evaluates the trigger's condition, builds the
  * data payload, and publishes the event.
@@ -10,14 +10,14 @@
  * Built-in triggers are registered via register_defaults(). Third-party
  * plugins add triggers via the builder pattern:
  *
- *     WPSignal::trigger( 'comment.created' )
+ *     WPS::trigger( 'comment.created' )
  *         ->on( 'wp_insert_comment', 10, 2 )
  *         ->data( function ( $comment_id, $comment ) { ... } )
  *         ->register();  // calls $registry->add() internally
  *
  * Inspecting all registered triggers (used by the Kitchen Sink page):
  *
- *     $triggers = WPSignal::instance()->trigger_registry()->all();
+ *     $triggers = WPS::instance()->trigger_registry()->all();
  *     foreach ( $triggers as $trigger ) {
  *         echo $trigger->get_event() . ' → ' . $trigger->get_hook();
  *     }
@@ -25,22 +25,24 @@
  * @package WPSignal
  */
 
+ namespace WPSignal;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class WPSignal_Trigger_Registry {
+class Trigger_Registry {
 
-	/** @var WPSignal_Publisher Event publisher for dispatching events. */
+	/** @var Publisher Event publisher for dispatching events. */
 	private $publisher;
 
-	/** @var WPSignal_Trigger[] All registered triggers. */
+	/** @var Trigger[] All registered triggers. */
 	private $triggers = array();
 
 	/**
-	 * @param WPSignal_Publisher $publisher Event publisher instance.
+	 * @param Publisher $publisher Event publisher instance.
 	 */
-	public function __construct( WPSignal_Publisher $publisher ) {
+	public function __construct( Publisher $publisher ) {
 		$this->publisher = $publisher;
 	}
 
@@ -52,10 +54,10 @@ class WPSignal_Trigger_Registry {
 	 * trigger has no hook set (e.g. for manual-only triggers), it is stored
 	 * but no action is wired.
 	 *
-	 * @param WPSignal_Trigger $trigger A configured trigger builder instance.
+	 * @param Trigger $trigger A configured trigger builder instance.
 	 * @return void
 	 */
-	public function add( WPSignal_Trigger $trigger ) {
+	public function add( Trigger $trigger ) {
 		$this->triggers[] = $trigger;
 
 		$hook = $trigger->get_hook();
@@ -100,7 +102,7 @@ class WPSignal_Trigger_Registry {
 	 * @return void
 	 */
 	public function register_defaults() {
-		$trigger = new WPSignal_Trigger( 'post.updated' );
+		$trigger = new Trigger( 'post.updated' );
 		$trigger
 			->on( 'save_post', 20, 3 )
 			->channel( 'events' )
@@ -132,7 +134,7 @@ class WPSignal_Trigger_Registry {
 	 *
 	 * Useful for inspection, debugging, and the Kitchen Sink triggers table.
 	 *
-	 * @return WPSignal_Trigger[] Array of all registered trigger instances.
+	 * @return Trigger[] Array of all registered trigger instances.
 	 */
 	public function all() {
 		return $this->triggers;

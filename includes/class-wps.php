@@ -1,6 +1,6 @@
 <?php
 /**
- * WPSignal — main singleton facade.
+ * WPSignal\WPS - main singleton facade.
  *
  * Central entry point for the plugin. Provides static convenience methods for
  * the two most common operations (registering triggers and publishing events)
@@ -9,7 +9,7 @@
  * Usage — register a custom trigger:
  *
  *     add_action( 'wpsignal_loaded', function () {
- *         WPSignal::trigger( 'comment.created' )
+ *         WPS::trigger( 'comment.created' )
  *             ->on( 'wp_insert_comment', 10, 2 )
  *             ->data( function ( $comment_id, $comment ) {
  *                 return [
@@ -26,36 +26,38 @@
  *
  * Usage — publish an event directly (no hook):
  *
- *     WPSignal::publish( 'events', 'custom.event', [ 'key' => 'value' ] );
+ *     WPS::publish( 'events', 'custom.event', [ 'key' => 'value' ] );
  *
  * @package WPSignal
  */
+
+namespace WPSignal;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class WPSignal {
+class WPS {
 
-	/** @var WPSignal|null Singleton instance. */
+	/** @var WPS|null Singleton instance. */
 	private static $instance;
 
-	/** @var WPSignal_Config Configuration accessor. */
+	/** @var Config Configuration accessor. */
 	private $config_instance;
 
-	/** @var WPSignal_Publisher Event publisher. */
+	/** @var Publisher Event publisher. */
 	private $publisher_instance;
 
-	/** @var WPSignal_Token JWT minting and REST route handler. */
+	/** @var Token JWT minting and REST route handler. */
 	private $token_instance;
 
-	/** @var WPSignal_Trigger_Registry Trigger storage and hook wiring. */
+	/** @var Trigger_Registry Trigger storage and hook wiring. */
 	private $trigger_registry_instance;
 
-	/** @var WPSignal_Client Frontend script enqueue handler. */
+	/** @var Client Frontend script enqueue handler. */
 	private $client_instance;
 
-	/** @var WPSignal_Admin Admin pages and settings. */
+	/** @var Admin_Page Admin pages and settings. */
 	private $admin_instance;
 
 	/**
@@ -66,7 +68,7 @@ class WPSignal {
 	 *
 	 *     $config = WPSignal::instance()->config();
 	 *
-	 * @return WPSignal
+	 * @return WPS
 	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
@@ -75,7 +77,7 @@ class WPSignal {
 		return self::$instance;
 	}
 
-	/** Private constructor — use WPSignal::instance() instead. */
+	/** Private constructor — use WPS::instance() instead. */
 	private function __construct() {}
 
 	/**
@@ -92,12 +94,12 @@ class WPSignal {
 	 * @return void
 	 */
 	public function boot() {
-		$this->config_instance           = new WPSignal_Config();
-		$this->publisher_instance        = new WPSignal_Publisher( $this->config_instance );
-		$this->token_instance            = new WPSignal_Token( $this->config_instance, $this->publisher_instance );
-		$this->trigger_registry_instance = new WPSignal_Trigger_Registry( $this->publisher_instance );
-		$this->client_instance           = new WPSignal_Client( $this->config_instance );
-		$this->admin_instance            = new WPSignal_Admin( $this->config_instance );
+		$this->config_instance           = new Config();
+		$this->publisher_instance        = new Publisher( $this->config_instance );
+		$this->token_instance            = new Token( $this->config_instance, $this->publisher_instance );
+		$this->trigger_registry_instance = new Trigger_Registry( $this->publisher_instance );
+		$this->client_instance           = new Client( $this->config_instance );
+		$this->admin_instance            = new Admin_Page( $this->config_instance );
 
 		// Register built-in triggers.
 		$this->trigger_registry_instance->register_defaults();
@@ -108,7 +110,7 @@ class WPSignal {
 		 * Third-party plugins should hook here to register custom triggers:
 		 *
 		 *     add_action( 'wpsignal_loaded', function () {
-		 *         WPSignal::trigger( 'order.completed' )
+		 *         WPS::trigger( 'order.completed' )
 		 *             ->on( 'woocommerce_order_status_completed' )
 		 *             ->channel( 'orders' )
 		 *             ->data( function ( $order_id ) {
@@ -137,7 +139,7 @@ class WPSignal {
 	/**
 	 * Get the configuration accessor.
 	 *
-	 * @return WPSignal_Config
+	 * @return Config
 	 */
 	public function config() {
 		return $this->config_instance;
@@ -146,7 +148,7 @@ class WPSignal {
 	/**
 	 * Get the event publisher.
 	 *
-	 * @return WPSignal_Publisher
+	 * @return Publisher
 	 */
 	public function publisher() {
 		return $this->publisher_instance;
@@ -155,7 +157,7 @@ class WPSignal {
 	/**
 	 * Get the token/REST handler.
 	 *
-	 * @return WPSignal_Token
+	 * @return Token
 	 */
 	public function token() {
 		return $this->token_instance;
@@ -164,7 +166,7 @@ class WPSignal {
 	/**
 	 * Get the trigger registry.
 	 *
-	 * @return WPSignal_Trigger_Registry
+	 * @return Trigger_Registry
 	 */
 	public function trigger_registry() {
 		return $this->trigger_registry_instance;
@@ -180,7 +182,7 @@ class WPSignal {
 	 *
 	 * Example:
 	 *
-	 *     WPSignal::trigger( 'user.login' )
+	 *     WPS::trigger( 'user.login' )
 	 *         ->on( 'wp_login', 10, 2 )
 	 *         ->data( function ( $user_login, $user ) {
 	 *             return [ 'user_id' => $user->ID, 'login' => $user_login ];
@@ -188,10 +190,10 @@ class WPSignal {
 	 *         ->register();
 	 *
 	 * @param string $event Event name (e.g. "post.updated", "comment.created").
-	 * @return WPSignal_Trigger A new trigger builder instance.
+	 * @return Trigger A new trigger builder instance.
 	 */
 	public static function trigger( $event ) {
-		return new WPSignal_Trigger( $event );
+		return new Trigger( $event );
 	}
 
 	/**
@@ -202,7 +204,7 @@ class WPSignal {
 	 *
 	 * Example:
 	 *
-	 *     WPSignal::publish( 'events', 'custom.event', [ 'key' => 'value' ] );
+	 *     WPS::publish( 'events', 'custom.event', [ 'key' => 'value' ] );
 	 *
 	 * @param string $channel Channel name (e.g. "events"). Scoped server-side.
 	 * @param string $event   Event name (e.g. "post.updated").

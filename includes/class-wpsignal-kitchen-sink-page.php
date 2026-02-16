@@ -1,6 +1,6 @@
 <?php
 /**
- * WPSignal_Kitchen_Sink — interactive admin demo page.
+ * WPSignal\Kitchen_Sink_Page — interactive admin demo page.
  *
  * Renders a full-page admin view at WPSignal > Kitchen Sink with five panels
  * for testing and inspecting all plugin features:
@@ -18,19 +18,21 @@
  * @package WPSignal
  */
 
+ namespace WPSignal;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class WPSignal_Kitchen_Sink {
+class Kitchen_Sink_Page {
 
-	/** @var WPSignal_Config Configuration accessor. */
+	/** @var Config Configuration accessor. */
 	private $config;
 
 	/**
-	 * @param WPSignal_Config $config Configuration accessor.
+	 * @param Config $config Configuration accessor.
 	 */
-	public function __construct( WPSignal_Config $config ) {
+	public function __construct( Config $config ) {
 		$this->config = $config;
 	}
 
@@ -49,7 +51,7 @@ class WPSignal_Kitchen_Sink {
 
 		$this->enqueue_assets();
 
-		$triggers = WPSignal::instance()->trigger_registry()->all();
+		$triggers = WPS::instance()->trigger_registry()->all();
 
 		?>
 		<div class="wrap">
@@ -75,9 +77,9 @@ class WPSignal_Kitchen_Sink {
 	private function enqueue_assets() {
 		wp_enqueue_script(
 			'wpsignal-kitchen-sink',
-			WPSIGNAL_URL . 'assets/kitchen-sink.js',
+			URL . 'assets/kitchen-sink.js',
 			array(),
-			WPSIGNAL_VERSION,
+			VERSION,
 			true
 		);
 
@@ -148,7 +150,7 @@ class WPSignal_Kitchen_Sink {
 	 * Displays all triggers from the registry in a WordPress admin table
 	 * with columns: Event, Hook, Priority, Args, Channel, Condition.
 	 *
-	 * @param WPSignal_Trigger[] $triggers Array of registered triggers.
+	 * @param Trigger[] $triggers Array of registered triggers.
 	 * @return void
 	 */
 	private function render_triggers_table( $triggers ) {

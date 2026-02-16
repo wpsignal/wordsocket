@@ -1,6 +1,6 @@
 <?php
 /**
- * WPSignal_Publisher — HMAC-signed event publishing.
+ * WPSignal\Publisher — HMAC-signed event publishing.
  *
  * Sends events to the WPSignal server via HTTP POST with HMAC-SHA256
  * authentication. The signature scheme matches the server's verification:
@@ -14,11 +14,11 @@
  *
  * Usage via the static facade:
  *
- *     WPSignal::publish( 'events', 'post.updated', [ 'post_id' => 42 ] );
+ *     WPS::publish( 'events', 'post.updated', [ 'post_id' => 42 ] );
  *
  * Usage via the instance:
  *
- *     $publisher = WPSignal::instance()->publisher();
+ *     $publisher = WPS::instance()->publisher();
  *     $result    = $publisher->publish( 'events', 'custom.event', $data );
  *
  *     if ( is_wp_error( $result ) ) {
@@ -28,19 +28,21 @@
  * @package WPSignal
  */
 
+ namespace WPSignal;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class WPSignal_Publisher {
+class Publisher {
 
-	/** @var WPSignal_Config */
+	/** @var Config */
 	private $config;
 
 	/**
-	 * @param WPSignal_Config $config Configuration accessor.
+	 * @param Config $config Configuration accessor.
 	 */
-	public function __construct( WPSignal_Config $config ) {
+	public function __construct( Config $config ) {
 		$this->config = $config;
 	}
 
@@ -65,7 +67,7 @@ class WPSignal_Publisher {
 	 */
 	public function publish( $channel, $event, $data = array() ) {
 		if ( ! $this->config->is_configured() ) {
-			return new WP_Error( 'wpsignal_not_configured', __( 'WPSignal is not configured.', 'wpsignal' ) );
+			return new \WP_Error( 'wpsignal_not_configured', __( 'WPSignal is not configured.', 'wpsignal' ) );
 		}
 
 		$body = wp_json_encode( array(
@@ -103,7 +105,7 @@ class WPSignal_Publisher {
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 				error_log( sprintf( '[WPSignal] Publish HTTP %d: %s', $code, $body_text ) );
 			}
-			return new WP_Error( 'wpsignal_publish_error', sprintf( 'HTTP %d: %s', $code, $body_text ) );
+			return new \WP_Error( 'wpsignal_publish_error', sprintf( 'HTTP %d: %s', $code, $body_text ) );
 		}
 
 		return $response;

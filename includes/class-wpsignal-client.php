@@ -1,6 +1,6 @@
 <?php
 /**
- * WPSignal_Client — frontend script enqueue for logged-in users.
+ * WPSignal\Client — frontend script enqueue for logged-in users.
  *
  * Enqueues `client.js` on the frontend when:
  *   1. The current user is logged in.
@@ -22,19 +22,21 @@
  * @package WPSignal
  */
 
+ namespace WPSignal;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class WPSignal_Client {
+class Client {
 
-	/** @var WPSignal_Config Configuration accessor. */
+	/** @var Config Configuration accessor. */
 	private $config;
 
 	/**
-	 * @param WPSignal_Config $config Configuration accessor.
+	 * @param Config $config Configuration accessor.
 	 */
-	public function __construct( WPSignal_Config $config ) {
+	public function __construct( Config $config ) {
 		$this->config = $config;
 	}
 
@@ -69,9 +71,9 @@ class WPSignal_Client {
 
 		wp_enqueue_script(
 			'wpsignal-client',
-			WPSIGNAL_URL . 'assets/client.js',
+			URL . 'assets/client.js',
 			array(),
-			WPSIGNAL_VERSION,
+			VERSION,
 			true
 		);
 

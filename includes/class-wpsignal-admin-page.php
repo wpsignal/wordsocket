@@ -1,10 +1,10 @@
 <?php
 /**
- * WPSignal_Admin — WordPress admin settings page and menu registration.
+ * WPSignal\Admin_Page - WordPress admin settings page and menu registration.
  *
  * Registers a top-level "WPSignal" admin menu with two subpages:
  *   - Settings — server URL, API key, connection status, "Connect to WPSignal" button.
- *   - Kitchen Sink — interactive demo page (delegated to WPSignal_Kitchen_Sink).
+ *   - Kitchen Sink — interactive demo page (delegated to Kitchen_Sink_Page).
  *
  * The settings page uses the WordPress Settings API (register_setting,
  * add_settings_section, add_settings_field). The "Connect to WPSignal"
@@ -13,24 +13,26 @@
  * @package WPSignal
  */
 
+ namespace WPSignal;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class WPSignal_Admin {
+class Admin_Page {
 
-	/** @var WPSignal_Config Configuration accessor. */
+	/** @var Config Configuration accessor. */
 	private $config;
 
-	/** @var WPSignal_Kitchen_Sink Kitchen Sink subpage handler. */
+	/** @var Kitchen_Sink_Page Kitchen Sink subpage handler. */
 	private $kitchen_sink;
 
 	/**
-	 * @param WPSignal_Config $config Configuration accessor.
+	 * @param Config $config Configuration accessor.
 	 */
-	public function __construct( WPSignal_Config $config ) {
+	public function __construct( Config $config ) {
 		$this->config       = $config;
-		$this->kitchen_sink = new WPSignal_Kitchen_Sink( $config );
+		$this->kitchen_sink = new Kitchen_Sink_Page( $config );
 	}
 
 	/**
@@ -193,9 +195,9 @@ class WPSignal_Admin {
 
 		wp_enqueue_script(
 			'wpsignal-admin',
-			WPSIGNAL_URL . 'assets/admin.js',
+			URL . 'assets/admin.js',
 			array(),
-			WPSIGNAL_VERSION,
+			VERSION,
 			true
 		);
 		wp_localize_script( 'wpsignal-admin', 'wpSignalAdmin', array(

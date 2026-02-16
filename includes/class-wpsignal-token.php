@@ -1,6 +1,6 @@
 <?php
 /**
- * WPSignal_Token — JWT minting and REST route registration.
+ * WPSignal\Token - JWT minting and REST API endpoints.
  *
  * Registers three REST API endpoints under the `wpsignal/v1` namespace:
  *
@@ -18,23 +18,27 @@
  * @package WPSignal
  */
 
+ namespace WPSignal;
+
+ use WP_REST_Request, WP_Error, WP_REST_Response;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class WPSignal_Token {
+class Token {
 
-	/** @var WPSignal_Config Configuration accessor. */
+	/** @var Config Configuration accessor. */
 	private $config;
 
-	/** @var WPSignal_Publisher Event publisher (used by the /publish proxy). */
+	/** @var Publisher Event publisher (used by the /publish proxy). */
 	private $publisher;
 
 	/**
-	 * @param WPSignal_Config    $config    Configuration accessor.
-	 * @param WPSignal_Publisher $publisher Event publisher for the /publish proxy.
+	 * @param Config    $config    Configuration accessor.
+	 * @param Publisher $publisher Event publisher for the /publish proxy.
 	 */
-	public function __construct( WPSignal_Config $config, WPSignal_Publisher $publisher ) {
+	public function __construct( Config $config, Publisher $publisher ) {
 		$this->config    = $config;
 		$this->publisher = $publisher;
 	}
@@ -88,7 +92,7 @@ class WPSignal_Token {
 	 *     }
 	 *
 	 * @param WP_REST_Request $request The incoming REST request.
-	 * @return WP_REST_Response|WP_Error Token response or error.
+	 * @return \WP_REST_Response|\WP_Error Token response or error.
 	 */
 	public function handle_token( WP_REST_Request $request ) {
 		$jwt_secret = $this->config->jwt_secret();
@@ -159,7 +163,7 @@ class WPSignal_Token {
 	 *     { "ok": true }
 	 *
 	 * @param WP_REST_Request $request The incoming REST request.
-	 * @return WP_REST_Response|WP_Error Success response or error.
+	 * @return WP_REST_Response|\WP_Error Success response or error.
 	 */
 	public function handle_publish( WP_REST_Request $request ) {
 		$channel = $request->get_param( 'channel' );
@@ -188,7 +192,7 @@ class WPSignal_Token {
 	 *
 	 * POSTs to {base_url}/api/sites/register with the user's API key.
 	 * On success, saves the returned site_key, publish_secret, and jwt_secret
-	 * to wp_options via WPSignal_Config::save_registration().
+	 * to wp_options via Config::save_registration().
 	 *
 	 * Called by the "Connect to WPSignal" button on the settings page.
 	 *
@@ -197,7 +201,7 @@ class WPSignal_Token {
 	 *     { "message": "Connected to WPSignal!", "site_key": "abc123..." }
 	 *
 	 * @param WP_REST_Request $request The incoming REST request.
-	 * @return WP_REST_Response|WP_Error Success response or error.
+	 * @return WP_REST_Response|\WP_Error Success response or error.
 	 */
 	public function handle_connect( WP_REST_Request $request ) {
 		$base_url = $this->config->base_url();

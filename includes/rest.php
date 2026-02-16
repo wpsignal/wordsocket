@@ -1,15 +1,17 @@
 <?php
 /**
- * WPSignal REST API — backward-compatibility wrappers.
+ * WPSignal\REST - backward-compatibility wrappers.
  *
  * These functions were part of the original procedural plugin. They are kept
  * for backward compatibility with any code that calls them directly.
  * New code should use the class-based API instead.
  *
  * @package WPSignal
- * @see WPSignal_Config::jwt_secret()
- * @see WPSignal_Token::base64url_encode()
+ * @see Config::jwt_secret()
+ * @see Token::base64url_encode()
  */
+
+ namespace WPSignal;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -23,12 +25,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Prefer using the config accessor in new code:
  *
- *     $secret = WPSignal::instance()->config()->jwt_secret();
+ *     $secret = WPS::instance()->config()->jwt_secret();
  *
  * @return string JWT secret or empty string if not configured.
  */
 function wpsignal_get_jwt_secret() {
-	return WPSignal::instance()->config()->jwt_secret();
+	return WPS::instance()->config()->jwt_secret();
 }
 
 /**
@@ -36,11 +38,11 @@ function wpsignal_get_jwt_secret() {
  *
  * Prefer using the static method in new code:
  *
- *     $encoded = WPSignal_Token::base64url_encode( $data );
+ *     $encoded = Token::base64url_encode( $data );
  *
  * @param string $data Raw data to encode.
  * @return string Base64url-encoded string.
  */
 function wpsignal_base64url_encode( $data ) {
-	return WPSignal_Token::base64url_encode( $data );
+	return Token::base64url_encode( $data );
 }

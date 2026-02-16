@@ -1,6 +1,6 @@
 <?php
 /**
- * WPSignal_Config — centralizes all wp_options access.
+ * WPSignal\Config — centralizes all wp_options access.
  *
  * Provides typed accessors for every WPSignal option stored in the WordPress
  * database. This keeps option key strings in one place and makes it easy to
@@ -25,11 +25,13 @@
  * @package WPSignal
  */
 
+ namespace WPSignal;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class WPSignal_Config {
+class Config {
 
 	/**
 	 * Get the WPSignal server base URL.
