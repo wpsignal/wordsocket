@@ -39,6 +39,9 @@ class Trigger_Registry {
 	/** @var Trigger[] All registered triggers. */
 	private $triggers = array();
 
+	/** @var string[] Post types with custom triggers — excluded from the built-in default. */
+	private $excluded_default_post_types = array();
+
 	/**
 	 * @param Publisher $publisher Event publisher instance.
 	 */
@@ -90,19 +93,33 @@ class Trigger_Registry {
 	}
 
 	/**
+	 * Exclude a post type from the built-in default trigger.
+	 *
+	 * Called by Custom_Triggers when registering a post-type trigger so the
+	 * built-in save_post handler skips that type (avoiding duplicate publishes).
+	 *
+	 * @param string $post_type Post type slug.
+	 * @return void
+	 */
+	public function exclude_default_post_type( $post_type ) {
+		$this->excluded_default_post_types[] = $post_type;
+	}
+
+	/**
 	 * Register the built-in default triggers.
 	 *
 	 * Currently registers one trigger:
 	 *   - post.updated: fires on save_post (priority 20, 3 args), publishes
 	 *     to the "events" channel when a post is published (skips autosaves
-	 *     and revisions).
+	 *     and revisions). Post types with custom triggers are excluded.
 	 *
 	 * Called during WPSignal::boot().
 	 *
 	 * @return void
 	 */
 	public function register_defaults() {
-		$trigger = new Trigger( 'post.updated' );
+		$registry = $this;
+		$trigger  = new Trigger( 'post.updated' );
 		$trigger
 			->on( 'save_post', 20, 3 )
 			->channel( 'events' )
@@ -116,17 +133,30 @@ class Trigger_Registry {
 					'updated'    => $update,
 				);
 			} )
-			->when( function ( $post_id, $post ) {
+			->when( function ( $post_id, $post ) use ( $registry ) {
 				if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
 					return false;
 				}
 				if ( wp_is_post_revision( $post_id ) ) {
 					return false;
 				}
+				// Skip post types handled by a custom trigger.
+				if ( in_array( $post->post_type, $registry->get_excluded_default_post_types(), true ) ) {
+					return false;
+				}
 				return 'publish' === $post->post_status;
 			} );
 
 		$this->add( $trigger );
+	}
+
+	/**
+	 * Get post types excluded from the built-in default trigger.
+	 *
+	 * @return string[]
+	 */
+	public function get_excluded_default_post_types() {
+		return $this->excluded_default_post_types;
 	}
 
 	/**

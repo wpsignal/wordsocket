@@ -71,6 +71,9 @@ class Custom_Triggers {
 	 */
 	private function register_post_type_trigger( array $config ) {
 		$post_type = $config['post_type'];
+
+		// Exclude from the built-in default so we don't double-publish.
+		$this->registry->exclude_default_post_type( $post_type );
 		$channel   = ! empty( $config['channel'] ) ? $config['channel'] : 'events';
 		$event     = ! empty( $config['event'] ) ? $config['event'] : $post_type . '.updated';
 
