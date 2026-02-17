@@ -47,7 +47,7 @@ class Triggers_Page {
 	 * @return void
 	 */
 	public function render_page() {
-		$asset_file = DIR . 'build/index.asset.php';
+		$asset_file = DIR . 'build/triggers.asset.php';
 
 		if ( ! file_exists( $asset_file ) ) {
 			echo '<div class="wrap"><h1>' . esc_html__( 'Triggers', 'wpsignal' ) . '</h1>';
@@ -59,7 +59,7 @@ class Triggers_Page {
 
 		wp_enqueue_script(
 			'wpsignal-triggers',
-			URL . 'build/index.js',
+			URL . 'build/triggers.js',
 			$asset['dependencies'],
 			$asset['version'],
 			true
@@ -67,7 +67,7 @@ class Triggers_Page {
 
 		wp_enqueue_style(
 			'wpsignal-triggers',
-			URL . 'build/index.css',
+			URL . 'build/triggers.css',
 			array( 'wp-components' ),
 			$asset['version']
 		);

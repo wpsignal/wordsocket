@@ -5,13 +5,14 @@ import {
 	Button,
 } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
+import type { Trigger, PostTypeOption } from './types';
 
 const OPTION_PRESETS = [
 	{ value: 'blogname', label: 'Site Name (blogname)' },
 	{ value: 'blogdescription', label: 'Site Description (blogdescription)' },
 ];
 
-function autoEvent( trigger ) {
+function autoEvent( trigger: Trigger ): string {
 	if ( trigger.type === 'post_type' && trigger.post_type ) {
 		return trigger.post_type + '.updated';
 	}
@@ -21,11 +22,18 @@ function autoEvent( trigger ) {
 	return '';
 }
 
-export function TriggerRow( { trigger, index, postTypes, onChange, onRemove } ) {
-	const update = ( field, value ) => {
+interface Props {
+	trigger: Trigger;
+	index: number;
+	postTypes: PostTypeOption[];
+	onChange: ( index: number, updated: Trigger ) => void;
+	onRemove: ( index: number ) => void;
+}
+
+export function TriggerRow( { trigger, index, postTypes, onChange, onRemove }: Props ) {
+	const update = ( field: keyof Trigger, value: string ): void => {
 		const next = { ...trigger, [ field ]: value };
 
-		// Auto-generate event name when type target changes, unless user has customized it.
 		if ( field === 'type' || field === 'post_type' || field === 'option_name' ) {
 			const currentAuto = autoEvent( trigger );
 			if ( ! trigger.event || trigger.event === currentAuto ) {

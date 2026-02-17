@@ -3,8 +3,9 @@ import { Button, Notice } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
 import { TriggerRow } from './TriggerRow';
 import { getTriggers, saveTriggers } from './api';
+import type { Trigger, PostTypeOption } from './types';
 
-const EMPTY_TRIGGER = {
+const EMPTY_TRIGGER: Trigger = {
 	type: 'post_type',
 	post_type: '',
 	option_name: '',
@@ -12,17 +13,22 @@ const EMPTY_TRIGGER = {
 	event: '',
 };
 
-export function TriggersApp() {
-	const [ triggers, setTriggers ] = useState( [] );
-	const [ saving, setSaving ] = useState( false );
-	const [ notice, setNotice ] = useState( null );
+interface NoticeState {
+	type: 'success' | 'error';
+	message: string;
+}
 
-	const postTypes = window.wpsignalTriggers?.postTypes || [];
+export function TriggersApp() {
+	const [ triggers, setTriggers ] = useState< Trigger[] >( [] );
+	const [ saving, setSaving ] = useState( false );
+	const [ notice, setNotice ] = useState< NoticeState | null >( null );
+
+	const postTypes: PostTypeOption[] = window.wpsignalTriggers?.postTypes || [];
 
 	useEffect( () => {
 		getTriggers()
 			.then( ( res ) => {
-				if ( res.triggers && res.triggers.length ) {
+				if ( res.triggers?.length ) {
 					setTriggers( res.triggers );
 				}
 			} )
@@ -31,28 +37,28 @@ export function TriggersApp() {
 			} );
 	}, [] );
 
-	const addTrigger = () => {
+	const addTrigger = (): void => {
 		setTriggers( [ ...triggers, { ...EMPTY_TRIGGER } ] );
 	};
 
-	const updateTrigger = ( index, updated ) => {
+	const updateTrigger = ( index: number, updated: Trigger ): void => {
 		const next = [ ...triggers ];
 		next[ index ] = updated;
 		setTriggers( next );
 	};
 
-	const removeTrigger = ( index ) => {
+	const removeTrigger = ( index: number ): void => {
 		setTriggers( triggers.filter( ( _, i ) => i !== index ) );
 	};
 
-	const handleSave = async () => {
+	const handleSave = async (): Promise< void > => {
 		setSaving( true );
 		setNotice( null );
 
 		try {
 			const res = await saveTriggers( triggers );
 			setTriggers( res.triggers );
-			setNotice( { type: 'success', message: res.message } );
+			setNotice( { type: 'success', message: res.message || 'Saved.' } );
 		} catch {
 			setNotice( { type: 'error', message: __( 'Failed to save triggers.', 'wpsignal' ) } );
 		} finally {

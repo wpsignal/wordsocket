@@ -1,8 +1,8 @@
 <?php
 /**
- * WPSignal\Client — frontend script enqueue for logged-in users.
+ * WPSignal\Client — script enqueue for logged-in users (frontend + admin).
  *
- * Enqueues `client.js` on the frontend when:
+ * Enqueues `client.js` on the frontend and admin when:
  *   1. The current user is logged in.
  *   2. The plugin is configured (base_url is set).
  *
@@ -41,7 +41,7 @@ class Client {
 	}
 
 	/**
-	 * Hook into wp_enqueue_scripts.
+	 * Hook into wp_enqueue_scripts and admin_enqueue_scripts.
 	 *
 	 * Called during WPSignal::boot().
 	 *
@@ -49,6 +49,7 @@ class Client {
 	 */
 	public function init() {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
 	}
 
 	/**
@@ -69,15 +70,18 @@ class Client {
 			return;
 		}
 
+		$asset_file = DIR . 'build/client.asset.php';
+		$asset      = file_exists( $asset_file ) ? require $asset_file : array( 'dependencies' => array(), 'version' => VERSION );
+
 		wp_enqueue_script(
-			'wpsignal-client',
-			URL . 'assets/client.js',
-			array(),
-			VERSION,
+			'wpsignal',
+			URL . 'build/client.js',
+			$asset['dependencies'],
+			$asset['version'],
 			true
 		);
 
-		wp_localize_script( 'wpsignal-client', 'wpSignalConfig', array(
+		wp_localize_script( 'wpsignal', 'wpSignalConfig', array(
 			'restUrl' => rest_url( 'wpsignal/v1/token' ),
 			'nonce'   => wp_create_nonce( 'wp_rest' ),
 			'baseUrl' => esc_url( $base_url ),

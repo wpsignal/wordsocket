@@ -1,68 +1,28 @@
 # WPSignal WordPress Plugin
 
-Sends realtime events from WordPress to browsers via [wpsignal.io](https://wpsignal.io).
-
-When someone edits a post in wp-admin, every connected browser knows about it instantly — no page refresh needed. Register custom triggers for any WordPress hook with a fluent PHP API.
-
-## How it fits together
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                                                                      │
-│  Your WordPress Site            wpsignal-server         Browser      │
-│  ───────────────────            ───────────────         ───────      │
-│                                                                      │
-│  ┌───────────────────┐                                               │
-│  │ WPSignal Plugin   │                                               │
-│  │                   │                                               │
-│  │ 1. Trigger fires  │──POST /publish──▶  Routes event               │
-│  │    (save_post,    │   (HMAC signed)    to subscribers             │
-│  │     custom hooks) │                        │                      │
-│  │                   │                        │                      │
-│  │ 2. REST endpoint  │                        ▼                      │
-│  │    /wpsignal/v1/  │               Pushes via WS/SSE──▶ client.js  │
-│  │    token          │                                   receives    │
-│  │    │              │                                   the event   │
-│  │    └──JWT──▶ Browser fetches token,                   and fires   │
-│  │              then connects via WebSocket               a DOM      │
-│  │              (SSE fallback)                            event      │
-│  └───────────────────┘                                               │
-│                                                                      │
-└──────────────────────────────────────────────────────────────────────┘
-```
+Sends realtime events from WordPress to browsers via [wpsignal.io](https://wpsignal.io). Connects via WebSocket (SSE fallback) and exposes a public JS API for other plugins to share the connection.
 
 ## Installation
 
-### 1. Copy the plugin
-
 ```bash
-cp -r wp-plugin /path/to/wordpress/wp-content/plugins/wpsignal
+cd /path/to/wordpress/wp-content/plugins
+git clone git@github.com:wpsignal/wp-signal.git
 ```
 
-### 2. Activate
+```bash
+wp plugin activate wp-signal
+```
 
-Go to **Plugins > Installed Plugins** in wp-admin and activate **WPSignal**.
-
-### 3. Configure
+## Configuration
 
 Go to **WPSignal > Settings** and fill in:
 
-| Field | What to enter | Example (local dev) |
-|---|---|---|
-| **Server URL** | The wpsignal server URL | `http://localhost:3001` |
-| **API Key** | Your API key from the wpsignal.io dashboard | `abc123...` |
+| Field | Description |
+|---|---|
+| **Server URL** | The wpsignal server URL (e.g. `https://api.wpsignal.io`) |
+| **API Key** | Your API key from the wpsignal.io dashboard |
 
 Then click **Connect to WPSignal**. The plugin registers with the server and saves the site key, publish secret, and JWT secret automatically.
-
-#### Manual setup (alternative)
-
-If you prefer manual configuration, you can also define the JWT secret in `wp-config.php`:
-
-```php
-define( 'WPSIGNAL_JWT_SECRET', 'your_jwt_secret_here' );
-```
-
-This must match the `JWT_SECRET` in the server's `.env` file.
 
 ## Developer API
 
@@ -71,9 +31,10 @@ This must match the `JWT_SECRET` in the server's `.env` file.
 Map any WordPress action hook to a WPSignal event using the builder pattern:
 
 ```php
+use WPSignal\WPS;
+
 add_action( 'wpsignal_loaded', function () {
-    // Comment notification
-    WPSignal::trigger( 'comment.created' )
+    WPS::trigger( 'comment.created' )
         ->on( 'wp_insert_comment', 10, 2 )
         ->channel( 'events' )
         ->data( function ( $comment_id, $comment ) {
@@ -87,24 +48,6 @@ add_action( 'wpsignal_loaded', function () {
             return (int) $comment->comment_approved === 1;
         } )
         ->register();
-
-    // User login (minimal — no condition, default channel)
-    WPSignal::trigger( 'user.login' )
-        ->on( 'wp_login', 10, 2 )
-        ->data( function ( $user_login, $user ) {
-            return [ 'user_id' => $user->ID, 'login' => $user_login ];
-        } )
-        ->register();
-
-    // WooCommerce order (cross-plugin, custom channel)
-    WPSignal::trigger( 'order.completed' )
-        ->on( 'woocommerce_order_status_completed' )
-        ->channel( 'orders' )
-        ->data( function ( $order_id ) {
-            $order = wc_get_order( $order_id );
-            return [ 'order_id' => $order_id, 'total' => $order->get_total() ];
-        } )
-        ->register();
 } );
 ```
 
@@ -114,188 +57,131 @@ add_action( 'wpsignal_loaded', function () {
 |---|---|---|
 | `->on( $hook, $priority, $args )` | yes | WordPress action hook to listen on. Priority defaults to 10, args to 1. |
 | `->channel( $name )` | no | Channel to publish on. Defaults to `"events"`. |
-| `->data( callable )` | no | Callback that receives hook args and returns an associative array. |
-| `->when( callable )` | no | Callback that receives hook args. Return `false` to skip publishing. |
+| `->data( callable )` | no | Callback receiving hook args, returns an associative array. |
+| `->when( callable )` | no | Callback receiving hook args. Return `false` to skip publishing. |
 | `->register()` | yes | Wires the hook and adds the trigger to the registry. |
 
 ### Publishing events directly
 
-You can publish without a hook:
-
 ```php
-WPSignal::publish( 'events', 'custom.event', [ 'key' => 'value' ] );
+WPS::publish( 'events', 'custom.event', [ 'key' => 'value' ] );
 ```
-
-The legacy function `wpsignal_publish()` still works for backward compatibility.
 
 ### Listening for events in the browser
 
-For logged-in users, the plugin automatically connects via WebSocket (SSE fallback) and dispatches DOM events:
+For logged-in users, the plugin connects via WebSocket (SSE fallback) and dispatches DOM events:
 
 ```js
 document.addEventListener('wpsignal:post.updated', function (e) {
-    console.log('Post updated!', e.detail);
-    // e.detail.data.post_id
-    // e.detail.data.post_title
-    // e.detail.data.permalink
-});
-
-document.addEventListener('wpsignal:comment.created', function (e) {
-    console.log('New comment!', e.detail);
+    console.log('Post updated!', e.detail.data);
 });
 ```
 
-## Kitchen Sink
+### Public JS API (`window.WPS`)
 
-The **WPSignal > Kitchen Sink** admin page provides five panels for testing:
+The client script exposes `window.WPS` so any theme or plugin can share the WebSocket connection. Add `'wpsignal'` as a script dependency to ensure it loads first.
 
-1. **Connection Status** — configured badge, site key, "Test Connection" button (pings `/healthz`)
-2. **Registered Triggers** — table of all triggers (event, hook, channel, has condition)
-3. **Live Event Log** — connect via WebSocket, subscribe to channels, see events scroll in realtime
-4. **Publish Test Event** — form (channel, event name, JSON data) that publishes via REST proxy
-5. **Token Inspector** — mint a JWT, view decoded claims, watch the expiry countdown
+| Method | Returns | Description |
+|---|---|---|
+| `WPS.subscribe( channels )` | `void` | Subscribe to additional channels. Queued if not yet connected. |
+| `WPS.unsubscribe( channels )` | `void` | Unsubscribe from channels (or remove from pending queue). |
+| `WPS.publish( channel, event, data? )` | `void` | Send a message via WebSocket. Warns and no-ops on SSE. |
+| `WPS.on( event, handler )` | `() => void` | Listen for a specific event name. Returns unsubscribe fn. |
+| `WPS.onMessage( handler )` | `() => void` | Catch-all listener for all incoming messages. Returns unsubscribe fn. |
+| `WPS.connected` | `boolean` | Whether the connection is currently open (read-only). |
+| `WPS.onConnectionChange( handler )` | `() => void` | Listen for connect/disconnect. Returns unsubscribe fn. |
 
-## Architecture
+```js
+// Subscribe to a channel
+window.WPS.subscribe(['my-channel']);
 
-```
-wp-plugin/
-├── wpsignal.php                       Bootstrap: constants, autoloader, boot()
-│
-├── includes/
-│   ├── autoload.php                   PSR-4-style autoloader for WPSignal_* classes
-│   ├── class-wpsignal.php             Singleton facade: WPSignal::trigger(), ::publish()
-│   ├── class-wpsignal-config.php      wp_options accessor (base_url, site_key, etc.)
-│   ├── class-wpsignal-publisher.php   HMAC-signed HTTP POST to /publish
-│   ├── class-wpsignal-token.php       JWT minting + REST routes (/token, /connect, /publish)
-│   ├── class-wpsignal-trigger.php     Fluent trigger builder
-│   ├── class-wpsignal-trigger-registry.php  Registry: stores triggers, wires hooks
-│   ├── class-wpsignal-admin.php       Settings page + WPSignal admin menu
-│   ├── class-wpsignal-kitchen-sink.php  Kitchen Sink demo page
-│   ├── class-wpsignal-client.php      Frontend client.js enqueue
-│   ├── publish.php                    Backward-compat wrapper: wpsignal_publish()
-│   ├── rest.php                       Backward-compat wrappers: wpsignal_get_jwt_secret()
-│   └── admin.php                      Backward-compat stub
-│
-└── assets/
-    ├── client.js                      WebSocket-first browser client (SSE fallback)
-    ├── admin.js                       "Connect to WPSignal" button handler
-    └── kitchen-sink.js                Kitchen Sink page interactivity
-```
+// Listen for a specific event
+const off = window.WPS.on('post.updated', (data, channel) => {
+    console.log('Post updated!', data);
+});
 
-### Boot sequence
+// Publish a message through the WebSocket
+window.WPS.publish('my-channel', 'my.event', { key: 'value' });
 
-```
-wpsignal.php
-  → require autoload.php
-  → require publish.php, rest.php, admin.php (backward-compat wrappers)
-  → WPSignal::instance()->boot()
-      → instantiate Config, Publisher, Token, TriggerRegistry, Client, Admin
-      → TriggerRegistry->register_defaults() (save_post trigger)
-      → do_action('wpsignal_loaded') (signal for third-party registration)
-      → hook rest_api_init → Token->register_routes()
-      → Client->init()
-      → Admin->init() (if is_admin)
+// Catch-all listener
+const unsub = window.WPS.onMessage((event, data, channel) => {
+    console.log(event, data, channel);
+});
+
+// Check connection state
+console.log(window.WPS.connected);
+
+// React to connection changes
+const unsub2 = window.WPS.onConnectionChange((connected) => {
+    console.log('Connected:', connected);
+});
+
+// Unsubscribe from a channel
+window.WPS.unsubscribe(['my-channel']);
 ```
 
-### REST endpoints
+## REST endpoints
 
 | Endpoint | Auth | Purpose |
 |---|---|---|
 | `POST /wp-json/wpsignal/v1/token` | Logged-in user | Mint a 5-minute connection JWT |
 | `POST /wp-json/wpsignal/v1/connect` | Admin (`manage_options`) | Register site with WPSignal server |
 | `POST /wp-json/wpsignal/v1/publish` | Admin (`manage_options`) | Publish proxy (HMAC handled server-side) |
+| `GET /wp-json/wpsignal/v1/triggers` | Admin (`manage_options`) | Get saved custom triggers |
+| `POST /wp-json/wpsignal/v1/triggers` | Admin (`manage_options`) | Save custom triggers |
 
-### Built-in trigger
+## Admin pages
 
-The plugin registers one default trigger:
+- **Settings** — Server URL, API key, connection status, "Connect to WPSignal" button.
+- **Kitchen Sink** — Five test panels: connection status, registered triggers, live event log, publish form, token inspector.
+- **Triggers** — React UI for managing custom triggers (hook, event, channel, condition).
 
-| Event | Hook | Priority | Channel | Condition |
-|---|---|---|---|---|
-| `post.updated` | `save_post` | 20 | `events` | Published posts only (skips autosaves, revisions) |
+## Build
+
+TypeScript sources in `src/` are built with `@wordpress/scripts` using a custom webpack config with four entry points:
+
+```bash
+npm install
+npm run build   # Production build -> build/
+npm run start   # Watch mode
+```
+
+Entry points: `client.ts`, `admin.ts`, `kitchen-sink.ts`, `triggers/index.tsx`.
+
+## Source files
+
+### PHP (`includes/`)
+
+| File | Purpose |
+|---|---|
+| `class-wps.php` | Singleton facade: `WPS::trigger()`, `WPS::publish()`, `WPS::instance()` |
+| `class-wpsignal-config.php` | Centralizes `get_option('wpsignal_*')` calls |
+| `class-wpsignal-publisher.php` | HMAC-signed HTTP POST to `/publish` |
+| `class-wpsignal-token.php` | JWT minting + REST routes (`/token`, `/connect`, `/publish`) |
+| `class-wpsignal-trigger.php` | Fluent trigger builder |
+| `class-wpsignal-trigger-registry.php` | Stores triggers, wires WordPress hooks, registers defaults |
+| `class-wpsignal-custom-triggers.php` | Loads custom triggers from `wp_options` |
+| `class-wpsignal-triggers-rest.php` | REST controller for custom triggers CRUD |
+| `class-wpsignal-triggers-page.php` | Triggers admin page (React mount point) |
+| `class-wpsignal-admin-page.php` | Settings page, menu registration |
+| `class-wpsignal-kitchen-sink-page.php` | Kitchen Sink admin page (5 panels) |
+| `class-wpsignal-client.php` | Frontend script enqueue for logged-in users |
+| `autoload.php` | PSR-4 autoloader for `WPSignal\` namespace |
+
+### TypeScript (`src/`)
+
+| File | Purpose |
+|---|---|
+| `client.ts` | WebSocket client with SSE fallback, exposes `window.WPS` API |
+| `admin.ts` | "Connect to WPSignal" button handler |
+| `kitchen-sink.ts` | Kitchen Sink page interactivity |
+| `triggers/` | React app for the Triggers admin page |
+| `types/globals.d.ts` | Global type declarations for localized data |
 
 ## Security
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                      Security boundaries                         │
-│                                                                  │
-│  Browser (public)           Server (trusted)      WP (trusted)   │
-│  ─────────────────          ────────────────      ────────────   │
-│                                                                  │
-│  - Never sees site_secret   - Verifies HMAC      - Stores keys   │
-│  - Only gets short-lived      on every publish      securely in  │
-│    JWT (5 min expiry)       - Verifies JWT on       wp_options   │
-│  - Can only subscribe to      every WS/SSE        - Only mints   │
-│    channels allowed by        connect               tokens for   │
-│    the JWT                  - Rejects stale         logged-in    │
-│  - Cannot publish events      timestamps (60s)      users        │
-│    directly (uses REST      - Rate limits per     - Publish      │
-│    proxy for Kitchen Sink)    site key              proxy keeps  │
-│                                                     secret       │
-│                                                     server-side  │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-## Testing end-to-end
-
-### What you need running
-
-```
-┌──────────────────────────────────────────┐
-│  1. wpsignal-server  (cargo run)         │
-│  2. WordPress site   (with plugin)       │
-│  3. Browser          (logged in to WP)   │
-└──────────────────────────────────────────┘
-```
-
-### Step-by-step
-
-**1. Start the Rust server**
-
-```bash
-cd server
-cargo run
-```
-
-**2. Connect the plugin**
-
-Go to **WPSignal > Settings**, enter the server URL and API key, save, then click **Connect to WPSignal**.
-
-**3. Open your site in a browser**
-
-- Log in to WordPress.
-- Navigate to any front-end page.
-- Open the browser console (F12 or Cmd+Option+J).
-
-You should see:
-
-```
-[WPSignal] Token obtained, expires at 2026-02-10T05:30:00.000Z
-[WPSignal] WebSocket connected
-[WPSignal] Subscribed to ["site:...:events"]
-```
-
-**4. Edit a post**
-
-- Open wp-admin in another tab.
-- Edit any post and click **Update**.
-
-**5. Check the console**
-
-```
-[WPSignal] post.updated {channel: "events", data: {post_id: 42, post_title: "My Post", ...}}
-```
-
-**6. Try the Kitchen Sink**
-
-Go to **WPSignal > Kitchen Sink** to connect via WebSocket, publish test events, and inspect tokens — all from the admin.
-
-## Troubleshooting
-
-| Symptom | Likely cause | Fix |
+| Browser (public) | Server (trusted) | WP (trusted) |
 |---|---|---|
-| Console shows "token request failed (401)" | Not logged in, or nonce expired | Log in to WordPress, refresh the page |
-| Console shows "token request failed (500)" | JWT secret not configured | Click "Connect to WPSignal" in settings, or add `WPSIGNAL_JWT_SECRET` to `wp-config.php` |
-| WebSocket connects but no events arrive | Plugin not configured or channel mismatch | Check WPSignal > Kitchen Sink > Connection Status |
-| "WPSignal is not configured" in error log | Plugin settings are empty | Go to WPSignal > Settings and connect |
-| Events publish but browser doesn't receive | Token expired or wrong channels | Check browser console for errors; client auto-refreshes tokens at 80% TTL |
+| Never sees site_secret | Verifies HMAC on every publish | Stores keys in wp_options |
+| Only gets short-lived JWT (5 min) | Verifies JWT on every WS/SSE connect | Only mints tokens for logged-in users |
+| Channel access restricted by JWT | Rejects stale timestamps (60s) | Publish proxy keeps secret server-side |

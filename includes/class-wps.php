@@ -151,8 +151,6 @@ class WPS {
 		}
 	}
 
-	// -- Component accessors ------------------------------------------------
-
 	/**
 	 * Get the configuration accessor.
 	 *
@@ -188,8 +186,6 @@ class WPS {
 	public function trigger_registry() {
 		return $this->trigger_registry_instance;
 	}
-
-	// -- Static convenience methods -----------------------------------------
 
 	/**
 	 * Create a new trigger builder.

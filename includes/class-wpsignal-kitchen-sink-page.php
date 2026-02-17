@@ -75,11 +75,14 @@ class Kitchen_Sink_Page {
 	 * @return void
 	 */
 	private function enqueue_assets() {
+		$asset_file = DIR . 'build/kitchen-sink.asset.php';
+		$asset      = file_exists( $asset_file ) ? require $asset_file : array( 'dependencies' => array(), 'version' => VERSION );
+
 		wp_enqueue_script(
 			'wpsignal-kitchen-sink',
-			URL . 'assets/kitchen-sink.js',
-			array(),
-			VERSION,
+			URL . 'build/kitchen-sink.js',
+			$asset['dependencies'],
+			$asset['version'],
 			true
 		);
 

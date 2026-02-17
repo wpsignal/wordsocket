@@ -193,11 +193,14 @@ class Admin_Page {
 			return;
 		}
 
+		$asset_file = DIR . 'build/admin.asset.php';
+		$asset      = file_exists( $asset_file ) ? require $asset_file : array( 'dependencies' => array(), 'version' => VERSION );
+
 		wp_enqueue_script(
 			'wpsignal-admin',
-			URL . 'assets/admin.js',
-			array(),
-			VERSION,
+			URL . 'build/admin.js',
+			$asset['dependencies'],
+			$asset['version'],
 			true
 		);
 		wp_localize_script( 'wpsignal-admin', 'wpSignalAdmin', array(
