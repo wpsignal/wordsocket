@@ -63,9 +63,6 @@ class WPS {
 	/** @var Triggers_REST REST endpoint for trigger management. */
 	private $triggers_rest;
 
-	/** @var Triggers_Page Admin submenu page for triggers. */
-	private $triggers_page;
-
 	/** @var Custom_Triggers Hydrates saved trigger configs into the registry. */
 	private $custom_triggers;
 
@@ -144,10 +141,8 @@ class WPS {
 		$this->client_instance->init();
 
 		// Admin pages.
-		$this->triggers_page = new Triggers_Page();
 		if ( is_admin() ) {
 			$this->admin_instance->init();
-			$this->triggers_page->init();
 		}
 	}
 

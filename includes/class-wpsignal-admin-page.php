@@ -3,12 +3,8 @@
  * WPSignal\Admin_Page - WordPress admin settings page and menu registration.
  *
  * Registers a top-level "WPSignal" admin menu with two subpages:
- *   - Settings — server URL, API key, connection status, "Connect to WPSignal" button.
- *   - Kitchen Sink — interactive demo page (delegated to Kitchen_Sink_Page).
- *
- * The settings page uses the WordPress Settings API (register_setting,
- * add_settings_section, add_settings_field). The "Connect to WPSignal"
- * button calls the REST endpoint POST /wpsignal/v1/connect via fetch.
+ *   - Settings — React SPA with Connection and Triggers tabs.
+ *   - Monitor  — interactive debug/test page (delegated to Kitchen_Sink_Page).
  *
  * @package WPSignal
  */
@@ -24,7 +20,7 @@ class Admin_Page {
 	/** @var Config Configuration accessor. */
 	private $config;
 
-	/** @var Kitchen_Sink_Page Kitchen Sink subpage handler. */
+	/** @var Kitchen_Sink_Page Kitchen Sink (Monitor) subpage handler. */
 	private $kitchen_sink;
 
 	/**
@@ -44,7 +40,6 @@ class Admin_Page {
 	 */
 	public function init() {
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
-		add_action( 'admin_init', array( $this, 'register_settings' ) );
 	}
 
 	/**
@@ -52,8 +47,8 @@ class Admin_Page {
 	 *
 	 * Creates:
 	 *   - WPSignal (top-level, dashicons-rss)
-	 *     - Settings (default subpage)
-	 *     - Kitchen Sink
+	 *     - Settings (React app: Connection + Triggers tabs)
+	 *     - Monitor  (renamed from Kitchen Sink)
 	 *
 	 * @return void
 	 */
@@ -79,8 +74,8 @@ class Admin_Page {
 
 		add_submenu_page(
 			'wpsignal',
-			__( 'Kitchen Sink', 'wpsignal' ),
-			__( 'Kitchen Sink', 'wpsignal' ),
+			__( 'Monitor', 'wpsignal' ),
+			__( 'Monitor', 'wpsignal' ),
 			'manage_options',
 			'wpsignal-kitchen-sink',
 			array( $this->kitchen_sink, 'render_page' )
@@ -88,103 +83,10 @@ class Admin_Page {
 	}
 
 	/**
-	 * Register settings fields with the WordPress Settings API.
+	 * Render the Settings page — mounts the React app.
 	 *
-	 * Registers four options (wpsignal_base_url, wpsignal_api_key,
-	 * wpsignal_site_key, wpsignal_site_secret) and renders them in the
-	 * "Connection Settings" section.
-	 *
-	 * @return void
-	 */
-	public function register_settings() {
-		register_setting( 'wpsignal_settings', 'wpsignal_base_url', array(
-			'type'              => 'string',
-			'sanitize_callback' => 'esc_url_raw',
-			'default'           => '',
-		) );
-
-		register_setting( 'wpsignal_settings', 'wpsignal_api_key', array(
-			'type'              => 'string',
-			'sanitize_callback' => 'sanitize_text_field',
-			'default'           => '',
-		) );
-
-		register_setting( 'wpsignal_settings', 'wpsignal_site_key', array(
-			'type'              => 'string',
-			'sanitize_callback' => 'sanitize_text_field',
-			'default'           => '',
-		) );
-
-		register_setting( 'wpsignal_settings', 'wpsignal_site_secret', array(
-			'type'              => 'string',
-			'sanitize_callback' => 'sanitize_text_field',
-			'default'           => '',
-		) );
-
-		add_settings_section(
-			'wpsignal_main',
-			__( 'Connection Settings', 'wpsignal' ),
-			'__return_null',
-			'wpsignal'
-		);
-
-		add_settings_field( 'wpsignal_base_url', __( 'Server URL', 'wpsignal' ), array( $this, 'field_base_url' ), 'wpsignal', 'wpsignal_main' );
-		add_settings_field( 'wpsignal_api_key', __( 'API Key', 'wpsignal' ), array( $this, 'field_api_key' ), 'wpsignal', 'wpsignal_main' );
-		add_settings_field( 'wpsignal_connection_status', __( 'Status', 'wpsignal' ), array( $this, 'field_connection_status' ), 'wpsignal', 'wpsignal_main' );
-	}
-
-	/**
-	 * Render the Server URL input field.
-	 *
-	 * @return void
-	 */
-	public function field_base_url() {
-		$value = $this->config->base_url();
-		printf(
-			'<input type="url" name="wpsignal_base_url" value="%s" class="regular-text" placeholder="https://api.wpsignal.io" />',
-			esc_attr( $value )
-		);
-		echo '<p class="description">' . esc_html__( 'The wpsignal.io service URL.', 'wpsignal' ) . '</p>';
-	}
-
-	/**
-	 * Render the API Key input field.
-	 *
-	 * @return void
-	 */
-	public function field_api_key() {
-		$value = $this->config->api_key();
-		printf(
-			'<input type="password" name="wpsignal_api_key" value="%s" class="regular-text" />',
-			esc_attr( $value )
-		);
-		echo '<p class="description">' . esc_html__( 'Get your API key from your wpsignal.io dashboard.', 'wpsignal' ) . '</p>';
-	}
-
-	/**
-	 * Render the connection status indicator.
-	 *
-	 * Shows a green checkmark + site key when connected, or a red X when not.
-	 *
-	 * @return void
-	 */
-	public function field_connection_status() {
-		$site_key = $this->config->site_key();
-
-		if ( ! empty( $site_key ) ) {
-			echo '<span style="color:#46b450;">&#10003; Connected</span>';
-			echo '<br /><code>' . esc_html( $site_key ) . '</code>';
-		} else {
-			echo '<span style="color:#dc3232;">&#10005; Not connected</span>';
-		}
-	}
-
-	/**
-	 * Render the full settings page.
-	 *
-	 * Enqueues admin.js (vanilla JS, no jQuery), localizes the REST connect
-	 * URL and nonce, then outputs the settings form and "Connect to WPSignal"
-	 * button.
+	 * Enqueues build/settings.js + build/settings.css, localizes configuration
+	 * data, and renders the mount point div.
 	 *
 	 * @return void
 	 */
@@ -193,43 +95,48 @@ class Admin_Page {
 			return;
 		}
 
-		$asset_file = DIR . 'build/admin.asset.php';
+		$asset_file = DIR . 'build/settings.asset.php';
 		$asset      = file_exists( $asset_file ) ? require $asset_file : array( 'dependencies' => array(), 'version' => VERSION );
 
 		wp_enqueue_script(
-			'wpsignal-admin',
-			URL . 'build/admin.js',
+			'wpsignal-settings',
+			URL . 'build/settings.js',
 			$asset['dependencies'],
 			$asset['version'],
 			true
 		);
-		wp_localize_script( 'wpsignal-admin', 'wpSignalAdmin', array(
+
+		wp_enqueue_style(
+			'wpsignal-settings',
+			URL . 'build/settings.css',
+			array( 'wp-components' ),
+			$asset['version']
+		);
+
+		// Localize post types for the triggers dropdown.
+		$post_types = get_post_types( array( 'public' => true ), 'objects' );
+		$types_list = array();
+		foreach ( $post_types as $pt ) {
+			$types_list[] = array(
+				'value' => $pt->name,
+				'label' => $pt->labels->singular_name,
+			);
+		}
+
+		wp_localize_script( 'wpsignal-settings', 'wpsignalSettings', array(
 			'connectUrl' => rest_url( 'wpsignal/v1/connect' ),
+			'restUrl'    => rest_url( 'wpsignal/v1/' ),
 			'nonce'      => wp_create_nonce( 'wp_rest' ),
+			'postTypes'  => $types_list,
+			'baseUrl'    => $this->config->base_url(),
+			'apiKey'     => $this->config->api_key(),
+			'siteKey'    => $this->config->site_key(),
 		) );
 
-		?>
-		<div class="wrap">
-			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
-
-			<form action="options.php" method="post">
-				<?php
-				settings_fields( 'wpsignal_settings' );
-				do_settings_sections( 'wpsignal' );
-				submit_button();
-				?>
-			</form>
-
-			<hr />
-
-			<h2><?php esc_html_e( 'Quick Connect', 'wpsignal' ); ?></h2>
-			<p><?php esc_html_e( 'Save your Server URL and API Key above, then click the button below to automatically register this site.', 'wpsignal' ); ?></p>
-			<button type="button" id="wpsignal-connect-btn" class="button button-primary">
-				<?php esc_html_e( 'Connect to WPSignal', 'wpsignal' ); ?>
-			</button>
-			<span id="wpsignal-connect-status" style="margin-left:10px;"></span>
-		</div>
-		<?php
+		echo '<div class="wrap">';
+		echo '<h1>' . esc_html( get_admin_page_title() ) . '</h1>';
+		echo '<div id="wpsignal-settings-root"></div>';
+		echo '</div>';
 	}
 
 }

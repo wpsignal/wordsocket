@@ -5,8 +5,10 @@
  * Registers three REST API endpoints under the `wpsignal/v1` namespace:
  *
  *   POST /wp-json/wpsignal/v1/token   — Mint a short-lived connection JWT (any logged-in user).
- *   POST /wp-json/wpsignal/v1/connect — Register this site with the WPSignal server (admin only).
- *   POST /wp-json/wpsignal/v1/publish — Publish an event via PHP proxy (admin only).
+ *   POST /wp-json/wpsignal/v1/connect  — Register this site with the WPSignal server (admin only).
+ *   POST /wp-json/wpsignal/v1/publish  — Publish an event via PHP proxy (admin only).
+ *   GET  /wp-json/wpsignal/v1/settings — Read connection settings (admin only).
+ *   POST /wp-json/wpsignal/v1/settings — Save connection settings (admin only).
  *
  * The token endpoint mints HS256 JWTs that browsers use to connect via
  * WebSocket or SSE. The JWT contains tenant_id, site_id, user_id, and
@@ -73,6 +75,23 @@ class Token {
 			'permission_callback' => function () {
 				return current_user_can( 'manage_options' );
 			},
+		) );
+
+		register_rest_route( 'wpsignal/v1', '/settings', array(
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'handle_get_settings' ),
+				'permission_callback' => function () {
+					return current_user_can( 'manage_options' );
+				},
+			),
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'handle_save_settings' ),
+				'permission_callback' => function () {
+					return current_user_can( 'manage_options' );
+				},
+			),
 		) );
 	}
 
@@ -260,6 +279,112 @@ class Token {
 		return rest_ensure_response( array(
 			'message'  => __( 'Connected to WPSignal!', 'wpsignal' ),
 			'site_key' => $data['site_key'],
+		) );
+	}
+
+	/**
+	 * Return current connection settings.
+	 *
+	 * When the site appears locally configured, verifies the site_key still
+	 * exists on the server via a lightweight publish. If the server returns
+	 * 401 (unknown site key), the local registration is cleared.
+	 *
+	 * Response:
+	 *
+	 *     { "base_url": "…", "api_key": "…", "site_key": "…", "is_connected": true }
+	 *
+	 * @param WP_REST_Request $request The incoming REST request.
+	 * @return WP_REST_Response Settings response.
+	 */
+	public function handle_get_settings( WP_REST_Request $request ) {
+		$is_connected = $this->config->is_configured();
+
+		if ( $is_connected ) {
+			$is_connected = $this->verify_site_exists();
+		}
+
+		return rest_ensure_response( array(
+			'base_url'     => $this->config->base_url(),
+			'api_key'      => $this->config->api_key(),
+			'site_key'     => $is_connected ? $this->config->site_key() : '',
+			'is_connected' => $is_connected,
+		) );
+	}
+
+	/**
+	 * Verify the registered site still exists on the WPSignal server.
+	 *
+	 * Sends a publish request with a dummy signature so the server never
+	 * reaches hub.publish() — no event is broadcast. The server checks
+	 * site_key existence before HMAC verification, so the response body
+	 * distinguishes the two 401 cases:
+	 *
+	 *   - "unknown site key"  → site was deleted → clear local credentials.
+	 *   - "invalid signature" → site still exists (expected, since we sent a dummy).
+	 *
+	 * Network errors are treated as "still connected" to avoid false
+	 * negatives when the server is temporarily unreachable.
+	 *
+	 * @return bool True if the site still exists (or server is unreachable).
+	 */
+	private function verify_site_exists() {
+		$body         = '{}';
+		$timestamp_ms = (string) round( microtime( true ) * 1000 );
+		$url          = trailingslashit( $this->config->base_url() ) . 'publish';
+
+		$response = wp_remote_post( $url, array(
+			'timeout' => 3,
+			'headers' => array(
+				'Content-Type'     => 'application/json',
+				'X-WP-Signal-Key'  => $this->config->site_key(),
+				'X-WP-Signal-Ts'   => $timestamp_ms,
+				'X-WP-Signal-Sign' => 'dummy',
+			),
+			'body' => $body,
+		) );
+
+		if ( is_wp_error( $response ) ) {
+			return true; // Network error — assume still connected.
+		}
+
+		$response_body = wp_remote_retrieve_body( $response );
+
+		if ( strpos( $response_body, 'unknown site key' ) !== false ) {
+			delete_option( 'wpsignal_site_key' );
+			delete_option( 'wpsignal_site_secret' );
+			delete_option( 'wpsignal_jwt_secret' );
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Save connection settings (Server URL and API Key).
+	 *
+	 * Request body:
+	 *
+	 *     { "base_url": "https://…", "api_key": "abc123" }
+	 *
+	 * @param WP_REST_Request $request The incoming REST request.
+	 * @return WP_REST_Response Updated settings response.
+	 */
+	public function handle_save_settings( WP_REST_Request $request ) {
+		$base_url = $request->get_param( 'base_url' );
+		$api_key  = $request->get_param( 'api_key' );
+
+		if ( $base_url !== null ) {
+			update_option( 'wpsignal_base_url', esc_url_raw( $base_url ) );
+		}
+		if ( $api_key !== null ) {
+			update_option( 'wpsignal_api_key', sanitize_text_field( $api_key ) );
+		}
+
+		return rest_ensure_response( array(
+			'base_url'     => $this->config->base_url(),
+			'api_key'      => $this->config->api_key(),
+			'site_key'     => $this->config->site_key(),
+			'is_connected' => $this->config->is_configured(),
 		) );
 	}
 

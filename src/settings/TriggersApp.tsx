@@ -23,7 +23,7 @@ export function TriggersApp() {
 	const [ saving, setSaving ] = useState( false );
 	const [ notice, setNotice ] = useState< NoticeState | null >( null );
 
-	const postTypes: PostTypeOption[] = window.wpsignalTriggers?.postTypes || [];
+	const postTypes: PostTypeOption[] = window.wpsignalSettings?.postTypes || [];
 
 	useEffect( () => {
 		getTriggers()

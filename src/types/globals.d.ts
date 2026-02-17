@@ -5,10 +5,15 @@ interface WpSignalConfig {
 	baseUrl: string;
 }
 
-/** Localized by class-wpsignal-admin-page.php */
-interface WpSignalAdmin {
+/** Localized by class-wpsignal-admin-page.php (Settings React app) */
+interface WpSignalSettings {
 	connectUrl: string;
+	restUrl: string;
 	nonce: string;
+	postTypes: Array< { value: string; label: string } >;
+	baseUrl: string;
+	apiKey: string;
+	siteKey: string;
 }
 
 /** Localized by class-wpsignal-kitchen-sink-page.php */
@@ -20,11 +25,6 @@ interface WpSignalKitchenSink {
 	publishUrl: string;
 	nonce: string;
 	configured: boolean;
-}
-
-/** Localized by class-wpsignal-triggers-page.php */
-interface WpSignalTriggers {
-	postTypes: Array< { value: string; label: string } >;
 }
 
 type WPSMessageHandler = ( event: string, data: Record< string, unknown >, channel: string ) => void;
@@ -51,9 +51,8 @@ interface WPSApi {
 declare global {
 	interface Window {
 		wpSignalConfig?: WpSignalConfig;
-		wpSignalAdmin?: WpSignalAdmin;
+		wpsignalSettings?: WpSignalSettings;
 		wpSignalKitchenSink?: WpSignalKitchenSink;
-		wpsignalTriggers?: WpSignalTriggers;
 		WPS?: WPSApi;
 	}
 }

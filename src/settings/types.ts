@@ -10,3 +10,15 @@ export interface PostTypeOption {
 	value: string;
 	label: string;
 }
+
+export interface Settings {
+	base_url: string;
+	api_key: string;
+	site_key: string;
+	is_connected: boolean;
+}
+
+export interface ConnectResponse {
+	message: string;
+	site_key: string;
+}

@@ -1,6 +1,6 @@
 # WPSignal WordPress Plugin
 
-Sends realtime events from WordPress to browsers via [wpsignal.io](https://wpsignal.io). Connects via WebSocket (SSE fallback) and exposes a public JS API for other plugins to share the connection.
+Sends realtime events from WordPress to browsers via [api.wpsignal.io](https://api.wpsignal.io). Connects via WebSocket (SSE fallback) and exposes a public JS API for other plugins to share the connection.
 
 ## Installation
 
@@ -19,7 +19,7 @@ Go to **WPSignal > Settings** and fill in:
 
 | Field | Description |
 |---|---|
-| **Server URL** | The wpsignal server URL (e.g. `https://api.wpsignal.io`) |
+| **Server URL** | The wpsignal server URL (e.g. [https://api.wpsignal.io](https://api.wpsignal.io)) |
 | **API Key** | Your API key from the wpsignal.io dashboard |
 
 Then click **Connect to WPSignal**. The plugin registers with the server and saves the site key, publish secret, and JWT secret automatically.
@@ -127,18 +127,19 @@ window.WPS.unsubscribe(['my-channel']);
 | `POST /wp-json/wpsignal/v1/token` | Logged-in user | Mint a 5-minute connection JWT |
 | `POST /wp-json/wpsignal/v1/connect` | Admin (`manage_options`) | Register site with WPSignal server |
 | `POST /wp-json/wpsignal/v1/publish` | Admin (`manage_options`) | Publish proxy (HMAC handled server-side) |
+| `GET /wp-json/wpsignal/v1/settings` | Admin (`manage_options`) | Get connection settings |
+| `POST /wp-json/wpsignal/v1/settings` | Admin (`manage_options`) | Save connection settings |
 | `GET /wp-json/wpsignal/v1/triggers` | Admin (`manage_options`) | Get saved custom triggers |
 | `POST /wp-json/wpsignal/v1/triggers` | Admin (`manage_options`) | Save custom triggers |
 
 ## Admin pages
 
-- **Settings** — Server URL, API key, connection status, "Connect to WPSignal" button.
-- **Kitchen Sink** — Five test panels: connection status, registered triggers, live event log, publish form, token inspector.
-- **Triggers** — React UI for managing custom triggers (hook, event, channel, condition).
+- **Settings** — React app with two tabs: Connection (server URL, API key, connect button, status) and Triggers (custom trigger CRUD).
+- **Monitor** — Five test panels: connection status, registered triggers, live event log, publish form, token inspector.
 
 ## Build
 
-TypeScript sources in `src/` are built with `@wordpress/scripts` using a custom webpack config with four entry points:
+TypeScript sources in `src/` are built with `@wordpress/scripts` using a custom webpack config with three entry points:
 
 ```bash
 npm install
@@ -146,7 +147,7 @@ npm run build   # Production build -> build/
 npm run start   # Watch mode
 ```
 
-Entry points: `client.ts`, `admin.ts`, `kitchen-sink.ts`, `triggers/index.tsx`.
+Entry points: `client.ts`, `settings/index.tsx`, `kitchen-sink.ts`.
 
 ## Source files
 
@@ -157,14 +158,13 @@ Entry points: `client.ts`, `admin.ts`, `kitchen-sink.ts`, `triggers/index.tsx`.
 | `class-wps.php` | Singleton facade: `WPS::trigger()`, `WPS::publish()`, `WPS::instance()` |
 | `class-wpsignal-config.php` | Centralizes `get_option('wpsignal_*')` calls |
 | `class-wpsignal-publisher.php` | HMAC-signed HTTP POST to `/publish` |
-| `class-wpsignal-token.php` | JWT minting + REST routes (`/token`, `/connect`, `/publish`) |
+| `class-wpsignal-token.php` | JWT minting + REST routes (`/token`, `/connect`, `/publish`, `/settings`) |
 | `class-wpsignal-trigger.php` | Fluent trigger builder |
 | `class-wpsignal-trigger-registry.php` | Stores triggers, wires WordPress hooks, registers defaults |
 | `class-wpsignal-custom-triggers.php` | Loads custom triggers from `wp_options` |
 | `class-wpsignal-triggers-rest.php` | REST controller for custom triggers CRUD |
-| `class-wpsignal-triggers-page.php` | Triggers admin page (React mount point) |
-| `class-wpsignal-admin-page.php` | Settings page, menu registration |
-| `class-wpsignal-kitchen-sink-page.php` | Kitchen Sink admin page (5 panels) |
+| `class-wpsignal-admin-page.php` | Settings page (React mount), menu registration |
+| `class-wpsignal-kitchen-sink-page.php` | Monitor admin page (5 panels) |
 | `class-wpsignal-client.php` | Frontend script enqueue for logged-in users |
 | `autoload.php` | PSR-4 autoloader for `WPSignal\` namespace |
 
@@ -173,9 +173,8 @@ Entry points: `client.ts`, `admin.ts`, `kitchen-sink.ts`, `triggers/index.tsx`.
 | File | Purpose |
 |---|---|
 | `client.ts` | WebSocket client with SSE fallback, exposes `window.WPS` API |
-| `admin.ts` | "Connect to WPSignal" button handler |
-| `kitchen-sink.ts` | Kitchen Sink page interactivity |
-| `triggers/` | React app for the Triggers admin page |
+| `kitchen-sink.ts` | Monitor page interactivity |
+| `settings/` | React app for the Settings page (Connection + Triggers tabs) |
 | `types/globals.d.ts` | Global type declarations for localized data |
 
 ## Security
