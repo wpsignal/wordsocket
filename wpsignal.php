@@ -1,12 +1,16 @@
 <?php
 /**
- * Plugin Name: WPSignal
+ * Plugin Name: WP Signal
  * Plugin URI:  https://wpsignal.io
  * Description: Realtime push events from WordPress to browsers via wpsignal.io (WebSocket/SSE).
  * Version:     0.2.0
  * Author:      WPSignal
  * License:     GPL-2.0-or-later
  * Text Domain: wpsignal
+ * Requires at least: 6.2
+ * Tested up to:      6.7
+ * Requires PHP:      7.4
+ * Domain Path:       /languages
  *
  * @package WPSignal
  *

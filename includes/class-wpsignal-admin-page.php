@@ -4,7 +4,7 @@
  *
  * Registers a top-level "WPSignal" admin menu with two subpages:
  *   - Settings — React SPA with Connection and Triggers tabs.
- *   - Monitor  — interactive debug/test page (delegated to Kitchen_Sink_Page).
+ *   - Monitor  — interactive debug/test page (delegated to Monitor_Page).
  *
  * @package WPSignal
  */
@@ -20,15 +20,15 @@ class Admin_Page {
 	/** @var Config Configuration accessor. */
 	private $config;
 
-	/** @var Kitchen_Sink_Page Kitchen Sink (Monitor) subpage handler. */
-	private $kitchen_sink;
+	/** @var Monitor_Page Monitor subpage handler. */
+	private $monitor;
 
 	/**
 	 * @param Config $config Configuration accessor.
 	 */
 	public function __construct( Config $config ) {
-		$this->config       = $config;
-		$this->kitchen_sink = new Kitchen_Sink_Page( $config );
+		$this->config  = $config;
+		$this->monitor = new Monitor_Page( $config );
 	}
 
 	/**
@@ -48,7 +48,7 @@ class Admin_Page {
 	 * Creates:
 	 *   - WPSignal (top-level, dashicons-rss)
 	 *     - Settings (React app: Connection + Triggers tabs)
-	 *     - Monitor  (renamed from Kitchen Sink)
+	 *     - Monitor  (renamed from Monitor)
 	 *
 	 * @return void
 	 */
@@ -59,7 +59,7 @@ class Admin_Page {
 			'manage_options',
 			'wpsignal',
 			array( $this, 'render_settings_page' ),
-			'dashicons-rss',
+			$this->get_menu_icon(),
 			80
 		);
 
@@ -77,9 +77,22 @@ class Admin_Page {
 			__( 'Monitor', 'wpsignal' ),
 			__( 'Monitor', 'wpsignal' ),
 			'manage_options',
-			'wpsignal-kitchen-sink',
-			array( $this->kitchen_sink, 'render_page' )
+			'wpsignal-monitor',
+			array( $this->monitor, 'render_page' )
 		);
+	}
+
+	/**
+	 * Menu icon for the top-level WPSignal item.
+	 *
+	 * Returns the URL to the plugin SVG icon. Alternatively you can return a
+	 * data URI: 'data:image/svg+xml;base64,' . base64_encode( $svg_markup )
+	 *
+	 * @return string
+	 */
+	private function get_menu_icon() {
+		$svg = '<svg width="800" height="800" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M18 7a7.67 7.67 0 0 0-6 3.19A7.67 7.67 0 0 0 6 7c-3.687 0-5 2.583-5 5 0 3.687 2.583 5 5 5a7.67 7.67 0 0 0 6-3.19A7.67 7.67 0 0 0 18 17c2.417 0 5-1.313 5-5 0-2.417-1.313-5-5-5M6 15a2.69 2.69 0 0 1-3-3 2.69 2.69 0 0 1 3-3c2.579 0 4.225 2.065 4.837 3-.612.935-2.258 3-4.837 3m12 0c-2.579 0-4.225-2.065-4.837-3 .612-.935 2.258-3 4.837-3a2.69 2.69 0 0 1 3 3 2.69 2.69 0 0 1-3 3"/></svg>';
+		return 'data:image/svg+xml;base64,' . base64_encode( $svg );
 	}
 
 	/**

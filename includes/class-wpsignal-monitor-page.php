@@ -1,8 +1,8 @@
 <?php
 /**
- * WPSignal\Kitchen_Sink_Page — interactive admin demo page.
+ * WPSignal\Monitor_Page — interactive admin demo page.
  *
- * Renders a full-page admin view at WPSignal > Kitchen Sink with five panels
+ * Renders a full-page admin view at WP Signal > Monitor with five panels
  * for testing and inspecting all plugin features:
  *
  *   1. Connection Status — configured badge, site_key, "Test Connection" button
@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class Kitchen_Sink_Page {
+class Monitor_Page {
 
 	/** @var Config Configuration accessor. */
 	private $config;
@@ -37,9 +37,9 @@ class Kitchen_Sink_Page {
 	}
 
 	/**
-	 * Render the Kitchen Sink admin page.
+	 * Render the Monitor admin page.
 	 *
-	 * Called as the callback for the "Kitchen Sink" submenu page.
+	 * Called as the callback for the "Monitor" submenu page.
 	 * Requires `manage_options` capability.
 	 *
 	 * @return void
@@ -55,7 +55,7 @@ class Kitchen_Sink_Page {
 
 		?>
 		<div class="wrap">
-			<h1><?php esc_html_e( 'WPSignal Kitchen Sink', 'wpsignal' ); ?></h1>
+			<h1><?php esc_html_e( 'WP Signal Monitor', 'wpsignal' ); ?></h1>
 
 			<?php $this->render_connection_status(); ?>
 			<?php $this->render_triggers_table( $triggers ); ?>
@@ -67,26 +67,26 @@ class Kitchen_Sink_Page {
 	}
 
 	/**
-	 * Enqueue the kitchen-sink.js script and localize configuration.
+	 * Enqueue the monitor.js script and localize configuration.
 	 *
 	 * Passes baseUrl, siteKey, REST URLs, nonce, and configured status
-	 * to the JavaScript via `wpSignalKitchenSink`.
+	 * to the JavaScript via `wpSignalMonitor`.
 	 *
 	 * @return void
 	 */
 	private function enqueue_assets() {
-		$asset_file = DIR . 'build/kitchen-sink.asset.php';
+		$asset_file = DIR . 'build/monitor.asset.php';
 		$asset      = file_exists( $asset_file ) ? require $asset_file : array( 'dependencies' => array(), 'version' => VERSION );
 
 		wp_enqueue_script(
-			'wpsignal-kitchen-sink',
-			URL . 'build/kitchen-sink.js',
+			'wpsignal-monitor',
+			URL . 'build/monitor.js',
 			$asset['dependencies'],
 			$asset['version'],
 			true
 		);
 
-		wp_localize_script( 'wpsignal-kitchen-sink', 'wpSignalKitchenSink', array(
+		wp_localize_script( 'wpsignal-monitor', 'wpSignalMonitor', array(
 			'baseUrl'    => esc_url( $this->config->base_url() ),
 			'siteKey'    => $this->config->site_key(),
 			'restUrl'    => rest_url( 'wpsignal/v1/' ),
@@ -197,7 +197,7 @@ class Kitchen_Sink_Page {
 	 * Render Panel 3: Live Event Log.
 	 *
 	 * Provides channel input, connect/disconnect buttons, and a scrolling
-	 * monospace event log. All interactivity handled by kitchen-sink.js.
+	 * monospace event log. All interactivity handled by monitor.js.
 	 *
 	 * @return void
 	 */
@@ -235,7 +235,7 @@ class Kitchen_Sink_Page {
 	 *
 	 * Form with channel, event name, and JSON data fields. Publishes via
 	 * the REST proxy (POST /wpsignal/v1/publish) so the site secret stays
-	 * server-side. Handled by kitchen-sink.js.
+	 * server-side. Handled by monitor.js.
 	 *
 	 * @return void
 	 */
@@ -255,7 +255,7 @@ class Kitchen_Sink_Page {
 				</tr>
 				<tr>
 					<th scope="row"><label for="wpsignal-ks-pub-data"><?php esc_html_e( 'JSON Data', 'wpsignal' ); ?></label></th>
-					<td><textarea id="wpsignal-ks-pub-data" class="large-text" rows="4">{"message": "Hello from Kitchen Sink!"}</textarea></td>
+					<td><textarea id="wpsignal-ks-pub-data" class="large-text" rows="4">{"message": "Hello from Monitor!"}</textarea></td>
 				</tr>
 			</table>
 
@@ -273,7 +273,7 @@ class Kitchen_Sink_Page {
 	 * Render Panel 5: Token Inspector.
 	 *
 	 * "Mint Token" button, raw token display, decoded JWT claims, and
-	 * live expiry countdown. Handled by kitchen-sink.js.
+	 * live expiry countdown. Handled by monitor.js.
 	 *
 	 * @return void
 	 */

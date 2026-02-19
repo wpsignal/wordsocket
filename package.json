@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "build": "wp-scripts build",
-    "start": "wp-scripts start"
+    "start": "wp-scripts start",
+    "make-pot": "wp i18n make-pot . languages/wpsignal.pot --slug=wpsignal --domain=wpsignal --skip-js"
   },
   "devDependencies": {
     "@wordpress/scripts": "^30.0.0"

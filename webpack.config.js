@@ -6,7 +6,7 @@ module.exports = {
 	entry: {
 		client: path.resolve( __dirname, 'src/client.ts' ),
 		settings: path.resolve( __dirname, 'src/settings/index.tsx' ),
-		'kitchen-sink': path.resolve( __dirname, 'src/kitchen-sink.ts' ),
+		monitor: path.resolve( __dirname, 'src/monitor.ts' ),
 	},
 	output: {
 		...defaultConfig.output,

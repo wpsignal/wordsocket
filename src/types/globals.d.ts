@@ -53,6 +53,7 @@ declare global {
 		wpSignalConfig?: WpSignalConfig;
 		wpsignalSettings?: WpSignalSettings;
 		wpSignalKitchenSink?: WpSignalKitchenSink;
+		wpSignalMonitor?: WpSignalMonitor;
 		WPS?: WPSApi;
 	}
 }

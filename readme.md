@@ -1,5 +1,7 @@
 # WPSignal WordPress Plugin
 
+> **Note:** This `README.md` is for GitHub. The WordPress.org plugin listing uses [`readme.txt`](readme.txt).
+
 Sends realtime events from WordPress to browsers via [api.wpsignal.io](https://api.wpsignal.io). Connects via WebSocket (SSE fallback) and exposes a public JS API for other plugins to share the connection.
 
 ## Installation

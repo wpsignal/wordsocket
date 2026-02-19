@@ -1,8 +1,8 @@
 /**
- * WPSignal Kitchen Sink — interactive admin demo page.
+ * WPSignal Monitor — interactive admin demo page.
  */
 
-const cfg = window.wpSignalKitchenSink;
+const cfg = window.wpSignalMonitor;
 if ( cfg ) {
 	let ws: WebSocket | null = null;
 	let expiryInterval: ReturnType< typeof setInterval > | null = null;
