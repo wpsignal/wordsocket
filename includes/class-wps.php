@@ -104,7 +104,7 @@ class WPS {
 		$this->publisher_instance        = new Publisher( $this->config_instance );
 		$this->token_instance            = new Token( $this->config_instance, $this->publisher_instance );
 		$this->trigger_registry_instance = new Trigger_Registry( $this->publisher_instance );
-		$this->client_instance           = new Client( $this->config_instance );
+		$this->client_instance           = new Client( $this->config_instance, $this->token_instance );
 		$this->admin_instance            = new Admin_Page( $this->config_instance );
 
 		// Register built-in triggers.

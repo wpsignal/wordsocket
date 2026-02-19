@@ -33,11 +33,16 @@ class Client {
 	/** @var Config Configuration accessor. */
 	private $config;
 
+	/** @var Token Token minter. */
+	private $token;
+
 	/**
 	 * @param Config $config Configuration accessor.
+	 * @param Token  $token  Token minter (used to embed an initial JWT server-side).
 	 */
-	public function __construct( Config $config ) {
+	public function __construct( Config $config, Token $token ) {
 		$this->config = $config;
+		$this->token  = $token;
 	}
 
 	/**
@@ -61,7 +66,7 @@ class Client {
 	 * @return void
 	 */
 	public function enqueue() {
-		if ( ! apply_filters( 'wpsignal_client_permission_callback', is_user_logged_in() ) ) {
+		if ( ! apply_filters( 'wpsignal_allow_client', is_user_logged_in() ) ) {
 			return;
 		}
 
@@ -81,10 +86,22 @@ class Client {
 			true
 		);
 
-		wp_localize_script( 'wpsignal', 'wpSignalConfig', array(
+		// Mint a token server-side so client.js can connect immediately without
+		// an extra REST round-trip. The REST endpoint is then only used for
+		// refresh, protected by the nonce below.
+		$localize = array(
 			'restUrl' => rest_url( 'wpsignal/v1/token' ),
 			'nonce'   => wp_create_nonce( 'wp_rest' ),
 			'baseUrl' => esc_url( $base_url ),
-		) );
+		);
+
+		$token_data = $this->token->mint();
+		if ( ! is_wp_error( $token_data ) ) {
+			$localize['token']    = $token_data['token'];
+			$localize['channels'] = $token_data['channels'];
+			$localize['exp']      = $token_data['exp'];
+		}
+
+		wp_localize_script( 'wpsignal', 'wpSignalConfig', $localize );
 	}
 }

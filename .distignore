@@ -2,6 +2,10 @@
 /.github
 /src
 /node_modules
+/dist
+/bin
+/wp-org-assets
+/assets
 .gitignore
 .distignore
 webpack.config.js

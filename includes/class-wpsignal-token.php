@@ -57,7 +57,19 @@ class Token {
 			'methods'             => 'POST',
 			'callback'            => array( $this, 'handle_token' ),
 			'permission_callback' => function () {
-				return apply_filters( 'wpsignal_token_permission_callback', is_user_logged_in() );
+				$nonce = isset( $_SERVER['HTTP_X_WP_NONCE'] )
+					? sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_WP_NONCE'] ) )
+					: ( isset( $_REQUEST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['_wpnonce'] ) ) : '' );
+
+				if ( empty( $nonce ) || ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
+					return new WP_Error(
+						'rest_nonce_invalid',
+						__( 'Nonce verification failed.', 'signal-realtime' ),
+						array( 'status' => 403 )
+					);
+				}
+
+				return true;
 			},
 		) );
 
@@ -98,22 +110,21 @@ class Token {
 	/**
 	 * Mint a short-lived connection JWT for the current user.
 	 *
-	 * The JWT is signed with the shared JWT_SECRET so the Rust server can
-	 * verify it. Claims include tenant_id, site_id, user_id, and
-	 * allowed_channel_prefixes. Default TTL is 5 minutes.
+	 * Can be called directly from PHP (e.g. to embed the token in a page) or
+	 * via the REST endpoint. Returns a plain array on success or WP_Error on
+	 * failure.
 	 *
-	 * Response:
+	 * Return value:
 	 *
-	 *     {
-	 *         "token":    "eyJ...",
-	 *         "channels": ["site:{site_id}:events"],
-	 *         "exp":      1700000000
-	 *     }
+	 *     [
+	 *         'token'    => 'eyJ...',
+	 *         'channels' => ['site:{site_id}:events'],
+	 *         'exp'      => 1700000000,
+	 *     ]
 	 *
-	 * @param WP_REST_Request $request The incoming REST request.
-	 * @return \WP_REST_Response|\WP_Error Token response or error.
+	 * @return array|\WP_Error Token data array or error.
 	 */
-	public function handle_token( WP_REST_Request $request ) {
+	public function mint() {
 		$jwt_secret = $this->config->jwt_secret();
 		if ( empty( $jwt_secret ) ) {
 			return new WP_Error(
@@ -132,10 +143,9 @@ class Token {
 			);
 		}
 
-		$user = wp_get_current_user();
-		$now  = time();
-		$exp  = $now + 300;
-
+		$user      = wp_get_current_user();
+		$now       = time();
+		$exp       = $now + 300;
 		$tenant_id = hash( 'sha256', 'tenant:' . $site_key );
 		$site_id   = hash( 'sha256', 'site:' . $site_key );
 
@@ -157,14 +167,25 @@ class Token {
 			hash_hmac( 'sha256', $header . '.' . $payload, $jwt_secret, true )
 		);
 
-		$token    = $header . '.' . $payload . '.' . $signature;
-		$channels = array( 'site:' . $site_id . ':events' );
-
-		return rest_ensure_response( array(
-			'token'    => $token,
-			'channels' => $channels,
+		return array(
+			'token'    => $header . '.' . $payload . '.' . $signature,
+			'channels' => array( 'site:' . $site_id . ':events' ),
 			'exp'      => $exp,
-		) );
+		);
+	}
+
+	/**
+	 * REST handler — mint a token for the current user and return it as JSON.
+	 *
+	 * @param WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response|\WP_Error Token response or error.
+	 */
+	public function handle_token( WP_REST_Request $request ) {
+		$result = $this->mint();
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return rest_ensure_response( $result );
 	}
 
 	/**

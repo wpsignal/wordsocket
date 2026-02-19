@@ -3,6 +3,10 @@ interface WpSignalConfig {
 	restUrl: string;
 	nonce: string;
 	baseUrl: string;
+	/** Server-side minted token (present on first load; absent on refresh calls). */
+	token?: string;
+	channels?: string[];
+	exp?: number;
 }
 
 /** Localized by class-wpsignal-admin-page.php (Settings React app) */

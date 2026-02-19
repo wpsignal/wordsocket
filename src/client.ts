@@ -217,7 +217,23 @@ if ( config?.baseUrl && config?.restUrl ) {
 	}
 
 	function init(): void {
-		fetchToken()
+		// Use the server-side minted token on first load to avoid an extra REST
+		// round-trip. Consume and clear it so reconnects always fetch a fresh one.
+		let tokenPromise: Promise< { token: string; channels: string[]; exp: number } >;
+		if ( config?.token && config?.channels && config?.exp ) {
+			tokenPromise = Promise.resolve( {
+				token:    config.token,
+				channels: config.channels,
+				exp:      config.exp,
+			} );
+			delete config.token;
+			delete config.channels;
+			delete config.exp;
+		} else {
+			tokenPromise = fetchToken();
+		}
+
+		tokenPromise
 			.then( ( data ) => {
 				console.log(
 					'[WPSignal] Token obtained, expires at',

@@ -81,6 +81,8 @@ class Publisher {
 
 		$url = trailingslashit( $this->config->base_url() ) . 'publish';
 
+		$is_dev = defined( 'WP_ENVIRONMENT_TYPE' ) && WP_ENVIRONMENT_TYPE === 'development';
+
 		$response = wp_remote_post( $url, array(
 			'timeout' => 2,
 			'headers' => array(
@@ -93,7 +95,7 @@ class Publisher {
 		) );
 
 		if ( is_wp_error( $response ) ) {
-			if ( defined( 'WP_ENVIRONMENT_TYPE' ) && WP_ENVIRONMENT_TYPE === 'development' ) {
+			if ( $is_dev ) {
 				error_log( '[WPSignal] Publish failed: ' . $response->get_error_message() );
 			}
 			return $response;
@@ -102,7 +104,7 @@ class Publisher {
 		$code = wp_remote_retrieve_response_code( $response );
 		if ( $code < 200 || $code >= 300 ) {
 			$body_text = wp_remote_retrieve_body( $response );
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			if ( $is_dev ) {
 				error_log( sprintf( '[WPSignal] Publish HTTP %d: %s', $code, $body_text ) );
 			}
 			return new \WP_Error( 'wpsignal_publish_error', sprintf( 'HTTP %d: %s', $code, $body_text ) );

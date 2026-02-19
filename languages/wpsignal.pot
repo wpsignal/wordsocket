@@ -1,25 +1,22 @@
-# Copyright (C) 2026 WPSignal
+# Copyright (C) 2026 World House
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: WPSignal 0.2.0\n"
+"Project-Id-Version: Signal 0.2.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wpsignal\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-02-17T18:49:04+00:00\n"
+"POT-Creation-Date: 2026-02-19T20:09:17+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wpsignal\n"
 
 #. Plugin Name of the plugin
-#. Author of the plugin
 #: wpsignal.php
-#: includes/class-wpsignal-admin-page.php:57
-#: includes/class-wpsignal-admin-page.php:58
-msgid "WPSignal"
+msgid "Signal"
 msgstr ""
 
 #. Plugin URI of the plugin
@@ -29,161 +26,15 @@ msgstr ""
 
 #. Description of the plugin
 #: wpsignal.php
-msgid "Realtime push events from WordPress to browsers via wpsignal.io (WebSocket/SSE)."
+msgid "Realtime push events from WordPress to browsers via WP Signal (wpsignal.io) using WebSocket and SSE."
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:68
-#: includes/class-wpsignal-admin-page.php:69
-msgid "Settings"
+#. Author of the plugin
+#: wpsignal.php
+msgid "World House"
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:77
-#: includes/class-wpsignal-admin-page.php:78
-msgid "Monitor"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:58
-msgid "WPSignal Kitchen Sink"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:114
-msgid "Connection Status"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:119
-msgid "Configured"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:122
-msgid "Not Configured"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:123
-msgid "Go to Settings to connect."
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:130
-msgid "Server URL"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:134
-msgid "Site Key"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:141
-msgid "Test Connection"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:162
-msgid "Registered Triggers"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:165
-msgid "No triggers registered."
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:170
-msgid "Event"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:171
-msgid "Hook"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:172
-msgid "Priority"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:173
-msgid "Args"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:174
-#: includes/class-wpsignal-kitchen-sink-page.php:249
-msgid "Channel"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:175
-msgid "Condition"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:207
-msgid "Live Event Log"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:211
-msgid "Channels (comma-separated):"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:218
-msgid "Connect"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:221
-msgid "Disconnect"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:227
-msgid "Waiting for connection..."
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:245
-msgid "Publish Test Event"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:253
-msgid "Event Name"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:257
-msgid "JSON Data"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:264
-msgid "Publish Event"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:283
-msgid "Token Inspector"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:287
-msgid "Mint Token"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:292
-msgid "Raw Token"
-msgstr ""
-
-#: includes/class-wpsignal-kitchen-sink-page.php:295
-msgid "Decoded Claims"
-msgstr ""
-
-#: includes/class-wpsignal-publisher.php:70
-#: includes/class-wpsignal-token.php:130
-msgid "WPSignal is not configured."
-msgstr ""
-
-#: includes/class-wpsignal-token.php:121
-msgid "JWT secret not configured."
-msgstr ""
-
-#: includes/class-wpsignal-token.php:195
-msgid "Channel and event are required."
-msgstr ""
-
-#: includes/class-wpsignal-token.php:232
-msgid "Please save your Server URL and API Key first."
-msgstr ""
-
-#: includes/class-wpsignal-token.php:272
-msgid "Invalid response from server."
-msgstr ""
-
-#: includes/class-wpsignal-token.php:280
-msgid "Connected to WPSignal!"
-msgstr ""
-
-#: includes/class-wpsignal-triggers-rest.php:116
-msgid "Triggers saved."
+#. Author URI of the plugin
+#: wpsignal.php
+msgid "https://worldhouse.dev"
 msgstr ""
