@@ -113,7 +113,7 @@ class Triggers_REST {
 
 		return rest_ensure_response( array(
 			'triggers' => $sanitized,
-			'message'  => __( 'Triggers saved.', 'wpsignal' ),
+			'message'  => __( 'Triggers saved.', 'signal-realtime' ),
 		) );
 	}
 }

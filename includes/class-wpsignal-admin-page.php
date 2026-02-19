@@ -54,8 +54,8 @@ class Admin_Page {
 	 */
 	public function register_menu() {
 		add_menu_page(
-			__( 'WPSignal', 'wpsignal' ),
-			__( 'WPSignal', 'wpsignal' ),
+			__( 'WPSignal', 'signal-realtime' ),
+			__( 'WPSignal', 'signal-realtime' ),
 			'manage_options',
 			'wpsignal',
 			array( $this, 'render_settings_page' ),
@@ -65,8 +65,8 @@ class Admin_Page {
 
 		add_submenu_page(
 			'wpsignal',
-			__( 'Settings', 'wpsignal' ),
-			__( 'Settings', 'wpsignal' ),
+			__( 'Settings', 'signal-realtime' ),
+			__( 'Settings', 'signal-realtime' ),
 			'manage_options',
 			'wpsignal',
 			array( $this, 'render_settings_page' )
@@ -74,8 +74,8 @@ class Admin_Page {
 
 		add_submenu_page(
 			'wpsignal',
-			__( 'Monitor', 'wpsignal' ),
-			__( 'Monitor', 'wpsignal' ),
+			__( 'Monitor', 'signal-realtime' ),
+			__( 'Monitor', 'signal-realtime' ),
 			'manage_options',
 			'wpsignal-monitor',
 			array( $this->monitor, 'render_page' )

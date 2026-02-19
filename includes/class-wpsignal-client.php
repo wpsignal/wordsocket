@@ -61,7 +61,7 @@ class Client {
 	 * @return void
 	 */
 	public function enqueue() {
-		if ( ! is_user_logged_in() ) {
+		if ( ! apply_filters( 'wpsignal_client_permission_callback', is_user_logged_in() ) ) {
 			return;
 		}
 

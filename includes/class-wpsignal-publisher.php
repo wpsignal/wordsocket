@@ -67,7 +67,7 @@ class Publisher {
 	 */
 	public function publish( $channel, $event, $data = array() ) {
 		if ( ! $this->config->is_configured() ) {
-			return new \WP_Error( 'wpsignal_not_configured', __( 'WPSignal is not configured.', 'wpsignal' ) );
+			return new \WP_Error( 'wpsignal_not_configured', __( 'WPSignal is not configured.', 'signal-realtime' ) );
 		}
 
 		$body = wp_json_encode( array(
@@ -93,7 +93,7 @@ class Publisher {
 		) );
 
 		if ( is_wp_error( $response ) ) {
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			if ( defined( 'WP_ENVIRONMENT_TYPE' ) && WP_ENVIRONMENT_TYPE === 'development' ) {
 				error_log( '[WPSignal] Publish failed: ' . $response->get_error_message() );
 			}
 			return $response;

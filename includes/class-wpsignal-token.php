@@ -57,7 +57,7 @@ class Token {
 			'methods'             => 'POST',
 			'callback'            => array( $this, 'handle_token' ),
 			'permission_callback' => function () {
-				return is_user_logged_in();
+				return apply_filters( 'wpsignal_token_permission_callback', is_user_logged_in() );
 			},
 		) );
 
@@ -118,7 +118,7 @@ class Token {
 		if ( empty( $jwt_secret ) ) {
 			return new WP_Error(
 				'wpsignal_no_jwt_secret',
-				__( 'JWT secret not configured.', 'wpsignal' ),
+				__( 'JWT secret not configured.', 'signal-realtime' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -127,7 +127,7 @@ class Token {
 		if ( empty( $site_key ) ) {
 			return new WP_Error(
 				'wpsignal_not_configured',
-				__( 'WPSignal is not configured.', 'wpsignal' ),
+				__( 'WPSignal is not configured.', 'signal-realtime' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -192,7 +192,7 @@ class Token {
 		if ( empty( $channel ) || empty( $event ) ) {
 			return new WP_Error(
 				'wpsignal_missing_params',
-				__( 'Channel and event are required.', 'wpsignal' ),
+				__( 'Channel and event are required.', 'signal-realtime' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -229,7 +229,7 @@ class Token {
 		if ( empty( $base_url ) || empty( $api_key ) ) {
 			return new WP_Error(
 				'wpsignal_not_configured',
-				__( 'Please save your Server URL and API Key first.', 'wpsignal' ),
+				__( 'Please save your Server URL and API Key first.', 'signal-realtime' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -269,7 +269,7 @@ class Token {
 		if ( empty( $data['site_key'] ) || empty( $data['publish_secret'] ) || empty( $data['jwt_secret'] ) ) {
 			return new WP_Error(
 				'wpsignal_invalid_response',
-				__( 'Invalid response from server.', 'wpsignal' ),
+				__( 'Invalid response from server.', 'signal-realtime' ),
 				array( 'status' => 502 )
 			);
 		}
@@ -277,7 +277,7 @@ class Token {
 		$this->config->save_registration( $data );
 
 		return rest_ensure_response( array(
-			'message'  => __( 'Connected to WPSignal!', 'wpsignal' ),
+			'message'  => __( 'Connected to WPSignal!', 'signal-realtime' ),
 			'site_key' => $data['site_key'],
 		) );
 	}

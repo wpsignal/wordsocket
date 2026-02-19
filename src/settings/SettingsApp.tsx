@@ -6,12 +6,12 @@ import { TriggersApp } from './TriggersApp';
 const TABS = [
 	{
 		name: 'connection',
-		title: __( 'Connection', 'wpsignal' ),
+		title: __( 'Connection', 'signal-realtime' ),
 		className: 'wpsignal-tab-connection',
 	},
 	{
 		name: 'triggers',
-		title: __( 'Triggers', 'wpsignal' ),
+		title: __( 'Triggers', 'signal-realtime' ),
 		className: 'wpsignal-tab-triggers',
 	},
 ];

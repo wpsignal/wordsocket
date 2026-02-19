@@ -45,14 +45,14 @@ export function TriggerRow( { trigger, index, postTypes, onChange, onRemove }: P
 	};
 
 	const typeOptions = [
-		{ value: 'post_type', label: __( 'Post Type', 'wpsignal' ) },
-		{ value: 'option', label: __( 'Option', 'wpsignal' ) },
+		{ value: 'post_type', label: __( 'Post Type', 'signal-realtime' ) },
+		{ value: 'option', label: __( 'Option', 'signal-realtime' ) },
 	];
 
 	return (
 		<div className="wpsignal-trigger-row">
 			<SelectControl
-				label={ __( 'Type', 'wpsignal' ) }
+				label={ __( 'Type', 'signal-realtime' ) }
 				value={ trigger.type }
 				options={ typeOptions }
 				onChange={ ( val ) => update( 'type', val ) }
@@ -61,10 +61,10 @@ export function TriggerRow( { trigger, index, postTypes, onChange, onRemove }: P
 
 			{ trigger.type === 'post_type' && (
 				<SelectControl
-					label={ __( 'Post Type', 'wpsignal' ) }
+					label={ __( 'Post Type', 'signal-realtime' ) }
 					value={ trigger.post_type }
 					options={ [
-						{ value: '', label: __( '-- Select --', 'wpsignal' ) },
+						{ value: '', label: __( '-- Select --', 'signal-realtime' ) },
 						...postTypes,
 					] }
 					onChange={ ( val ) => update( 'post_type', val ) }
@@ -74,7 +74,7 @@ export function TriggerRow( { trigger, index, postTypes, onChange, onRemove }: P
 
 			{ trigger.type === 'option' && (
 				<ComboboxControl
-					label={ __( 'Option Name', 'wpsignal' ) }
+					label={ __( 'Option Name', 'signal-realtime' ) }
 					value={ trigger.option_name }
 					options={ OPTION_PRESETS }
 					onChange={ ( val ) => update( 'option_name', val || '' ) }
@@ -85,14 +85,14 @@ export function TriggerRow( { trigger, index, postTypes, onChange, onRemove }: P
 			) }
 
 			<TextControl
-				label={ __( 'Channel', 'wpsignal' ) }
+				label={ __( 'Channel', 'signal-realtime' ) }
 				value={ trigger.channel }
 				onChange={ ( val ) => update( 'channel', val ) }
 				__nextHasNoMarginBottom
 			/>
 
 			<TextControl
-				label={ __( 'Event', 'wpsignal' ) }
+				label={ __( 'Event', 'signal-realtime' ) }
 				value={ trigger.event }
 				onChange={ ( val ) => update( 'event', val ) }
 				__nextHasNoMarginBottom
@@ -104,7 +104,7 @@ export function TriggerRow( { trigger, index, postTypes, onChange, onRemove }: P
 					isDestructive
 					onClick={ () => onRemove( index ) }
 				>
-					{ __( 'Remove', 'wpsignal' ) }
+					{ __( 'Remove', 'signal-realtime' ) }
 				</Button>
 			</div>
 		</div>

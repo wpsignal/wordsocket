@@ -1,18 +1,21 @@
-=== WPSignal ===
-Contributors: jaredrethman
+=== Signal ===
+Contributors: worldhouse
 Tags: realtime, websocket, push, events, sse
 Requires at least: 6.2
-Tested up to: 6.7
+Tested up to: 6.9
 Stable tag: 0.2.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Realtime push events from WordPress to browsers via WebSocket and SSE.
+Signal is the official WordPress plugin for WP Signal (wpsignal.io), a third-party WebSocket/SSE delivery service.
 
 == Description ==
 
-WPSignal sends realtime events from your WordPress site to connected browsers. When content changes — a post is published, a comment is approved, an option is updated — the plugin pushes the event to subscribers instantly via WebSocket (with SSE fallback).
+Signal sends realtime events from your WordPress site to connected browsers.  
+When content changes — a post is published, a comment is approved, an option is updated — the plugin pushes the event to subscribers instantly via WebSocket (with SSE fallback).
+
+WP Signal is an independent service and is not affiliated with or endorsed by the WordPress project.
 
 **Features:**
 
