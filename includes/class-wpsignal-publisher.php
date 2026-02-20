@@ -67,14 +67,27 @@ class Publisher {
 	 */
 	public function publish( $channel, $event, $data = array() ) {
 		if ( ! $this->config->is_configured() ) {
-			return new \WP_Error( 'wpsignal_not_configured', __( 'WPSignal is not configured.', 'signal-realtime' ) );
+			return new \WP_Error( 'wpsignal_not_configured', __( 'WPSignal is not configured.', 'signal' ) );
 		}
 
-		$body = wp_json_encode( array(
-			'channel' => $channel,
-			'event'   => $event,
-			'data'    => $data,
-		) );
+		// Encrypt the event name and data so the relay only ever sees ciphertext.
+		// Falls back to plaintext if the key cannot be derived (e.g. site not yet registered).
+		$plaintext = wp_json_encode( array( 'event' => $event, 'data' => $data ) );
+		$encrypted = $this->encrypt( $plaintext );
+
+		if ( false !== $encrypted ) {
+			$body = wp_json_encode( array(
+				'channel' => $channel,
+				'event'   => 'encrypted',
+				'data'    => array( 'v' => 1, 'p' => $encrypted ),
+			) );
+		} else {
+			$body = wp_json_encode( array(
+				'channel' => $channel,
+				'event'   => $event,
+				'data'    => $data,
+			) );
+		}
 
 		$timestamp_ms = (string) round( microtime( true ) * 1000 );
 		$signature    = $this->sign( $body, $timestamp_ms );
@@ -122,5 +135,35 @@ class Publisher {
 	 */
 	private function sign( $body, $timestamp_ms ) {
 		return hash_hmac( 'sha256', $body . '.' . $timestamp_ms, $this->config->site_secret() );
+	}
+
+	/**
+	 * Encrypt a plaintext string using AES-256-GCM.
+	 *
+	 * Encoded format: base64( IV[12] || ciphertext[N] || tag[16] )
+	 *
+	 * The IV is randomly generated per message. The client (client.ts) decodes
+	 * this format with SubtleCrypto, slicing the first 12 bytes as IV and
+	 * treating the remainder as ciphertext+tag (which SubtleCrypto expects).
+	 *
+	 * @param string $plaintext Data to encrypt.
+	 * @return string|false Base64-encoded payload, or false if key is unavailable
+	 *                      or OpenSSL encryption fails.
+	 */
+	private function encrypt( $plaintext ) {
+		$key = $this->config->encryption_key();
+		if ( empty( $key ) ) {
+			return false;
+		}
+
+		$iv     = random_bytes( 12 );
+		$tag    = '';
+		$cipher = openssl_encrypt( $plaintext, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag );
+
+		if ( false === $cipher ) {
+			return false;
+		}
+
+		return base64_encode( $iv . $cipher . $tag );
 	}
 }

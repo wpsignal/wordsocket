@@ -26,6 +26,44 @@ if ( config?.baseUrl && config?.restUrl ) {
 	/** Channels requested by external consumers (queued until WS is open). */
 	const pendingSubscriptions: string[] = [];
 
+	// --- Decryption ---
+	// Import the AES-256-GCM key once at startup; reused for every message.
+	let cryptoKeyPromise: Promise< CryptoKey | null > | null = null;
+
+	function getCryptoKey(): Promise< CryptoKey | null > {
+		if ( ! cryptoKeyPromise ) {
+			const b64 = config?.encryptionKey;
+			if ( ! b64 || typeof crypto === 'undefined' || ! crypto.subtle ) {
+				cryptoKeyPromise = Promise.resolve( null );
+			} else {
+				const raw = Uint8Array.from( atob( b64 ), ( c ) => c.charCodeAt( 0 ) );
+				cryptoKeyPromise = crypto.subtle
+					.importKey( 'raw', raw, { name: 'AES-GCM' }, false, [ 'decrypt' ] )
+					.catch( () => null );
+			}
+		}
+		return cryptoKeyPromise;
+	}
+
+	// Encoded format written by Publisher: base64( IV[12] || ciphertext[N] || tag[16] )
+	// SubtleCrypto expects ciphertext || tag as its data argument, which is exactly buf[12:].
+	async function decryptMessage(
+		p: string
+	): Promise< { event: string; data: Record< string, unknown > } | null > {
+		const key = await getCryptoKey();
+		if ( ! key ) return null;
+		try {
+			const buf = Uint8Array.from( atob( p ), ( c ) => c.charCodeAt( 0 ) );
+			const iv = buf.slice( 0, 12 );
+			const cipherWithTag = buf.slice( 12 );
+			const plain = await crypto.subtle.decrypt( { name: 'AES-GCM', iv }, key, cipherWithTag );
+			return JSON.parse( new TextDecoder().decode( plain ) );
+		} catch {
+			console.warn( '[WPSignal] Decryption failed' );
+			return null;
+		}
+	}
+
 	function setConnected( value: boolean ): void {
 		connected = value;
 		connectionChangeHandlers.forEach( ( fn ) => fn( value ) );
@@ -124,7 +162,17 @@ if ( config?.baseUrl && config?.restUrl ) {
 				const msg = JSON.parse( e.data );
 				switch ( msg.type ) {
 					case 'message':
-						dispatchEvent( msg.event, msg.channel, msg.data ?? {} );
+						if ( msg.event === 'encrypted' && msg.data?.v === 1 && typeof msg.data?.p === 'string' ) {
+							decryptMessage( msg.data.p as string ).then( ( plain ) => {
+								if ( plain ) {
+									dispatchEvent( plain.event, msg.channel, plain.data ?? {} );
+								} else {
+									console.warn( '[WPSignal] Could not decrypt message on channel', msg.channel );
+								}
+							} );
+						} else {
+							dispatchEvent( msg.event, msg.channel, msg.data ?? {} );
+						}
 						break;
 					case 'ping':
 						ws!.send( JSON.stringify( { type: 'pong' } ) );
@@ -192,6 +240,23 @@ if ( config?.baseUrl && config?.restUrl ) {
 					console.warn( '[WPSignal] Failed to parse SSE data', err );
 				}
 			} );
+		} );
+
+		source.addEventListener( 'encrypted', ( e: Event ) => {
+			try {
+				const msg = JSON.parse( ( e as MessageEvent ).data );
+				if ( msg?.v === 1 && typeof msg?.p === 'string' ) {
+					decryptMessage( msg.p ).then( ( plain ) => {
+						if ( plain ) {
+							dispatchEvent( plain.event, '', plain.data ?? {} );
+						} else {
+							console.warn( '[WPSignal] Could not decrypt SSE message' );
+						}
+					} );
+				}
+			} catch ( err ) {
+				console.warn( '[WPSignal] Failed to parse encrypted SSE data', err );
+			}
 		} );
 
 		source.addEventListener( 'message', ( e: MessageEvent ) => {

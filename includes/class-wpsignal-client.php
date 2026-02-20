@@ -102,6 +102,15 @@ class Client {
 			$localize['exp']      = $token_data['exp'];
 		}
 
+		// Derive the encryption key server-side and pass the base64-encoded raw
+		// bytes to the browser. client.js imports this with SubtleCrypto and uses
+		// it to decrypt incoming "encrypted" messages before dispatching events.
+		// The key is never sent to the WPSignal server — only set here by PHP.
+		$enc_key = $this->config->encryption_key();
+		if ( ! empty( $enc_key ) ) {
+			$localize['encryptionKey'] = base64_encode( $enc_key );
+		}
+
 		wp_localize_script( 'wpsignal', 'wpSignalConfig', $localize );
 	}
 }

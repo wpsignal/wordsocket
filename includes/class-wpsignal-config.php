@@ -96,6 +96,36 @@ class Config {
 	}
 
 	/**
+	 * Derive the AES-256-GCM encryption key from WordPress salts and the site key.
+	 *
+	 * Uses HKDF-SHA256 to produce a 32-byte key. The seed defaults to
+	 * AUTH_KEY . SECURE_AUTH_KEY and is filterable via `wpsignal_encryption_seed`
+	 * so plugin or theme developers can supply custom key material without
+	 * modifying core. The site key is used as the HKDF salt to scope the
+	 * derived key to this specific site registration.
+	 *
+	 * Example — supply a custom seed:
+	 *
+	 *     add_filter( 'wpsignal_encryption_seed', function ( $default ) {
+	 *         return 'my-application-specific-secret';
+	 *     } );
+	 *
+	 * @return string Raw 32-byte key, or empty string if site key is missing
+	 *                or WP salt constants are not defined.
+	 */
+	public function encryption_key() {
+		$site_key = $this->site_key();
+		if ( empty( $site_key ) ) {
+			return '';
+		}
+		if ( ! defined( 'AUTH_KEY' ) || ! defined( 'SECURE_AUTH_KEY' ) ) {
+			return '';
+		}
+		$seed = apply_filters( 'wpsignal_encryption_seed', AUTH_KEY . SECURE_AUTH_KEY );
+		return hash_hkdf( 'sha256', $seed, 32, 'wpsignal-v1', $site_key );
+	}
+
+	/**
 	 * Check whether the plugin is fully configured for publishing.
 	 *
 	 * Returns true when base_url, site_key, and site_secret are all set.
