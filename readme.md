@@ -2,7 +2,7 @@
 
 > **Note:** This `README.md` is for GitHub. The WordPress.org plugin listing uses [`readme.txt`](readme.txt).
 
-Sends realtime events from WordPress to browsers via [api.wpsignal.io](https://api.wpsignal.io). Connects via WebSocket (SSE fallback) and exposes a public JS API for other plugins to share the connection.
+Sends realtime events from WordPress to browsers via [api.wpsignal.io](https://api.wpsignal.io). Connects via WebSocket (SSE fallback) and exposes a public JS API for other plugins to share the connection. On WordPress 7.0+, also registers as a WebSocket-based Yjs sync provider for real-time collaborative editing.
 
 ## Installation
 
@@ -25,6 +25,22 @@ Go to **WPSignal > Settings** and fill in:
 | **API Key** | Your API key from the wpsignal.io dashboard |
 
 Then click **Connect to WPSignal**. The plugin registers with the server and saves the site key, publish secret, and JWT secret automatically.
+
+The **Enable real-time collaboration provider** toggle (on by default) controls whether WPSignal registers as the Yjs sync provider in the block editor. Disable it to fall back to WordPress HTTP polling if WebSocket connections are unavailable.
+
+## Real-Time Collaboration (WordPress 7.0+)
+
+On WordPress 7.0+, the plugin registers a Yjs sync provider via the `sync.providers` filter. This replaces the default HTTP polling transport with WPSignal's WebSocket binary relay, enabling low-latency collaborative editing.
+
+The provider uses a three-message sync protocol:
+
+| Message | Purpose |
+|---|---|
+| `SYNC_STEP_1` | Broadcasts the local state vector; asks peers to send back what is missing |
+| `SYNC_STEP_2` | Replies with the diff the requesting peer lacks |
+| `MSG_UPDATE` | Incremental update broadcast on every local ydoc change |
+
+If WebSocket is unavailable the provider emits `disconnected` so WordPress shows its "not synced" indicator. Use the admin toggle to restore HTTP polling.
 
 ## Developer API
 
@@ -83,14 +99,17 @@ document.addEventListener('wpsignal:post.updated', function (e) {
 
 The client script exposes `window.WPS` so any theme or plugin can share the WebSocket connection. Add `'wpsignal'` as a script dependency to ensure it loads first.
 
-| Method | Returns | Description |
+| Method / Property | Returns | Description |
 |---|---|---|
 | `WPS.subscribe( channels )` | `void` | Subscribe to additional channels. Queued if not yet connected. |
 | `WPS.unsubscribe( channels )` | `void` | Unsubscribe from channels (or remove from pending queue). |
-| `WPS.publish( channel, event, data? )` | `void` | Send a message via WebSocket. Warns and no-ops on SSE. |
+| `WPS.publish( channel, event, data? )` | `void` | Send a JSON message via WebSocket. No-op on SSE. |
+| `WPS.publishBinary( channel, data )` | `void` | Send a raw binary frame via WebSocket. No-op on SSE. |
 | `WPS.on( event, handler )` | `() => void` | Listen for a specific event name. Returns unsubscribe fn. |
 | `WPS.onMessage( handler )` | `() => void` | Catch-all listener for all incoming messages. Returns unsubscribe fn. |
+| `WPS.onBinaryMessage( handler )` | `() => void` | Listen for incoming binary frames. Returns unsubscribe fn. |
 | `WPS.connected` | `boolean` | Whether the connection is currently open (read-only). |
+| `WPS.transport` | `'ws' \| 'sse' \| null` | Current transport layer, or null while connecting (read-only). |
 | `WPS.onConnectionChange( handler )` | `() => void` | Listen for connect/disconnect. Returns unsubscribe fn. |
 
 ```js
@@ -105,16 +124,19 @@ const off = window.WPS.on('post.updated', (data, channel) => {
 // Publish a message through the WebSocket
 window.WPS.publish('my-channel', 'my.event', { key: 'value' });
 
-// Catch-all listener
-const unsub = window.WPS.onMessage((event, data, channel) => {
-    console.log(event, data, channel);
+// Send a binary frame
+window.WPS.publishBinary('my-channel', new Uint8Array([1, 2, 3]));
+
+// Receive binary frames
+const offBin = window.WPS.onBinaryMessage((channel, data) => {
+    console.log('Binary frame on', channel, data);
 });
 
-// Check connection state
-console.log(window.WPS.connected);
+// Check connection state and transport
+console.log(window.WPS.connected, window.WPS.transport);
 
 // React to connection changes
-const unsub2 = window.WPS.onConnectionChange((connected) => {
+const unsub = window.WPS.onConnectionChange((connected) => {
     console.log('Connected:', connected);
 });
 
@@ -129,19 +151,19 @@ window.WPS.unsubscribe(['my-channel']);
 | `POST /wp-json/wpsignal/v1/token` | Logged-in user | Mint a 5-minute connection JWT |
 | `POST /wp-json/wpsignal/v1/connect` | Admin (`manage_options`) | Register site with WPSignal server |
 | `POST /wp-json/wpsignal/v1/publish` | Admin (`manage_options`) | Publish proxy (HMAC handled server-side) |
-| `GET /wp-json/wpsignal/v1/settings` | Admin (`manage_options`) | Get connection settings |
-| `POST /wp-json/wpsignal/v1/settings` | Admin (`manage_options`) | Save connection settings |
+| `GET /wp-json/wpsignal/v1/settings` | Admin (`manage_options`) | Get connection settings (includes `yjs_provider_enabled`) |
+| `POST /wp-json/wpsignal/v1/settings` | Admin (`manage_options`) | Save connection settings (accepts `yjs_provider_enabled`) |
 | `GET /wp-json/wpsignal/v1/triggers` | Admin (`manage_options`) | Get saved custom triggers |
 | `POST /wp-json/wpsignal/v1/triggers` | Admin (`manage_options`) | Save custom triggers |
 
 ## Admin pages
 
-- **Settings**: React app with two tabs: Connection (server URL, API key, connect button, status) and Triggers (custom trigger CRUD).
+- **Settings**: React app with two tabs: Connection (server URL, API key, RTC provider toggle, connect button, status) and Triggers (custom trigger CRUD).
 - **Monitor**: Five test panels: connection status, registered triggers, live event log, publish form, token inspector.
 
 ## Build
 
-TypeScript sources in `src/` are built with `@wordpress/scripts` using a custom webpack config with three entry points:
+TypeScript sources in `src/` are built with `@wordpress/scripts` using a custom webpack config:
 
 ```bash
 npm install
@@ -149,35 +171,25 @@ npm run build   # Production build -> build/
 npm run start   # Watch mode
 ```
 
-Entry points: `client.ts`, `settings/index.tsx`, `kitchen-sink.ts`.
+Entry points: `client.ts`, `settings/index.tsx`, `monitor.ts`, `yjs-provider-boot.ts`.
 
-## Source files
+## Encryption
 
-### PHP (`includes/`)
+Event payloads are AES-256-GCM encrypted by PHP before leaving WordPress. The WPSignal relay receives and forwards ciphertext only.
 
-| File | Purpose |
-|---|---|
-| `class-wps.php` | Singleton facade: `WPS::trigger()`, `WPS::publish()`, `WPS::instance()` |
-| `class-wpsignal-config.php` | Centralizes `get_option('wpsignal_*')` calls |
-| `class-wpsignal-publisher.php` | HMAC-signed HTTP POST to `/publish` |
-| `class-wpsignal-token.php` | JWT minting + REST routes (`/token`, `/connect`, `/publish`, `/settings`) |
-| `class-wpsignal-trigger.php` | Fluent trigger builder |
-| `class-wpsignal-trigger-registry.php` | Stores triggers, wires WordPress hooks, registers defaults |
-| `class-wpsignal-custom-triggers.php` | Loads custom triggers from `wp_options` |
-| `class-wpsignal-triggers-rest.php` | REST controller for custom triggers CRUD |
-| `class-wpsignal-admin-page.php` | Settings page (React mount), menu registration |
-| `class-wpsignal-kitchen-sink-page.php` | Monitor admin page (5 panels) |
-| `class-wpsignal-client.php` | Frontend script enqueue for logged-in users |
-| `autoload.php` | PSR-4 autoloader for `WPSignal\` namespace |
+**Key derivation:** HKDF-SHA256 over WordPress salts (`AUTH_KEY . SECURE_AUTH_KEY`) with the site key as salt. The derived key is passed to the browser as `wpSignalConfig.encryptionKey` (base64). It is never sent to the WPSignal server.
 
-### TypeScript (`src/`)
+**Scope:** Relay-blind encryption — the relay cannot read message content. All logged-in users on the same site share the same derived key. Per-user message privacy (ECDH key pairs per session) is a future phase.
 
-| File | Purpose |
-|---|---|
-| `client.ts` | WebSocket client with SSE fallback, exposes `window.WPS` API |
-| `kitchen-sink.ts` | Monitor page interactivity |
-| `settings/` | React app for the Settings page (Connection + Triggers tabs) |
-| `types/globals.d.ts` | Global type declarations for localized data |
+### Overriding the encryption seed
+
+```php
+add_filter( 'wpsignal_encryption_seed', function ( $default_seed ) {
+    return 'my-application-specific-secret';
+} );
+```
+
+Useful when you need a stable seed that is independent of WordPress salts (e.g. multisite, key rotation). The seed is used server-side only and is never transmitted.
 
 ## Security
 
@@ -186,3 +198,4 @@ Entry points: `client.ts`, `settings/index.tsx`, `kitchen-sink.ts`.
 | Never sees site_secret | Verifies HMAC on every publish | Stores keys in wp_options |
 | Only gets short-lived JWT (5 min) | Verifies JWT on every WS/SSE connect | Only mints tokens for logged-in users |
 | Channel access restricted by JWT | Rejects stale timestamps (60s) | Publish proxy keeps secret server-side |
+| Decrypts payloads with SubtleCrypto | Relay never handles key material | Encryption key derived from WP salts |

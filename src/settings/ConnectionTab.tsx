@@ -1,5 +1,5 @@
 import { useState, useEffect } from '@wordpress/element';
-import { TextControl, Button, Notice } from '@wordpress/components';
+import { TextControl, ToggleControl, Button, Notice } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
 import { getSettings, saveSettings, connect } from './api';
 import type { Settings } from './types';
@@ -14,6 +14,7 @@ export function ConnectionTab() {
 	const [ apiKey, setApiKey ] = useState( '' );
 	const [ siteKey, setSiteKey ] = useState( '' );
 	const [ isConnected, setIsConnected ] = useState( false );
+	const [ yjsProviderEnabled, setYjsProviderEnabled ] = useState( true );
 	const [ saving, setSaving ] = useState( false );
 	const [ connecting, setConnecting ] = useState( false );
 	const [ notice, setNotice ] = useState< NoticeState | null >( null );
@@ -25,6 +26,7 @@ export function ConnectionTab() {
 				setApiKey( res.api_key );
 				setSiteKey( res.site_key );
 				setIsConnected( res.is_connected );
+				setYjsProviderEnabled( res.yjs_provider_enabled );
 			} )
 			.catch( () => {
 				setNotice( { type: 'error', message: __( 'Failed to load settings.', 'signal' ) } );
@@ -35,9 +37,10 @@ export function ConnectionTab() {
 		setSaving( true );
 		setNotice( null );
 		try {
-			const res = await saveSettings( { base_url: baseUrl, api_key: apiKey } );
+			const res = await saveSettings( { base_url: baseUrl, api_key: apiKey, yjs_provider_enabled: yjsProviderEnabled } );
 			setSiteKey( res.site_key );
 			setIsConnected( res.is_connected );
+			setYjsProviderEnabled( res.yjs_provider_enabled );
 			setNotice( { type: 'success', message: __( 'Settings saved.', 'signal' ) } );
 		} catch {
 			setNotice( { type: 'error', message: __( 'Failed to save settings.', 'signal' ) } );
@@ -104,6 +107,14 @@ export function ConnectionTab() {
 				onChange={ setApiKey }
 				type="password"
 				help={ __( 'Get your API key from your wpsignal.io dashboard.', 'signal' ) }
+				__nextHasNoMarginBottom
+			/>
+
+			<ToggleControl
+				label={ yjsProviderEnabled ? __( 'Disable WPSignal for real-time collaboration?', 'signal' ) : __( 'Enable WPSignal for real-time collaboration?', 'signal' ) }
+				help={ __( 'Registers WPSignal as the Yjs sync provider in the block editor. Disable this to fall back to WordPress HTTP polling if WebSocket connections are unavailable.', 'signal' ) }
+				checked={ yjsProviderEnabled }
+				onChange={ setYjsProviderEnabled }
 				__nextHasNoMarginBottom
 			/>
 

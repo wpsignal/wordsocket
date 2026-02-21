@@ -94,6 +94,7 @@ class Client {
 			'restUrl' => rest_url( 'wpsignal/v1/token' ),
 			'nonce'   => wp_create_nonce( 'wp_rest' ),
 			'baseUrl' => esc_url( $base_url ),
+			'debug'   => (defined( 'WP_ENVIRONMENT_TYPE' ) && WP_ENVIRONMENT_TYPE !== 'production'),
 		);
 
 		$token_data = $this->token->mint();
@@ -130,6 +131,14 @@ class Client {
 	 * @return void
 	 */
 	public function enqueue_yjs_provider() {
+		if ( ! $this->config->is_wp_sync_available() ) {
+			return;
+		}
+		
+		if ( ! $this->config->yjs_provider_enabled() ) {
+			return;
+		}
+
 		if ( empty( $this->config->base_url() ) ) {
 			return;
 		}
