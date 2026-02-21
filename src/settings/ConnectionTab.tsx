@@ -27,7 +27,7 @@ export function ConnectionTab() {
 				setIsConnected( res.is_connected );
 			} )
 			.catch( () => {
-				setNotice( { type: 'error', message: __( 'Failed to load settings.', 'signal-realtime' ) } );
+				setNotice( { type: 'error', message: __( 'Failed to load settings.', 'signal' ) } );
 			} );
 	}, [] );
 
@@ -38,9 +38,9 @@ export function ConnectionTab() {
 			const res = await saveSettings( { base_url: baseUrl, api_key: apiKey } );
 			setSiteKey( res.site_key );
 			setIsConnected( res.is_connected );
-			setNotice( { type: 'success', message: __( 'Settings saved.', 'signal-realtime' ) } );
+			setNotice( { type: 'success', message: __( 'Settings saved.', 'signal' ) } );
 		} catch {
-			setNotice( { type: 'error', message: __( 'Failed to save settings.', 'signal-realtime' ) } );
+			setNotice( { type: 'error', message: __( 'Failed to save settings.', 'signal' ) } );
 		} finally {
 			setSaving( false );
 		}
@@ -56,9 +56,9 @@ export function ConnectionTab() {
 			const res = await connect();
 			setSiteKey( res.site_key );
 			setIsConnected( true );
-			setNotice( { type: 'success', message: res.message || __( 'Connected!', 'signal-realtime' ) } );
+			setNotice( { type: 'success', message: res.message || __( 'Connected!', 'signal' ) } );
 		} catch ( error: any ) {
-			setNotice( { type: 'error', message: error?.message || __( 'Connection failed. Make sure your Server URL and API Key are saved.', 'signal-realtime' ) } );
+			setNotice( { type: 'error', message: error?.message || __( 'Connection failed. Make sure your Server URL and API Key are saved.', 'signal' ) } );
 		} finally {
 			setConnecting( false );
 		}
@@ -79,31 +79,31 @@ export function ConnectionTab() {
 			<div className="wpsignal-connection-status">
 				{ isConnected ? (
 					<p>
-						<span className="wpsignal-status-connected">&#10003; { __( 'Connected', 'signal-realtime' ) }</span>
+						<span className="wpsignal-status-connected">&#10003; { __( 'Connected', 'signal' ) }</span>
 						{ siteKey && <> &mdash; <code>{ siteKey }</code></> }
 					</p>
 				) : (
 					<p>
-						<span className="wpsignal-status-disconnected">&#10005; { __( 'Not connected', 'signal-realtime' ) }</span>
+						<span className="wpsignal-status-disconnected">&#10005; { __( 'Not connected', 'signal' ) }</span>
 					</p>
 				) }
 			</div>
 
 			<TextControl
-				label={ __( 'Server URL', 'signal-realtime' ) }
+				label={ __( 'Server URL', 'signal' ) }
 				value={ baseUrl }
 				onChange={ setBaseUrl }
 				placeholder="https://api.wpsignal.io"
-				help={ __( 'The wpsignal.io service URL.', 'signal-realtime' ) }
+				help={ __( 'The wpsignal.io service URL.', 'signal' ) }
 				__nextHasNoMarginBottom
 			/>
 
 			<TextControl
-				label={ __( 'API Key', 'signal-realtime' ) }
+				label={ __( 'API Key', 'signal' ) }
 				value={ apiKey }
 				onChange={ setApiKey }
 				type="password"
-				help={ __( 'Get your API key from your wpsignal.io dashboard.', 'signal-realtime' ) }
+				help={ __( 'Get your API key from your wpsignal.io dashboard.', 'signal' ) }
 				__nextHasNoMarginBottom
 			/>
 
@@ -114,7 +114,7 @@ export function ConnectionTab() {
 					isBusy={ saving }
 					disabled={ saving || connecting }
 				>
-					{ __( 'Save Settings', 'signal-realtime' ) }
+					{ __( 'Save Settings', 'signal' ) }
 				</Button>
 				<Button
 					variant="secondary"
@@ -122,7 +122,7 @@ export function ConnectionTab() {
 					isBusy={ connecting }
 					disabled={ saving || connecting }
 				>
-					{ __( 'Connect to WPSignal', 'signal-realtime' ) }
+					{ __( 'Connect to WPSignal', 'signal' ) }
 				</Button>
 			</div>
 		</div>

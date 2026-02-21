@@ -11,7 +11,7 @@
  *   WPSignal\Trigger_Registry   → class-wpsignal-trigger-registry.php
  *
  * All class files live in the `includes/` directory. Only classes in the
- * WPSignal namespace are handled — all others are ignored so this autoloader
+ * WPSignal namespace are handled: all others are ignored so this autoloader
  * can coexist with Composer or other autoloaders.
  *
  * @package WPSignal

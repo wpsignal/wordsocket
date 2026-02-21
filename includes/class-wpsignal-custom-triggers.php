@@ -1,6 +1,6 @@
 <?php
 /**
- * WPSignal\Custom_Triggers — hydrates saved trigger configs into the registry.
+ * WPSignal\Custom_Triggers: hydrates saved trigger configs into the registry.
  *
  * Reads the wpsignal_custom_triggers option (saved by the Triggers UI) and
  * creates Trigger objects with appropriate hooks, conditions, and data

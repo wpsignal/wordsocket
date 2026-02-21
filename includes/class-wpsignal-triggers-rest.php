@@ -1,6 +1,6 @@
 <?php
 /**
- * WPSignal\Triggers_REST — REST API for managing custom triggers.
+ * WPSignal\Triggers_REST: REST API for managing custom triggers.
  *
  * Provides GET and POST endpoints for reading and writing the
  * wpsignal_custom_triggers option. The POST endpoint replaces the
@@ -113,7 +113,7 @@ class Triggers_REST {
 
 		return rest_ensure_response( array(
 			'triggers' => $sanitized,
-			'message'  => __( 'Triggers saved.', 'signal-realtime' ),
+			'message'  => __( 'Triggers saved.', 'signal' ),
 		) );
 	}
 }

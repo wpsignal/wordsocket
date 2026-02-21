@@ -7,6 +7,8 @@ interface WpSignalConfig {
 	token?: string;
 	channels?: string[];
 	exp?: number;
+	/** Base64-encoded raw AES-256 key for decrypting incoming "encrypted" messages. Never sent to WPSignal. */
+	encryptionKey?: string;
 }
 
 /** Localized by class-wpsignal-admin-page.php (Settings React app) */
@@ -51,15 +53,3 @@ interface WPSApi {
 	/** Register a callback for connection state changes. Returns unsubscribe fn. */
 	onConnectionChange( handler: ( connected: boolean ) => void ): () => void;
 }
-
-declare global {
-	interface Window {
-		wpSignalConfig?: WpSignalConfig;
-		wpsignalSettings?: WpSignalSettings;
-		wpSignalKitchenSink?: WpSignalKitchenSink;
-		wpSignalMonitor?: WpSignalMonitor;
-		WPS?: WPSApi;
-	}
-}
-
-export {};

@@ -1,17 +1,17 @@
 <?php
 /**
- * WPSignal\Config — centralizes all wp_options access.
+ * WPSignal\Config: centralizes all wp_options access.
  *
  * Provides typed accessors for every WPSignal option stored in the WordPress
  * database. This keeps option key strings in one place and makes it easy to
  * mock configuration in tests.
  *
  * Options managed:
- *   - wpsignal_base_url    — WPSignal server URL (e.g. "https://api.wpsignal.io")
- *   - wpsignal_site_key    — Site identifier (16 random bytes, hex)
- *   - wpsignal_site_secret — HMAC publish secret (32 random bytes, hex)
- *   - wpsignal_api_key     — Dashboard API key for site registration
- *   - wpsignal_jwt_secret  — Shared secret for minting connection JWTs
+ *   - wpsignal_base_url   : WPSignal server URL (e.g. "https://api.wpsignal.io")
+ *   - wpsignal_site_key   : Site identifier (16 random bytes, hex)
+ *   - wpsignal_site_secret: HMAC publish secret (32 random bytes, hex)
+ *   - wpsignal_api_key    : Dashboard API key for site registration
+ *   - wpsignal_jwt_secret : Shared secret for minting connection JWTs
  *
  * Usage:
  *
@@ -93,6 +93,36 @@ class Config {
 			return WPSIGNAL_JWT_SECRET;
 		}
 		return '';
+	}
+
+	/**
+	 * Derive the AES-256-GCM encryption key from WordPress salts and the site key.
+	 *
+	 * Uses HKDF-SHA256 to produce a 32-byte key. The seed defaults to
+	 * AUTH_KEY . SECURE_AUTH_KEY and is filterable via `wpsignal_encryption_seed`
+	 * so plugin or theme developers can supply custom key material without
+	 * modifying core. The site key is used as the HKDF salt to scope the
+	 * derived key to this specific site registration.
+	 *
+	 * Example: supply a custom seed:
+	 *
+	 *     add_filter( 'wpsignal_encryption_seed', function ( $default ) {
+	 *         return 'my-application-specific-secret';
+	 *     } );
+	 *
+	 * @return string Raw 32-byte key, or empty string if site key is missing
+	 *                or WP salt constants are not defined.
+	 */
+	public function encryption_key() {
+		$site_key = $this->site_key();
+		if ( empty( $site_key ) ) {
+			return '';
+		}
+		if ( ! defined( 'AUTH_KEY' ) || ! defined( 'SECURE_AUTH_KEY' ) ) {
+			return '';
+		}
+		$seed = apply_filters( 'wpsignal_encryption_seed', AUTH_KEY . SECURE_AUTH_KEY );
+		return hash_hkdf( 'sha256', $seed, 32, 'wpsignal-v1', $site_key );
 	}
 
 	/**

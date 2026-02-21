@@ -13,7 +13,7 @@ Signal is the official WordPress plugin for WP Signal (wpsignal.io), a third-par
 == Description ==
 
 Signal sends realtime events from your WordPress site to connected browsers.  
-When content changes — a post is published, a comment is approved, an option is updated — the plugin pushes the event to subscribers instantly via WebSocket (with SSE fallback).
+When content changes: a post is published, a comment is approved, an option is updated: the plugin pushes the event to subscribers instantly via WebSocket (with SSE fallback).
 
 WP Signal is an independent service and is not affiliated with or endorsed by the WordPress project.
 
@@ -21,7 +21,7 @@ WP Signal is an independent service and is not affiliated with or endorsed by th
 
 * WebSocket-first with automatic SSE fallback
 * Built-in triggers for post updates and custom post types
-* Custom trigger builder — map any WordPress action hook to a realtime event
+* Custom trigger builder: map any WordPress action hook to a realtime event
 * Public JavaScript API (`window.WPS`) for themes and plugins to share the connection
 * Admin monitor page with live event log, publish form, and token inspector
 * Short-lived JWTs (5 min) with automatic refresh
@@ -37,9 +37,9 @@ WP Signal is an independent service and is not affiliated with or endorsed by th
 
 This plugin connects to the **WPSignal service** at [api.wpsignal.io](https://api.wpsignal.io) (or a self-hosted server if configured) for the following operations:
 
-* **Site registration** — when you click "Connect to WPSignal" in the admin, the plugin registers your site with the server and receives credentials.
-* **Event publishing** — when a trigger fires (e.g. a post is saved), the plugin sends an HMAC-signed HTTP request to the server.
-* **Realtime connections** — logged-in users' browsers connect to the server via WebSocket or SSE to receive events.
+* **Site registration**: when you click "Connect to WPSignal" in the admin, the plugin registers your site with the server and receives credentials.
+* **Event publishing**: when a trigger fires (e.g. a post is saved), the plugin sends an HMAC-signed HTTP request to the server.
+* **Realtime connections**: logged-in users' browsers connect to the server via WebSocket or SSE to receive events.
 
 Data sent to the service includes your site URL, site name, event payloads, and connection tokens. Event payloads are delivered in realtime and are **not persisted** on the server.
 
@@ -51,7 +51,7 @@ Data sent to the service includes your site URL, site name, event payloads, and 
 1. Upload the `wpsignal` folder to `/wp-content/plugins/`, or install directly from the WordPress plugin directory.
 2. Activate the plugin through the "Plugins" menu in WordPress.
 3. Go to **WPSignal > Settings** and enter your WPSignal server URL and API key.
-4. Click **Connect to WPSignal** — the plugin registers with the server and saves credentials automatically.
+4. Click **Connect to WPSignal**: the plugin registers with the server and saves credentials automatically.
 
 To get an API key, create a free account at [wpsignal.io](https://wpsignal.io).
 
@@ -79,16 +79,16 @@ The built-in client script loads for logged-in users by default. You can enqueue
 
 == Screenshots ==
 
-1. Settings page — connection configuration and custom trigger management.
-2. Monitor page — live event log, publish form, and token inspector.
+1. Settings page: connection configuration and custom trigger management.
+2. Monitor page: live event log, publish form, and token inspector.
 
 == Changelog ==
 
 = 0.2.0 =
-* New: Custom trigger builder — register triggers from the admin UI without code.
+* New: Custom trigger builder: register triggers from the admin UI without code.
 * New: Settings page rebuilt as a React app with Connection and Triggers tabs.
 * New: Monitor (Kitchen Sink) admin page with 5 interactive panels.
-* New: Public JavaScript API (`window.WPS`) — subscribe, publish, event listeners.
+* New: Public JavaScript API (`window.WPS`): subscribe, publish, event listeners.
 * New: `WPS::trigger()` fluent builder and `WPS::publish()` facade methods.
 * New: Support for self-hosted servers (configurable server URL).
 * Improved: OOP architecture with PSR-4 autoloading under the `WPSignal` namespace.
@@ -100,4 +100,4 @@ The built-in client script loads for logged-in users by default. You can enqueue
 == Upgrade Notice ==
 
 = 0.2.0 =
-Major update with new admin UI, custom triggers, and public JS API. Existing installations will continue to work — no configuration changes required.
+Major update with new admin UI, custom triggers, and public JS API. Existing installations will continue to work: no configuration changes required.

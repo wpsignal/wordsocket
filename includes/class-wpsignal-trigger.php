@@ -6,7 +6,7 @@
  * hook fires, the trigger evaluates an optional condition, builds a data
  * payload, and publishes the event to the server.
  *
- * Usage — register a trigger in your theme or plugin:
+ * Usage: register a trigger in your theme or plugin:
  *
  *     // In functions.php or on the 'init' / 'wpsignal_loaded' action:
  *     WPS::trigger( 'post.updated' )
@@ -27,7 +27,7 @@
  *         } )
  *         ->register();
  *
- * Usage — minimal trigger (no condition, default channel "events"):
+ * Usage: minimal trigger (no condition, default channel "events"):
  *
  *     WPS::trigger( 'user.login' )
  *         ->on( 'wp_login', 10, 2 )
@@ -36,7 +36,7 @@
  *         } )
  *         ->register();
  *
- * Usage — cross-plugin trigger with custom channel:
+ * Usage: cross-plugin trigger with custom channel:
  *
  *     WPS::trigger( 'order.completed' )
  *         ->on( 'woocommerce_order_status_completed' )

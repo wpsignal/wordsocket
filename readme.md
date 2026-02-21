@@ -136,8 +136,8 @@ window.WPS.unsubscribe(['my-channel']);
 
 ## Admin pages
 
-- **Settings** — React app with two tabs: Connection (server URL, API key, connect button, status) and Triggers (custom trigger CRUD).
-- **Monitor** — Five test panels: connection status, registered triggers, live event log, publish form, token inspector.
+- **Settings**: React app with two tabs: Connection (server URL, API key, connect button, status) and Triggers (custom trigger CRUD).
+- **Monitor**: Five test panels: connection status, registered triggers, live event log, publish form, token inspector.
 
 ## Build
 

@@ -6,7 +6,7 @@
  * the two most common operations (registering triggers and publishing events)
  * and wires all internal components during boot().
  *
- * Usage — register a custom trigger:
+ * Usage: register a custom trigger:
  *
  *     add_action( 'wpsignal_loaded', function () {
  *         WPS::trigger( 'comment.created' )
@@ -24,7 +24,7 @@
  *             ->register();
  *     } );
  *
- * Usage — publish an event directly (no hook):
+ * Usage: publish an event directly (no hook):
  *
  *     WPS::publish( 'events', 'custom.event', [ 'key' => 'value' ] );
  *
@@ -83,11 +83,11 @@ class WPS {
 		return self::$instance;
 	}
 
-	/** Private constructor — use WPS::instance() instead. */
+	/** Private constructor: use WPS::instance() instead. */
 	private function __construct() {}
 
 	/**
-	 * Boot the plugin — instantiate and wire all components.
+	 * Boot the plugin: instantiate and wire all components.
 	 *
 	 * Called once from wpsignal.php during plugin load. Performs the following:
 	 *   1. Instantiate Config, Publisher, Token, TriggerRegistry, Client, Admin
@@ -185,7 +185,7 @@ class WPS {
 	/**
 	 * Create a new trigger builder.
 	 *
-	 * Returns a fluent builder — chain ->on(), ->channel(), ->data(), ->when(),
+	 * Returns a fluent builder: chain ->on(), ->channel(), ->data(), ->when(),
 	 * then call ->register() to wire it up.
 	 *
 	 * Example:

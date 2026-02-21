@@ -1,6 +1,6 @@
 <?php
 /**
- * WPSignal\Client — script enqueue for logged-in users (frontend + admin).
+ * WPSignal\Client: script enqueue for logged-in users (frontend + admin).
  *
  * Enqueues `client.js` on the frontend and admin when:
  *   1. The current user is logged in.
@@ -15,9 +15,9 @@
  *     } );
  *
  * Localized data (`wpSignalConfig`):
- *   - restUrl — REST endpoint for minting tokens (POST /wpsignal/v1/token)
- *   - nonce   — WordPress REST nonce for authentication
- *   - baseUrl — WPSignal server URL for WebSocket/SSE connections
+ *   - restUrl: REST endpoint for minting tokens (POST /wpsignal/v1/token)
+ *   - nonce  : WordPress REST nonce for authentication
+ *   - baseUrl: WPSignal server URL for WebSocket/SSE connections
  *
  * @package WPSignal
  */
@@ -55,6 +55,7 @@ class Client {
 	public function init() {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
+		add_action( 'enqueue_block_editor_assets', array( $this, 'enqueue_yjs_provider' ) );
 	}
 
 	/**
@@ -100,6 +101,15 @@ class Client {
 			$localize['token']    = $token_data['token'];
 			$localize['channels'] = $token_data['channels'];
 			$localize['exp']      = $token_data['exp'];
+		}
+
+		// Derive the encryption key server-side and pass the base64-encoded raw
+		// bytes to the browser. client.js imports this with SubtleCrypto and uses
+		// it to decrypt incoming "encrypted" messages before dispatching events.
+		// The key is never sent to the WPSignal server: only set here by PHP.
+		$enc_key = $this->config->encryption_key();
+		if ( ! empty( $enc_key ) ) {
+			$localize['encryptionKey'] = base64_encode( $enc_key );
 		}
 
 		wp_localize_script( 'wpsignal', 'wpSignalConfig', $localize );

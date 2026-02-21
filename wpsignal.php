@@ -8,7 +8,7 @@
  * Author URI:        https://worldhouse.dev
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       signal-realtime
+ * Text Domain:       signal
  * Domain Path:       /languages
  * Requires at least: 6.2
  * Tested up to:      6.9
@@ -24,7 +24,7 @@
  *   1. Define constants (WPSignal\VERSION, WPSignal\DIR, WPSignal\URL)
  *   2. Load autoloader (includes/autoload.php)
  *   3. Load backward-compat function wrappers (publish.php, rest.php, admin.php)
- *   4. WPS::instance()->boot() — instantiates and wires all components
+ *   4. WPS::instance()->boot(): instantiates and wires all components
  *
  * @see WPS::boot() for the full initialization sequence.
  */

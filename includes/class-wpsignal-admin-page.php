@@ -3,8 +3,8 @@
  * WPSignal\Admin_Page - WordPress admin settings page and menu registration.
  *
  * Registers a top-level "WPSignal" admin menu with two subpages:
- *   - Settings — React SPA with Connection and Triggers tabs.
- *   - Monitor  — interactive debug/test page (delegated to Monitor_Page).
+ *   - Settings: React SPA with Connection and Triggers tabs.
+ *   - Monitor : interactive debug/test page (delegated to Monitor_Page).
  *
  * @package WPSignal
  */
@@ -54,8 +54,8 @@ class Admin_Page {
 	 */
 	public function register_menu() {
 		add_menu_page(
-			__( 'WPSignal', 'signal-realtime' ),
-			__( 'WPSignal', 'signal-realtime' ),
+			__( 'WPSignal', 'signal' ),
+			__( 'WPSignal', 'signal' ),
 			'manage_options',
 			'wpsignal',
 			array( $this, 'render_settings_page' ),
@@ -65,8 +65,8 @@ class Admin_Page {
 
 		add_submenu_page(
 			'wpsignal',
-			__( 'Settings', 'signal-realtime' ),
-			__( 'Settings', 'signal-realtime' ),
+			__( 'Settings', 'signal' ),
+			__( 'Settings', 'signal' ),
 			'manage_options',
 			'wpsignal',
 			array( $this, 'render_settings_page' )
@@ -74,8 +74,8 @@ class Admin_Page {
 
 		add_submenu_page(
 			'wpsignal',
-			__( 'Monitor', 'signal-realtime' ),
-			__( 'Monitor', 'signal-realtime' ),
+			__( 'Monitor', 'signal' ),
+			__( 'Monitor', 'signal' ),
 			'manage_options',
 			'wpsignal-monitor',
 			array( $this->monitor, 'render_page' )
@@ -96,7 +96,7 @@ class Admin_Page {
 	}
 
 	/**
-	 * Render the Settings page — mounts the React app.
+	 * Render the Settings page: mounts the React app.
 	 *
 	 * Enqueues build/settings.js + build/settings.css, localizes configuration
 	 * data, and renders the mount point div.

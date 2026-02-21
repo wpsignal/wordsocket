@@ -1,15 +1,15 @@
 <?php
 /**
- * WPSignal\Monitor_Page — interactive admin demo page.
+ * WPSignal\Monitor_Page: interactive admin demo page.
  *
  * Renders a full-page admin view at WP Signal > Monitor with five panels
  * for testing and inspecting all plugin features:
  *
- *   1. Connection Status — configured badge, site_key, "Test Connection" button
- *   2. Registered Triggers — table of all triggers (event, hook, channel, condition)
- *   3. Live Event Log — WebSocket connect/disconnect, channel subscribe, scrolling log
- *   4. Publish Test Event — form (channel, event name, JSON data) via REST proxy
- *   5. Token Inspector — mint button, decoded JWT claims, expiry countdown
+ *   1. Connection Status: configured badge, site_key, "Test Connection" button
+ *   2. Registered Triggers: table of all triggers (event, hook, channel, condition)
+ *   3. Live Event Log: WebSocket connect/disconnect, channel subscribe, scrolling log
+ *   4. Publish Test Event: form (channel, event name, JSON data) via REST proxy
+ *   5. Token Inspector: mint button, decoded JWT claims, expiry countdown
  *
  * The page enqueues `kitchen-sink.js` which handles all client-side interactivity.
  * Publishing goes through the PHP REST endpoint (POST /wpsignal/v1/publish)
@@ -55,7 +55,7 @@ class Monitor_Page {
 
 		?>
 		<div class="wrap">
-			<h1><?php esc_html_e( 'WP Signal Monitor', 'signal-realtime' ); ?></h1>
+			<h1><?php esc_html_e( 'WP Signal Monitor', 'signal' ); ?></h1>
 
 			<?php $this->render_connection_status(); ?>
 			<?php $this->render_triggers_table( $triggers ); ?>
@@ -111,34 +111,34 @@ class Monitor_Page {
 		$base_url   = $this->config->base_url();
 		?>
 		<div class="card" style="max-width:100%;">
-			<h2><?php esc_html_e( 'Connection Status', 'signal-realtime' ); ?></h2>
+			<h2><?php esc_html_e( 'Connection Status', 'signal' ); ?></h2>
 
 			<p>
 				<?php if ( $configured ) : ?>
 					<span class="dashicons dashicons-yes-alt" style="color:#46b450;"></span>
-					<strong><?php esc_html_e( 'Configured', 'signal-realtime' ); ?></strong>
+					<strong><?php esc_html_e( 'Configured', 'signal' ); ?></strong>
 				<?php else : ?>
 					<span class="dashicons dashicons-dismiss" style="color:#dc3232;"></span>
-					<strong><?php esc_html_e( 'Not Configured', 'signal-realtime' ); ?></strong>
-					&mdash; <?php esc_html_e( 'Go to Settings to connect.', 'signal-realtime' ); ?>
+					<strong><?php esc_html_e( 'Not Configured', 'signal' ); ?></strong>
+					&mdash; <?php esc_html_e( 'Go to Settings to connect.', 'signal' ); ?>
 				<?php endif; ?>
 			</p>
 
 			<?php if ( $configured ) : ?>
 				<table class="form-table" role="presentation">
 					<tr>
-						<th scope="row"><?php esc_html_e( 'Server URL', 'signal-realtime' ); ?></th>
+						<th scope="row"><?php esc_html_e( 'Server URL', 'signal' ); ?></th>
 						<td><code><?php echo esc_html( $base_url ); ?></code></td>
 					</tr>
 					<tr>
-						<th scope="row"><?php esc_html_e( 'Site Key', 'signal-realtime' ); ?></th>
+						<th scope="row"><?php esc_html_e( 'Site Key', 'signal' ); ?></th>
 						<td><code><?php echo esc_html( $site_key ); ?></code></td>
 					</tr>
 				</table>
 
 				<p>
 					<button type="button" id="wpsignal-ks-test-connection" class="button">
-						<?php esc_html_e( 'Test Connection', 'signal-realtime' ); ?>
+						<?php esc_html_e( 'Test Connection', 'signal' ); ?>
 					</button>
 					<span id="wpsignal-ks-test-status" style="margin-left:10px;"></span>
 				</p>
@@ -159,20 +159,20 @@ class Monitor_Page {
 	private function render_triggers_table( $triggers ) {
 		?>
 		<div class="card" style="max-width:100%;margin-top:20px;">
-			<h2><?php esc_html_e( 'Registered Triggers', 'signal-realtime' ); ?></h2>
+			<h2><?php esc_html_e( 'Registered Triggers', 'signal' ); ?></h2>
 
 			<?php if ( empty( $triggers ) ) : ?>
-				<p><?php esc_html_e( 'No triggers registered.', 'signal-realtime' ); ?></p>
+				<p><?php esc_html_e( 'No triggers registered.', 'signal' ); ?></p>
 			<?php else : ?>
 				<table class="widefat striped">
 					<thead>
 						<tr>
-							<th><?php esc_html_e( 'Event', 'signal-realtime' ); ?></th>
-							<th><?php esc_html_e( 'Hook', 'signal-realtime' ); ?></th>
-							<th><?php esc_html_e( 'Priority', 'signal-realtime' ); ?></th>
-							<th><?php esc_html_e( 'Args', 'signal-realtime' ); ?></th>
-							<th><?php esc_html_e( 'Channel', 'signal-realtime' ); ?></th>
-							<th><?php esc_html_e( 'Condition', 'signal-realtime' ); ?></th>
+							<th><?php esc_html_e( 'Event', 'signal' ); ?></th>
+							<th><?php esc_html_e( 'Hook', 'signal' ); ?></th>
+							<th><?php esc_html_e( 'Priority', 'signal' ); ?></th>
+							<th><?php esc_html_e( 'Args', 'signal' ); ?></th>
+							<th><?php esc_html_e( 'Channel', 'signal' ); ?></th>
+							<th><?php esc_html_e( 'Condition', 'signal' ); ?></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -204,27 +204,27 @@ class Monitor_Page {
 	private function render_event_log() {
 		?>
 		<div class="card" style="max-width:100%;margin-top:20px;">
-			<h2><?php esc_html_e( 'Live Event Log', 'signal-realtime' ); ?></h2>
+			<h2><?php esc_html_e( 'Live Event Log', 'signal' ); ?></h2>
 
 			<p>
 				<label for="wpsignal-ks-channels">
-					<?php esc_html_e( 'Channels (comma-separated):', 'signal-realtime' ); ?>
+					<?php esc_html_e( 'Channels (comma-separated):', 'signal' ); ?>
 				</label>
 				<input type="text" id="wpsignal-ks-channels" value="events" class="regular-text" />
 			</p>
 
 			<p>
 				<button type="button" id="wpsignal-ks-connect" class="button button-primary">
-					<?php esc_html_e( 'Connect', 'signal-realtime' ); ?>
+					<?php esc_html_e( 'Connect', 'signal' ); ?>
 				</button>
 				<button type="button" id="wpsignal-ks-disconnect" class="button" disabled>
-					<?php esc_html_e( 'Disconnect', 'signal-realtime' ); ?>
+					<?php esc_html_e( 'Disconnect', 'signal' ); ?>
 				</button>
 				<span id="wpsignal-ks-ws-status" style="margin-left:10px;"></span>
 			</p>
 
 			<div id="wpsignal-ks-event-log" style="max-height:300px;overflow-y:auto;background:#1d2327;color:#c3c4c7;padding:10px;font-family:monospace;font-size:13px;border-radius:4px;">
-				<div style="color:#72aee6;"><?php esc_html_e( 'Waiting for connection...', 'signal-realtime' ); ?></div>
+				<div style="color:#72aee6;"><?php esc_html_e( 'Waiting for connection...', 'signal' ); ?></div>
 			</div>
 		</div>
 		<?php
@@ -242,26 +242,26 @@ class Monitor_Page {
 	private function render_publish_form() {
 		?>
 		<div class="card" style="max-width:100%;margin-top:20px;">
-			<h2><?php esc_html_e( 'Publish Test Event', 'signal-realtime' ); ?></h2>
+			<h2><?php esc_html_e( 'Publish Test Event', 'signal' ); ?></h2>
 
 			<table class="form-table" role="presentation">
 				<tr>
-					<th scope="row"><label for="wpsignal-ks-pub-channel"><?php esc_html_e( 'Channel', 'signal-realtime' ); ?></label></th>
+					<th scope="row"><label for="wpsignal-ks-pub-channel"><?php esc_html_e( 'Channel', 'signal' ); ?></label></th>
 					<td><input type="text" id="wpsignal-ks-pub-channel" value="events" class="regular-text" /></td>
 				</tr>
 				<tr>
-					<th scope="row"><label for="wpsignal-ks-pub-event"><?php esc_html_e( 'Event Name', 'signal-realtime' ); ?></label></th>
+					<th scope="row"><label for="wpsignal-ks-pub-event"><?php esc_html_e( 'Event Name', 'signal' ); ?></label></th>
 					<td><input type="text" id="wpsignal-ks-pub-event" value="test.event" class="regular-text" /></td>
 				</tr>
 				<tr>
-					<th scope="row"><label for="wpsignal-ks-pub-data"><?php esc_html_e( 'JSON Data', 'signal-realtime' ); ?></label></th>
+					<th scope="row"><label for="wpsignal-ks-pub-data"><?php esc_html_e( 'JSON Data', 'signal' ); ?></label></th>
 					<td><textarea id="wpsignal-ks-pub-data" class="large-text" rows="4">{"message": "Hello from Monitor!"}</textarea></td>
 				</tr>
 			</table>
 
 			<p>
 				<button type="button" id="wpsignal-ks-publish" class="button button-primary">
-					<?php esc_html_e( 'Publish Event', 'signal-realtime' ); ?>
+					<?php esc_html_e( 'Publish Event', 'signal' ); ?>
 				</button>
 				<span id="wpsignal-ks-pub-status" style="margin-left:10px;"></span>
 			</p>
@@ -280,19 +280,19 @@ class Monitor_Page {
 	private function render_token_inspector() {
 		?>
 		<div class="card" style="max-width:100%;margin-top:20px;">
-			<h2><?php esc_html_e( 'Token Inspector', 'signal-realtime' ); ?></h2>
+			<h2><?php esc_html_e( 'Token Inspector', 'signal' ); ?></h2>
 
 			<p>
 				<button type="button" id="wpsignal-ks-mint-token" class="button">
-					<?php esc_html_e( 'Mint Token', 'signal-realtime' ); ?>
+					<?php esc_html_e( 'Mint Token', 'signal' ); ?>
 				</button>
 			</p>
 
 			<div id="wpsignal-ks-token-display" style="display:none;">
-				<h3><?php esc_html_e( 'Raw Token', 'signal-realtime' ); ?></h3>
+				<h3><?php esc_html_e( 'Raw Token', 'signal' ); ?></h3>
 				<textarea id="wpsignal-ks-token-raw" class="large-text" rows="3" readonly></textarea>
 
-				<h3><?php esc_html_e( 'Decoded Claims', 'signal-realtime' ); ?></h3>
+				<h3><?php esc_html_e( 'Decoded Claims', 'signal' ); ?></h3>
 				<pre id="wpsignal-ks-token-claims" style="background:#f0f0f1;padding:10px;overflow-x:auto;"></pre>
 
 				<p id="wpsignal-ks-token-expiry"></p>

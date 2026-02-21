@@ -39,7 +39,7 @@ class Trigger_Registry {
 	/** @var Trigger[] All registered triggers. */
 	private $triggers = array();
 
-	/** @var string[] Post types with custom triggers — excluded from the built-in default. */
+	/** @var string[] Post types with custom triggers: excluded from the built-in default. */
 	private $excluded_default_post_types = array();
 
 	/**
