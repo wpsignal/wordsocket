@@ -114,4 +114,57 @@ class Client {
 
 		wp_localize_script( 'wpsignal', 'wpSignalConfig', $localize );
 	}
+
+	/**
+	 * Enqueue the Yjs sync provider in the block editor (WordPress 7.0+).
+	 *
+	 * Registers the WPSignal provider creator with the `sync.providers` filter
+	 * so Gutenberg can use WPSignal WebSocket connections for real-time
+	 * collaborative editing instead of the default HTTP polling transport.
+	 *
+	 * Only enqueued when:
+	 *   1. The plugin is configured (base_url is set).
+	 *   2. The @wordpress/sync package is available (WP 7.0+).
+	 *   3. The wpsignal client script is already enqueued (connection exists).
+	 *
+	 * @return void
+	 */
+	public function enqueue_yjs_provider() {
+		if ( empty( $this->config->base_url() ) ) {
+			return;
+		}
+
+		$site_key = $this->config->site_key();
+		if ( empty( $site_key ) ) {
+			return;
+		}
+
+		$asset_file = DIR . 'build/yjs-provider.asset.php';
+		if ( ! file_exists( $asset_file ) ) {
+			return;
+		}
+		$asset = require $asset_file;
+
+		// @wordpress/sync ships with WP 7.0. On older installs the handle won't
+		// be registered, so we remove it from deps rather than bail entirely —
+		// this lets the script load for manual testing even without WP sync.
+		$sync_dep = wp_script_is( 'wp-sync', 'registered' ) ? array( 'wp-sync' ) : array();
+		$deps     = array_merge( $asset['dependencies'], array( 'wpsignal', 'wp-hooks' ), $sync_dep );
+
+		wp_enqueue_script(
+			'wpsignal-yjs-provider',
+			URL . 'build/yjs-provider.js',
+			$deps,
+			$asset['version'],
+			true
+		);
+
+		// Compute site_id the same way as Token::mint() so the Yjs channel
+		// prefix matches the JWT's allowed_channel_prefixes ('site:{site_id}:').
+		$site_id = hash( 'sha256', 'site:' . $site_key );
+
+		wp_localize_script( 'wpsignal-yjs-provider', 'wpSignalYjsConfig', array(
+			'channelPrefix' => 'site:' . $site_id . ':yjs:',
+		) );
+	}
 }

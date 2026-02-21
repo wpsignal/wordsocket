@@ -7,9 +7,14 @@ module.exports = {
 		client: path.resolve( __dirname, 'src/client.ts' ),
 		settings: path.resolve( __dirname, 'src/settings/index.tsx' ),
 		monitor: path.resolve( __dirname, 'src/monitor.ts' ),
+		'yjs-provider': path.resolve( __dirname, 'src/yjs-provider-boot.ts' ),
 	},
 	output: {
 		...defaultConfig.output,
 		path: path.resolve( __dirname, 'build' ),
+	},
+	externals: {
+		...defaultConfig.externals,
+		'@wordpress/sync': 'wp.sync',
 	},
 };
