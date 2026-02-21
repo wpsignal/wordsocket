@@ -28,6 +28,7 @@ WP Signal is an independent service and is not affiliated with or endorsed by th
 * Built-in triggers for post updates and custom post types
 * Custom trigger builder: map any WordPress action hook to a realtime event
 * Public JavaScript API (`window.WPS`) for themes and plugins to share the connection
+* Extensible connection token: `wpsignal_token_channels` and `wpsignal_token_channel_prefixes` filters let other plugins add channels and namespace permissions to the JWT without modifying core
 * Admin monitor page with live event log, publish form, and token inspector
 * Short-lived JWTs (5 min) with automatic refresh
 
@@ -90,7 +91,7 @@ The built-in client script loads for logged-in users by default. You can enqueue
 
 = What happens if WebSocket is unavailable? =
 
-The client falls back to SSE for receiving events. For collaborative editing, the plugin detects the fallback and emits a "not synced" status so WordPress can surface the appropriate indicator. You can also disable the collaboration provider entirely from **WPSignal > Settings > Connection** to restore WordPress HTTP polling for all editors.
+The client falls back to SSE for receiving events. `window.WPS.subscribe()` and `window.WPS.unsubscribe()` work on SSE connections: channel changes are tracked and applied immediately via a lightweight SSE reconnect (50 ms debounce). For collaborative editing, the plugin detects the fallback and emits a "not synced" status so WordPress can surface the appropriate indicator. You can also disable the collaboration provider entirely from **WPSignal > Settings > Connection** to restore WordPress HTTP polling for all editors.
 
 = Does collaborative editing require WordPress 7.0? =
 
@@ -102,6 +103,12 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 2. Monitor page: live event log, publish form, and token inspector.
 
 == Changelog ==
+
+= 0.5.0 =
+* New: `wpsignal_token_channels` filter: plugins can append channels to the initial auto-subscribe list in the minted JWT.
+* New: `wpsignal_token_channel_prefixes` filter: plugins can add channel-prefix permissions to the JWT `allowed_channel_prefixes` claim, enabling server-enforced access to custom channel namespaces.
+* Improved: `window.WPS.subscribe()` and `window.WPS.unsubscribe()` now work on SSE connections. Channel changes are tracked in a persistent set and applied immediately via a debounced SSE reconnect, so plugins that call these methods do not need to know the current transport.
+* Developer: `forceSSE` config flag available for testing the SSE transport without browser tooling.
 
 = 0.4.0 =
 * New: AES-256-GCM encrypted event payloads. The WPSignal relay receives and forwards ciphertext only: plaintext message content never leaves WordPress.
@@ -130,6 +137,9 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 * Initial release.
 
 == Upgrade Notice ==
+
+= 0.5.0 =
+Adds PHP filters for extending JWT channel access and fixes `subscribe()`/`unsubscribe()` on SSE connections. No configuration changes required.
 
 = 0.4.0 =
 Adds relay-blind AES-256-GCM encryption for all event payloads. No configuration required: encryption is automatic after connecting. The WPSignal relay never has access to plaintext message content.

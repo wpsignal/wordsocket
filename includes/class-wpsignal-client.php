@@ -102,6 +102,7 @@ class Client {
 			$localize['token']    = $token_data['token'];
 			$localize['channels'] = $token_data['channels'];
 			$localize['exp']      = $token_data['exp'];
+			$localize['forceSSE'] = apply_filters( 'wpsignal_force_sse', false );
 		}
 
 		// Derive the encryption key server-side and pass the base64-encoded raw

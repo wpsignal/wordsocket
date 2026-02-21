@@ -154,11 +154,47 @@ class Token {
 			'typ' => 'JWT',
 		) ) );
 
+		/**
+		 * Filters the channels the client auto-subscribes to on connect.
+		 *
+		 * Plugins can append their own channels so they are included in the
+		 * initial WebSocket/SSE subscription without a separate subscribe call.
+		 *
+		 * @param string[] $channels  Default channels for this site.
+		 * @param int      $user_id   Current user ID.
+		 * @param string   $site_id   Hashed site identifier from the JWT.
+		 */
+		$channels = apply_filters(
+			'wpsignal_token_channels',
+			array( 'site:' . $site_id . ':events' ),
+			$user->ID,
+			$site_id
+		);
+
+		/**
+		 * Filters the channel prefixes the JWT allows the client to subscribe to.
+		 *
+		 * The WPSignal server rejects subscribe/publish frames whose channel does
+		 * not start with one of these prefixes. Add a prefix here whenever you
+		 * add channels via the `wpsignal_token_channels` filter that fall outside
+		 * the default `site:{site_id}:` namespace.
+		 *
+		 * @param string[] $prefixes  Default allowed prefixes.
+		 * @param int      $user_id   Current user ID.
+		 * @param string   $site_id   Hashed site identifier from the JWT.
+		 */
+		$allowed_prefixes = apply_filters(
+			'wpsignal_token_channel_prefixes',
+			array( 'site:' . $site_id . ':' ),
+			$user->ID,
+			$site_id
+		);
+
 		$payload = self::base64url_encode( wp_json_encode( array(
 			'tenant_id'                => $tenant_id,
 			'site_id'                  => $site_id,
 			'user_id'                  => (string) $user->ID,
-			'allowed_channel_prefixes' => array( 'site:' . $site_id . ':' ),
+			'allowed_channel_prefixes' => $allowed_prefixes,
 			'iat'                      => $now,
 			'exp'                      => $exp,
 		) ) );
@@ -169,7 +205,7 @@ class Token {
 
 		return array(
 			'token'    => $header . '.' . $payload . '.' . $signature,
-			'channels' => array( 'site:' . $site_id . ':events' ),
+			'channels' => $channels,
 			'exp'      => $exp,
 		);
 	}
