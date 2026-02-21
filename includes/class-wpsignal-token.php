@@ -4,15 +4,15 @@
  *
  * Registers three REST API endpoints under the `wpsignal/v1` namespace:
  *
- *   POST /wp-json/wpsignal/v1/token   — Mint a short-lived connection JWT (any logged-in user).
- *   POST /wp-json/wpsignal/v1/connect  — Register this site with the WPSignal server (admin only).
- *   POST /wp-json/wpsignal/v1/publish  — Publish an event via PHP proxy (admin only).
- *   GET  /wp-json/wpsignal/v1/settings — Read connection settings (admin only).
- *   POST /wp-json/wpsignal/v1/settings — Save connection settings (admin only).
+ *   POST /wp-json/wpsignal/v1/token  : Mint a short-lived connection JWT (any logged-in user).
+ *   POST /wp-json/wpsignal/v1/connect : Register this site with the WPSignal server (admin only).
+ *   POST /wp-json/wpsignal/v1/publish : Publish an event via PHP proxy (admin only).
+ *   GET  /wp-json/wpsignal/v1/settings: Read connection settings (admin only).
+ *   POST /wp-json/wpsignal/v1/settings: Save connection settings (admin only).
  *
  * The token endpoint mints HS256 JWTs that browsers use to connect via
  * WebSocket or SSE. The JWT contains tenant_id, site_id, user_id, and
- * allowed_channel_prefixes — the server enforces these claims.
+ * allowed_channel_prefixes: the server enforces these claims.
  *
  * The publish endpoint acts as a server-side proxy so the HMAC site secret
  * never reaches the browser. Used by the Kitchen Sink demo page.
@@ -175,7 +175,7 @@ class Token {
 	}
 
 	/**
-	 * REST handler — mint a token for the current user and return it as JSON.
+	 * REST handler: mint a token for the current user and return it as JSON.
 	 *
 	 * @param WP_REST_Request $request The incoming REST request.
 	 * @return \WP_REST_Response|\WP_Error Token response or error.
@@ -336,7 +336,7 @@ class Token {
 	 * Verify the registered site still exists on the WPSignal server.
 	 *
 	 * Sends a publish request with a dummy signature so the server never
-	 * reaches hub.publish() — no event is broadcast. The server checks
+	 * reaches hub.publish(): no event is broadcast. The server checks
 	 * site_key existence before HMAC verification, so the response body
 	 * distinguishes the two 401 cases:
 	 *
@@ -365,7 +365,7 @@ class Token {
 		) );
 
 		if ( is_wp_error( $response ) ) {
-			return true; // Network error — assume still connected.
+			return true; // Network error: assume still connected.
 		}
 
 		$response_body = wp_remote_retrieve_body( $response );

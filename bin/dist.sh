@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# dist.sh — Build a WordPress.org-ready release of the WPSignal plugin
+# dist.sh: Build a WordPress.org-ready release of the WPSignal plugin
 #
 # Outputs:
 #   dist/signal-{version}.zip   Plugin zip for WordPress.org upload / SVN trunk
@@ -39,7 +39,7 @@ ZIP_NAME="${PLUGIN_SLUG}-${VERSION}.zip"
 DIST_DIR="$PLUGIN_DIR/dist"
 STAGE_DIR="$DIST_DIR/$PLUGIN_SLUG"
 
-bold "WPSignal dist — v${VERSION}"
+bold "WPSignal dist: v${VERSION}"
 echo ""
 
 # ── 1. Clean ──────────────────────────────────────────────────────────────────
@@ -104,7 +104,7 @@ fi
 
 if [[ -z "$ASSETS_SRC" || ! -d "$ASSETS_SRC" ]]; then
   warn "No asset directory found. Set WPS_ASSETS_DIR or create ./wp-org-assets/"
-  warn "Skipping SVN assets — add icons, banners, and screenshots manually."
+  warn "Skipping SVN assets: add icons, banners, and screenshots manually."
 else
   SVN_ASSETS_DIR="$DIST_DIR/svn-assets"
   mkdir -p "$SVN_ASSETS_DIR"

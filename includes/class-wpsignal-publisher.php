@@ -1,6 +1,6 @@
 <?php
 /**
- * WPSignal\Publisher — HMAC-signed event publishing.
+ * WPSignal\Publisher: HMAC-signed event publishing.
  *
  * Sends events to the WPSignal server via HTTP POST with HMAC-SHA256
  * authentication. The signature scheme matches the server's verification:
@@ -8,9 +8,9 @@
  *   signature = HMAC-SHA256( json_body + "." + timestamp_ms, site_secret )
  *
  * Headers sent:
- *   - X-WP-Signal-Key  — site key (public identifier)
- *   - X-WP-Signal-Ts   — millisecond timestamp
- *   - X-WP-Signal-Sign — hex-encoded HMAC signature
+ *   - X-WP-Signal-Key : site key (public identifier)
+ *   - X-WP-Signal-Ts  : millisecond timestamp
+ *   - X-WP-Signal-Sign: hex-encoded HMAC signature
  *
  * Usage via the static facade:
  *

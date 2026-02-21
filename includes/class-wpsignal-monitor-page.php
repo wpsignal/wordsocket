@@ -1,15 +1,15 @@
 <?php
 /**
- * WPSignal\Monitor_Page — interactive admin demo page.
+ * WPSignal\Monitor_Page: interactive admin demo page.
  *
  * Renders a full-page admin view at WP Signal > Monitor with five panels
  * for testing and inspecting all plugin features:
  *
- *   1. Connection Status — configured badge, site_key, "Test Connection" button
- *   2. Registered Triggers — table of all triggers (event, hook, channel, condition)
- *   3. Live Event Log — WebSocket connect/disconnect, channel subscribe, scrolling log
- *   4. Publish Test Event — form (channel, event name, JSON data) via REST proxy
- *   5. Token Inspector — mint button, decoded JWT claims, expiry countdown
+ *   1. Connection Status: configured badge, site_key, "Test Connection" button
+ *   2. Registered Triggers: table of all triggers (event, hook, channel, condition)
+ *   3. Live Event Log: WebSocket connect/disconnect, channel subscribe, scrolling log
+ *   4. Publish Test Event: form (channel, event name, JSON data) via REST proxy
+ *   5. Token Inspector: mint button, decoded JWT claims, expiry countdown
  *
  * The page enqueues `kitchen-sink.js` which handles all client-side interactivity.
  * Publishing goes through the PHP REST endpoint (POST /wpsignal/v1/publish)

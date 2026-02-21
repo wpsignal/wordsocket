@@ -1,17 +1,17 @@
 <?php
 /**
- * WPSignal\Config — centralizes all wp_options access.
+ * WPSignal\Config: centralizes all wp_options access.
  *
  * Provides typed accessors for every WPSignal option stored in the WordPress
  * database. This keeps option key strings in one place and makes it easy to
  * mock configuration in tests.
  *
  * Options managed:
- *   - wpsignal_base_url    — WPSignal server URL (e.g. "https://api.wpsignal.io")
- *   - wpsignal_site_key    — Site identifier (16 random bytes, hex)
- *   - wpsignal_site_secret — HMAC publish secret (32 random bytes, hex)
- *   - wpsignal_api_key     — Dashboard API key for site registration
- *   - wpsignal_jwt_secret  — Shared secret for minting connection JWTs
+ *   - wpsignal_base_url   : WPSignal server URL (e.g. "https://api.wpsignal.io")
+ *   - wpsignal_site_key   : Site identifier (16 random bytes, hex)
+ *   - wpsignal_site_secret: HMAC publish secret (32 random bytes, hex)
+ *   - wpsignal_api_key    : Dashboard API key for site registration
+ *   - wpsignal_jwt_secret : Shared secret for minting connection JWTs
  *
  * Usage:
  *
@@ -104,7 +104,7 @@ class Config {
 	 * modifying core. The site key is used as the HKDF salt to scope the
 	 * derived key to this specific site registration.
 	 *
-	 * Example — supply a custom seed:
+	 * Example: supply a custom seed:
 	 *
 	 *     add_filter( 'wpsignal_encryption_seed', function ( $default ) {
 	 *         return 'my-application-specific-secret';

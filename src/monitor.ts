@@ -1,5 +1,5 @@
 /**
- * WPSignal Monitor — interactive admin demo page.
+ * WPSignal Monitor: interactive admin demo page.
  */
 
 const cfg = window.wpSignalMonitor;
@@ -58,7 +58,7 @@ if ( cfg ) {
 				} )
 				.then( ( data: { active_connections: number; published_messages: number } ) => {
 					testStatus.style.color = '#46b450';
-					testStatus.textContent = `OK — ${ data.active_connections } connections, ${ data.published_messages } published`;
+					testStatus.textContent = `OK: ${ data.active_connections } connections, ${ data.published_messages } published`;
 				} )
 				.catch( ( err: Error ) => {
 					testStatus.style.color = '#dc3232';
@@ -137,7 +137,7 @@ if ( cfg ) {
 								ws!.send( JSON.stringify( { type: 'pong' } ) );
 								break;
 							case 'error':
-								appendLog( `Error: ${ msg.code } — ${ msg.message }`, '#dc3232' );
+								appendLog( `Error: ${ msg.code }: ${ msg.message }`, '#dc3232' );
 								break;
 							default:
 								appendLog( JSON.stringify( msg ), '#c3c4c7' );

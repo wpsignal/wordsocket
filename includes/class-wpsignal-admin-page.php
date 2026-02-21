@@ -3,8 +3,8 @@
  * WPSignal\Admin_Page - WordPress admin settings page and menu registration.
  *
  * Registers a top-level "WPSignal" admin menu with two subpages:
- *   - Settings — React SPA with Connection and Triggers tabs.
- *   - Monitor  — interactive debug/test page (delegated to Monitor_Page).
+ *   - Settings: React SPA with Connection and Triggers tabs.
+ *   - Monitor : interactive debug/test page (delegated to Monitor_Page).
  *
  * @package WPSignal
  */
@@ -96,7 +96,7 @@ class Admin_Page {
 	}
 
 	/**
-	 * Render the Settings page — mounts the React app.
+	 * Render the Settings page: mounts the React app.
 	 *
 	 * Enqueues build/settings.js + build/settings.css, localizes configuration
 	 * data, and renders the mount point div.
