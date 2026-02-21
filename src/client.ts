@@ -4,387 +4,555 @@
  * Prefers WebSocket for bidirectional communication, falls back to SSE.
  * Dispatches `wpsignal:<event>` DOM custom events regardless of transport.
  *
- * Exposes `window.WPS` — the public JS API — so any theme or plugin can
+ * Exposes `window.WPS`: the public JS API so any theme or plugin can
  * subscribe/unsubscribe channels, publish messages, and listen for events
  * on the shared connection. Enqueue with `'wpsignal'` as a script dependency.
  */
 
+class WPSignalClient implements WPSApi {
+  private readonly config: WpSignalConfig;
+  private readonly baseUrl: string;
+
+  // --- Transport state ---
+  private transport: "ws" | "sse" | null = null;
+  private ws: WebSocket | null = null;
+  private sseReader: EventSource | null = null;
+  private refreshTimer: ReturnType<typeof setTimeout> | null = null;
+  private _connected = false;
+
+  // --- Handler registries ---
+  private readonly messageHandlers = new Set<WPSMessageHandler>();
+  private readonly eventHandlers = new Map<string, Set<WPSEventHandler>>();
+  private readonly connectionHandlers = new Set<(c: boolean) => void>();
+  private readonly binaryHandlers = new Set<WPSBinaryHandler>();
+
+  /** Channels requested by external consumers (queued until WS is open). */
+  private readonly pendingSubscriptions: string[] = [];
+
+  // --- Decryption ---
+  /** Cached import of the AES-256-GCM key; resolved once and reused for every message. */
+  private cryptoKeyPromise: Promise<CryptoKey | null> | null = null;
+
+  constructor(config: WpSignalConfig) {
+    this.config = config;
+    this.baseUrl = config.baseUrl.replace(/\/+$/, "");
+  }
+
+  // ---------------------------------------------------------------------------
+  // Public API (WPSApi)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Subscribe to one or more channels.
+   * If the WebSocket is not yet open, the channels are queued and sent on connect.
+   */
+  subscribe(channels: string[]): void {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: "subscribe", channels }));
+    } else {
+      this.pendingSubscriptions.push(...channels);
+    }
+  }
+
+  /**
+   * Unsubscribe from one or more channels.
+   * If the WebSocket is not open, channels are removed from the pending queue.
+   */
+  unsubscribe(channels: string[]): void {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: "unsubscribe", channels }));
+    } else {
+      for (const ch of channels) {
+        const idx = this.pendingSubscriptions.indexOf(ch);
+        if (idx !== -1) {
+          this.pendingSubscriptions.splice(idx, 1);
+        }
+      }
+    }
+  }
+
+  /**
+   * Send a raw binary frame to the server over the WebSocket.
+   * Frame format: 2-byte BE channel name length + channel bytes + payload.
+   * No-ops on SSE (one-way transport) or when not connected.
+   */
+  publishBinary(channel: string, data: Uint8Array): void {
+    if (this.transport === "sse") {
+      console.error(
+        "[WPSignal] publishBinary() is not supported on SSE (one-way transport).",
+      );
+      return;
+    }
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    const channelBytes = new TextEncoder().encode(channel);
+    const frame = new Uint8Array(2 + channelBytes.length + data.length);
+    frame[0] = (channelBytes.length >> 8) & 0xff;
+    frame[1] = channelBytes.length & 0xff;
+    frame.set(channelBytes, 2);
+    frame.set(data, 2 + channelBytes.length);
+    this.ws.send(frame);
+  }
+
+  /**
+   * Publish a message to a channel over the WebSocket connection.
+   * No-op on SSE (one-way transport).
+   */
+  publish(
+    channel: string,
+    event: string,
+    data: Record<string, unknown> = {},
+  ): void {
+    if (this.transport === "sse") {
+      console.error(
+        "[WPSignal] publish() is not supported on SSE (one-way transport).",
+      );
+      return;
+    }
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: "message", channel, event, data }));
+    }
+  }
+
+  /**
+   * Register a handler for a specific event name.
+   * Returns an unsubscribe function.
+   */
+  on(event: string, handler: WPSEventHandler): () => void {
+    let handlers = this.eventHandlers.get(event);
+    if (!handlers) {
+      handlers = new Set();
+      this.eventHandlers.set(event, handlers);
+    }
+    handlers.add(handler);
+    return () => {
+      handlers!.delete(handler);
+      if (handlers!.size === 0) {
+        this.eventHandlers.delete(event);
+      }
+    };
+  }
+
+  /**
+   * Register a catch-all handler that receives every event on any channel.
+   * Returns an unsubscribe function.
+   */
+  onMessage(handler: WPSMessageHandler): () => void {
+    this.messageHandlers.add(handler);
+    return () => {
+      this.messageHandlers.delete(handler);
+    };
+  }
+
+  /**
+   * Register a handler for incoming binary WebSocket frames (e.g. Yjs updates).
+   * Returns an unsubscribe function.
+   */
+  onBinaryMessage(handler: WPSBinaryHandler): () => void {
+    this.binaryHandlers.add(handler);
+    return () => {
+      this.binaryHandlers.delete(handler);
+    };
+  }
+
+  /** `true` when a transport connection is active. */
+  get connected(): boolean {
+    return this._connected;
+  }
+
+  /**
+   * Register a handler that fires whenever the connection state changes.
+   * Returns an unsubscribe function.
+   */
+  onConnectionChange(handler: (c: boolean) => void): () => void {
+    this.connectionHandlers.add(handler);
+    return () => {
+      this.connectionHandlers.delete(handler);
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Lifecycle
+  // ---------------------------------------------------------------------------
+
+  /** Initialise the client: obtain a token and open a transport connection. */
+  start(): void {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => this.init());
+    } else {
+      this.init();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Connection management (private)
+  // ---------------------------------------------------------------------------
+
+  private init(): void {
+    let tokenPromise: Promise<{
+      token: string;
+      channels: string[];
+      exp: number;
+    }>;
+
+    if (this.config.token && this.config.channels && this.config.exp) {
+      tokenPromise = Promise.resolve({
+        token: this.config.token,
+        channels: this.config.channels,
+        exp: this.config.exp,
+      });
+      delete this.config.token;
+      delete this.config.channels;
+      delete this.config.exp;
+    } else {
+      tokenPromise = this.fetchToken();
+    }
+
+    tokenPromise
+      .then((data) => {
+        console.log(
+          "[WPSignal] Token obtained, expires at",
+          new Date(data.exp * 1000).toISOString(),
+        );
+        this.scheduleRefresh(data.exp);
+
+        if (typeof WebSocket !== "undefined") {
+          this.connectWebSocket(data.token, data.channels);
+        } else {
+          this.connectSSE(data.token, data.channels);
+        }
+      })
+      .catch((err) => {
+        console.error("[WPSignal]", err);
+        setTimeout(() => this.init(), 30000);
+      });
+  }
+
+  private connectWebSocket(token: string, channels: string[]): void {
+    const wsProto = this.baseUrl.startsWith("https") ? "wss" : "ws";
+    const wsHost = this.baseUrl.replace(/^https?:\/\//, "");
+    const wsUrl = `${wsProto}://${wsHost}/ws?token=${encodeURIComponent(token)}`;
+
+    let didFallback = false;
+    let didOpen = false;
+
+    const fallbackToSSE = (): void => {
+      if (didFallback) return;
+      didFallback = true;
+      this.ws = null;
+      console.log("[WPSignal] Falling back to SSE");
+      this.connectSSE(token, channels);
+    };
+
+    this.ws = new WebSocket(wsUrl);
+    this.ws.binaryType = "arraybuffer";
+    this.transport = "ws";
+
+    this.ws.addEventListener("open", () => {
+      didOpen = true;
+      this.setConnected(true);
+      console.log("[WPSignal] WebSocket connected");
+      this.ws!.send(JSON.stringify({ type: "subscribe", channels }));
+      this.flushPendingSubscriptions();
+    });
+
+    this.ws.addEventListener("message", (e: MessageEvent) => {
+      if (e.data instanceof ArrayBuffer) {
+        this.handleBinaryFrame(new Uint8Array(e.data));
+        return;
+      }
+      try {
+        const msg = JSON.parse(e.data);
+        switch (msg.type) {
+          case "message":
+            console.log("[WPSignal] MESSAGE", msg);
+            if (
+              msg.event === "encrypted" &&
+              msg.data?.v === 1 &&
+              typeof msg.data?.p === "string"
+            ) {
+              this.decryptMessage(msg.data.p as string).then((plain) => {
+                if (plain) {
+                  this.dispatchEvent(plain.event, msg.channel, plain.data ?? {});
+                } else {
+                  console.warn(
+                    "[WPSignal] Could not decrypt message on channel",
+                    msg.channel,
+                  );
+                }
+              });
+            } else {
+              this.dispatchEvent(msg.event, msg.channel, msg.data ?? {});
+            }
+            break;
+          case "ping":
+            this.ws!.send(JSON.stringify({ type: "pong" }));
+            break;
+          case "subscribed":
+            console.log("[WPSignal] Subscribed to", msg.channels);
+            break;
+          case "unsubscribed":
+            console.log("[WPSignal] Unsubscribed from", msg.channels);
+            break;
+          case "auth_ok":
+            console.log(
+              "[WPSignal] Auth refreshed, expires at",
+              new Date(msg.exp * 1000).toISOString(),
+            );
+            break;
+          case "error":
+            console.warn("[WPSignal] Server error:", msg.code, msg.message);
+            break;
+        }
+      } catch (err) {
+        console.warn("[WPSignal] Failed to parse WS message", err);
+      }
+    });
+
+    this.ws.addEventListener("close", (e: CloseEvent) => {
+      console.log(`[WPSignal] WebSocket closed (code=${e.code})`);
+      this.ws = null;
+      this.setConnected(false);
+      if (!didOpen) {
+        fallbackToSSE();
+      } else {
+        console.log("[WPSignal] Reconnecting in 5s...");
+        setTimeout(() => {
+          this.cleanup();
+          this.init();
+        }, 5000);
+      }
+    });
+
+    this.ws.addEventListener("error", () => {
+      console.warn("[WPSignal] WebSocket error");
+    });
+  }
+
+  private connectSSE(token: string, channels: string[]): void {
+    this.transport = "sse";
+    this.setConnected(true);
+    const url = `${this.baseUrl}/sse?token=${encodeURIComponent(token)}&channels=${encodeURIComponent(channels.join(","))}`;
+    const source = new EventSource(url);
+    this.sseReader = source;
+
+    source.addEventListener("open", () => {
+      console.log("[WPSignal] SSE connected");
+    });
+
+    source.addEventListener("error", (e) => {
+      console.error("[WPSignal] SSE error", e);
+    });
+
+    const eventTypes = [
+      "post.updated",
+      "post.created",
+      "post.deleted",
+      "comment.created",
+    ];
+    eventTypes.forEach((eventType) => {
+      source.addEventListener(eventType, (e: Event) => {
+        try {
+          const payload = JSON.parse((e as MessageEvent).data);
+          this.dispatchEvent(eventType, "", payload);
+        } catch (err) {
+          console.error("[WPSignal] Failed to parse SSE data", err);
+        }
+      });
+    });
+
+    source.addEventListener("encrypted", (e: MessageEvent) => {
+      try {
+        const { data } = JSON.parse(e.data);
+        if (data.v === 1 && typeof data.p === "string") {
+          this.decryptMessage(data.p).then((plain) => {
+            if (plain) {
+              console.log("[WPSignal] DECRYPTED MESSAGE", plain);
+              this.dispatchEvent(plain.event, "", plain.data ?? {});
+            } else {
+              console.error("[WPSignal] Could not decrypt SSE message");
+            }
+          });
+        }
+      } catch (err) {
+        console.error("[WPSignal] Failed to parse encrypted SSE data", err);
+      }
+    });
+
+    source.addEventListener("message", (e: MessageEvent) => {
+      console.log("[WPSignal] SSE message", e.data);
+    });
+  }
+
+  private cleanup(): void {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+    if (this.sseReader) {
+      this.sseReader.close();
+      this.sseReader = null;
+    }
+    this.transport = null;
+    this.setConnected(false);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Utilities (private)
+  // ---------------------------------------------------------------------------
+
+  private setConnected(value: boolean): void {
+    this._connected = value;
+    this.connectionHandlers.forEach((fn) => fn(value));
+  }
+
+  private async fetchToken(): Promise<{ token: string; channels: string[]; exp: number }> {
+    const res = await fetch(this.config.restUrl, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-WP-Nonce": this.config.nonce,
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`WPSignal: token request failed (${res.status})`);
+    }
+    return res.json();
+  }
+
+  private dispatchEvent(
+    eventName: string,
+    channel: string,
+    data: Record<string, unknown>,
+  ): void {
+    console.log(`[WPSignal] ${eventName}`, data);
+    document.dispatchEvent(
+      new CustomEvent(`wpsignal:${eventName}`, {
+        detail: { channel, data },
+      }),
+    );
+    this.messageHandlers.forEach((fn) => fn(eventName, data, channel));
+    this.eventHandlers.get(eventName)?.forEach((fn) => fn(data, channel));
+  }
+
+  private scheduleRefresh(exp: number): void {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+    }
+    const ttl = (exp - Math.floor(Date.now() / 1000)) * 1000;
+    const refreshAt = Math.max(ttl * 0.8, 10000);
+
+    this.refreshTimer = setTimeout(() => {
+      console.log("[WPSignal] Refreshing token...");
+      this.fetchToken()
+        .then((data) => {
+          if (this.transport === "ws" && this.ws?.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ type: "auth", token: data.token }));
+          } else {
+            this.cleanup();
+            this.init();
+          }
+          this.scheduleRefresh(data.exp);
+        })
+        .catch((err) => {
+          console.error("[WPSignal] Token refresh failed", err);
+          setTimeout(() => {
+            this.cleanup();
+            this.init();
+          }, 5000);
+        });
+    }, refreshAt);
+  }
+
+  private flushPendingSubscriptions(): void {
+    if (this.pendingSubscriptions.length && this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(
+        JSON.stringify({
+          type: "subscribe",
+          channels: this.pendingSubscriptions.splice(0),
+        }),
+      );
+    }
+  }
+
+  /**
+   * Parse a binary WebSocket frame and dispatch to registered binary handlers.
+   * Wire format: [2-byte BE channel name length][channel bytes][raw payload].
+   */
+  private handleBinaryFrame(buf: Uint8Array): void {
+    if (buf.length < 2) return;
+    const channelLen = (buf[0] << 8) | buf[1];
+    if (buf.length < 2 + channelLen) return;
+    const channel = new TextDecoder().decode(buf.slice(2, 2 + channelLen));
+    const payload = buf.slice(2 + channelLen);
+    this.binaryHandlers.forEach((fn) => fn(channel, payload));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Decryption (private)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Import the AES-256-GCM key from `wpSignalConfig.encryptionKey` (base64).
+   * The result is cached: the key is imported once and reused for every message.
+   * Returns `null` if no key is configured or SubtleCrypto is unavailable.
+   */
+  private getCryptoKey(): Promise<CryptoKey | null> {
+    if (!this.cryptoKeyPromise) {
+      const b64 = this.config.encryptionKey;
+      if (!b64 || typeof crypto === "undefined" || !crypto.subtle) {
+        this.cryptoKeyPromise = Promise.resolve(null);
+      } else {
+        const raw = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+        this.cryptoKeyPromise = crypto.subtle
+          .importKey("raw", raw, { name: "AES-GCM" }, false, ["decrypt"])
+          .catch(() => null);
+      }
+    }
+    return this.cryptoKeyPromise;
+  }
+
+  /**
+   * Decrypt an encrypted message payload produced by the PHP Publisher.
+   *
+   * Wire format (base64-encoded): `IV[12] || ciphertext[N] || auth-tag[16]`
+   * SubtleCrypto expects `ciphertext || tag` as the data argument, which is `buf[12:]`.
+   *
+   * Returns the parsed `{ event, data }` object, or `null` on failure.
+   */
+  private async decryptMessage(
+    p: string,
+  ): Promise<{ event: string; data: Record<string, unknown> } | null> {
+    const key = await this.getCryptoKey();
+    if (!key) return null;
+    try {
+      const buf = Uint8Array.from(atob(p), (c) => c.charCodeAt(0));
+      const iv = buf.slice(0, 12);
+      const cipherWithTag = buf.slice(12);
+      const plain = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv },
+        key,
+        cipherWithTag,
+      );
+      return JSON.parse(new TextDecoder().decode(plain));
+    } catch {
+      console.warn("[WPSignal] Decryption failed");
+      return null;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Bootstrap
+// ---------------------------------------------------------------------------
+
 const config = window.wpSignalConfig;
-if ( config?.baseUrl && config?.restUrl ) {
-	const baseUrl = config.baseUrl.replace( /\/+$/, '' );
-
-	let transport: 'ws' | 'sse' | null = null;
-	let ws: WebSocket | null = null;
-	let sseReader: EventSource | null = null;
-	let refreshTimer: ReturnType< typeof setTimeout > | null = null;
-	let connected = false;
-
-	// --- Public API registries ---
-	const messageHandlers = new Set< WPSMessageHandler >();
-	const eventHandlers = new Map< string, Set< WPSEventHandler > >();
-	const connectionChangeHandlers = new Set< ( c: boolean ) => void >();
-	/** Channels requested by external consumers (queued until WS is open). */
-	const pendingSubscriptions: string[] = [];
-
-	// --- Decryption ---
-	// Import the AES-256-GCM key once at startup; reused for every message.
-	let cryptoKeyPromise: Promise< CryptoKey | null > | null = null;
-
-	function getCryptoKey(): Promise< CryptoKey | null > {
-		if ( ! cryptoKeyPromise ) {
-			const b64 = config?.encryptionKey;
-			if ( ! b64 || typeof crypto === 'undefined' || ! crypto.subtle ) {
-				cryptoKeyPromise = Promise.resolve( null );
-			} else {
-				const raw = Uint8Array.from( atob( b64 ), ( c ) => c.charCodeAt( 0 ) );
-				cryptoKeyPromise = crypto.subtle
-					.importKey( 'raw', raw, { name: 'AES-GCM' }, false, [ 'decrypt' ] )
-					.catch( () => null );
-			}
-		}
-		return cryptoKeyPromise;
-	}
-
-	// Encoded format written by Publisher: base64( IV[12] || ciphertext[N] || tag[16] )
-	// SubtleCrypto expects ciphertext || tag as its data argument, which is exactly buf[12:].
-	async function decryptMessage(
-		p: string
-	): Promise< { event: string; data: Record< string, unknown > } | null > {
-		const key = await getCryptoKey();
-		if ( ! key ) return null;
-		try {
-			const buf = Uint8Array.from( atob( p ), ( c ) => c.charCodeAt( 0 ) );
-			const iv = buf.slice( 0, 12 );
-			const cipherWithTag = buf.slice( 12 );
-			const plain = await crypto.subtle.decrypt( { name: 'AES-GCM', iv }, key, cipherWithTag );
-			return JSON.parse( new TextDecoder().decode( plain ) );
-		} catch {
-			console.warn( '[WPSignal] Decryption failed' );
-			return null;
-		}
-	}
-
-	function setConnected( value: boolean ): void {
-		connected = value;
-		connectionChangeHandlers.forEach( ( fn ) => fn( value ) );
-	}
-
-	function fetchToken(): Promise< { token: string; channels: string[]; exp: number } > {
-		return fetch( config!.restUrl, {
-			method: 'POST',
-			credentials: 'same-origin',
-			headers: {
-				'Content-Type': 'application/json',
-				'X-WP-Nonce': config!.nonce,
-			},
-		} ).then( ( res ) => {
-			if ( ! res.ok ) {
-				throw new Error( `WPSignal: token request failed (${ res.status })` );
-			}
-			return res.json();
-		} );
-	}
-
-	function dispatchEvent( eventName: string, channel: string, data: Record< string, unknown > ): void {
-		console.log( `[WPSignal] ${ eventName }`, data );
-		document.dispatchEvent(
-			new CustomEvent( `wpsignal:${ eventName }`, {
-				detail: { channel, data },
-			} )
-		);
-		// Notify catch-all message handlers.
-		messageHandlers.forEach( ( fn ) => fn( eventName, data, channel ) );
-		// Notify event-specific handlers.
-		eventHandlers.get( eventName )?.forEach( ( fn ) => fn( data, channel ) );
-	}
-
-	function scheduleRefresh( exp: number ): void {
-		if ( refreshTimer ) {
-			clearTimeout( refreshTimer );
-		}
-		const ttl = ( exp - Math.floor( Date.now() / 1000 ) ) * 1000;
-		const refreshAt = Math.max( ttl * 0.8, 10000 );
-
-		refreshTimer = setTimeout( () => {
-			console.log( '[WPSignal] Refreshing token...' );
-			fetchToken()
-				.then( ( data ) => {
-					if ( transport === 'ws' && ws?.readyState === WebSocket.OPEN ) {
-						ws.send( JSON.stringify( { type: 'auth', token: data.token } ) );
-					} else {
-						cleanup();
-						init();
-					}
-					scheduleRefresh( data.exp );
-				} )
-				.catch( ( err ) => {
-					console.error( '[WPSignal] Token refresh failed', err );
-					setTimeout( () => { cleanup(); init(); }, 5000 );
-				} );
-		}, refreshAt );
-	}
-
-	function flushPendingSubscriptions(): void {
-		if ( pendingSubscriptions.length && ws?.readyState === WebSocket.OPEN ) {
-			ws.send( JSON.stringify( { type: 'subscribe', channels: pendingSubscriptions.splice( 0 ) } ) );
-		}
-	}
-
-	function connectWebSocket( token: string, channels: string[] ): void {
-		const wsProto = baseUrl.startsWith( 'https' ) ? 'wss' : 'ws';
-		const wsHost = baseUrl.replace( /^https?:\/\//, '' );
-		const wsUrl = `${ wsProto }://${ wsHost }/ws?token=${ encodeURIComponent( token ) }`;
-
-		let didFallback = false;
-		let didOpen = false;
-
-		function fallbackToSSE(): void {
-			if ( didFallback ) return;
-			didFallback = true;
-			ws = null;
-			console.log( '[WPSignal] Falling back to SSE' );
-			connectSSE( token, channels );
-		}
-
-		ws = new WebSocket( wsUrl );
-		transport = 'ws';
-
-		ws.addEventListener( 'open', () => {
-			didOpen = true;
-			setConnected( true );
-			console.log( '[WPSignal] WebSocket connected' );
-			ws!.send( JSON.stringify( { type: 'subscribe', channels } ) );
-			flushPendingSubscriptions();
-		} );
-
-		ws.addEventListener( 'message', ( e: MessageEvent ) => {
-			try {
-				const msg = JSON.parse( e.data );
-				switch ( msg.type ) {
-					case 'message':
-						if ( msg.event === 'encrypted' && msg.data?.v === 1 && typeof msg.data?.p === 'string' ) {
-							decryptMessage( msg.data.p as string ).then( ( plain ) => {
-								if ( plain ) {
-									dispatchEvent( plain.event, msg.channel, plain.data ?? {} );
-								} else {
-									console.warn( '[WPSignal] Could not decrypt message on channel', msg.channel );
-								}
-							} );
-						} else {
-							dispatchEvent( msg.event, msg.channel, msg.data ?? {} );
-						}
-						break;
-					case 'ping':
-						ws!.send( JSON.stringify( { type: 'pong' } ) );
-						break;
-					case 'subscribed':
-						console.log( '[WPSignal] Subscribed to', msg.channels );
-						break;
-					case 'unsubscribed':
-						console.log( '[WPSignal] Unsubscribed from', msg.channels );
-						break;
-					case 'auth_ok':
-						console.log(
-							'[WPSignal] Auth refreshed, expires at',
-							new Date( msg.exp * 1000 ).toISOString()
-						);
-						break;
-					case 'error':
-						console.warn( '[WPSignal] Server error:', msg.code, msg.message );
-						break;
-				}
-			} catch ( err ) {
-				console.warn( '[WPSignal] Failed to parse WS message', err );
-			}
-		} );
-
-		ws.addEventListener( 'close', ( e: CloseEvent ) => {
-			console.log( `[WPSignal] WebSocket closed (code=${ e.code })` );
-			ws = null;
-			setConnected( false );
-			if ( ! didOpen ) {
-				fallbackToSSE();
-			} else {
-				console.log( '[WPSignal] Reconnecting in 5s...' );
-				setTimeout( () => { cleanup(); init(); }, 5000 );
-			}
-		} );
-
-		ws.addEventListener( 'error', () => {
-			console.warn( '[WPSignal] WebSocket error' );
-		} );
-	}
-
-	function connectSSE( token: string, channels: string[] ): void {
-		transport = 'sse';
-		setConnected( true );
-		const url = `${ baseUrl }/sse?token=${ encodeURIComponent( token ) }&channels=${ encodeURIComponent( channels.join( ',' ) ) }`;
-		const source = new EventSource( url );
-		sseReader = source;
-
-		source.addEventListener( 'open', () => {
-			console.log( '[WPSignal] SSE connected' );
-		} );
-
-		source.addEventListener( 'error', ( e ) => {
-			console.warn( '[WPSignal] SSE error', e );
-		} );
-
-		const eventTypes = [ 'post.updated', 'post.created', 'post.deleted', 'comment.created' ];
-		eventTypes.forEach( ( eventType ) => {
-			source.addEventListener( eventType, ( e: Event ) => {
-				try {
-					const payload = JSON.parse( ( e as MessageEvent ).data );
-					dispatchEvent( eventType, '', payload );
-				} catch ( err ) {
-					console.warn( '[WPSignal] Failed to parse SSE data', err );
-				}
-			} );
-		} );
-
-		source.addEventListener( 'encrypted', ( e: Event ) => {
-			try {
-				const msg = JSON.parse( ( e as MessageEvent ).data );
-				if ( msg?.v === 1 && typeof msg?.p === 'string' ) {
-					decryptMessage( msg.p ).then( ( plain ) => {
-						if ( plain ) {
-							dispatchEvent( plain.event, '', plain.data ?? {} );
-						} else {
-							console.warn( '[WPSignal] Could not decrypt SSE message' );
-						}
-					} );
-				}
-			} catch ( err ) {
-				console.warn( '[WPSignal] Failed to parse encrypted SSE data', err );
-			}
-		} );
-
-		source.addEventListener( 'message', ( e: MessageEvent ) => {
-			console.log( '[WPSignal] SSE message', e.data );
-		} );
-	}
-
-	function cleanup(): void {
-		if ( refreshTimer ) {
-			clearTimeout( refreshTimer );
-			refreshTimer = null;
-		}
-		if ( ws ) {
-			ws.close();
-			ws = null;
-		}
-		if ( sseReader ) {
-			sseReader.close();
-			sseReader = null;
-		}
-		transport = null;
-		setConnected( false );
-	}
-
-	function init(): void {
-		// Use the server-side minted token on first load to avoid an extra REST
-		// round-trip. Consume and clear it so reconnects always fetch a fresh one.
-		let tokenPromise: Promise< { token: string; channels: string[]; exp: number } >;
-		if ( config?.token && config?.channels && config?.exp ) {
-			tokenPromise = Promise.resolve( {
-				token:    config.token,
-				channels: config.channels,
-				exp:      config.exp,
-			} );
-			delete config.token;
-			delete config.channels;
-			delete config.exp;
-		} else {
-			tokenPromise = fetchToken();
-		}
-
-		tokenPromise
-			.then( ( data ) => {
-				console.log(
-					'[WPSignal] Token obtained, expires at',
-					new Date( data.exp * 1000 ).toISOString()
-				);
-				scheduleRefresh( data.exp );
-
-				if ( typeof WebSocket !== 'undefined' ) {
-					connectWebSocket( data.token, data.channels );
-				} else {
-					connectSSE( data.token, data.channels );
-				}
-			} )
-			.catch( ( err ) => {
-				console.error( '[WPSignal]', err );
-				setTimeout( init, 30000 );
-			} );
-	}
-
-	// --- Expose public API on window.WPS ---
-	window.WPS = {
-		subscribe( channels: string[] ): void {
-			if ( ws?.readyState === WebSocket.OPEN ) {
-				ws.send( JSON.stringify( { type: 'subscribe', channels } ) );
-			} else {
-				pendingSubscriptions.push( ...channels );
-			}
-		},
-
-		unsubscribe( channels: string[] ): void {
-			if ( ws?.readyState === WebSocket.OPEN ) {
-				ws.send( JSON.stringify( { type: 'unsubscribe', channels } ) );
-			} else {
-				// Remove from pending queue if not yet sent.
-				for ( const ch of channels ) {
-					const idx = pendingSubscriptions.indexOf( ch );
-					if ( idx !== -1 ) {
-						pendingSubscriptions.splice( idx, 1 );
-					}
-				}
-			}
-		},
-
-		publish( channel: string, event: string, data: Record< string, unknown > = {} ): void {
-			if ( transport === 'sse' ) {
-				console.warn( '[WPSignal] publish() is not supported on SSE (one-way transport).' );
-				return;
-			}
-			if ( ws?.readyState === WebSocket.OPEN ) {
-				ws.send( JSON.stringify( { type: 'message', channel, event, data } ) );
-			}
-		},
-
-		on( event: string, handler: WPSEventHandler ): () => void {
-			let handlers = eventHandlers.get( event );
-			if ( ! handlers ) {
-				handlers = new Set();
-				eventHandlers.set( event, handlers );
-			}
-			handlers.add( handler );
-			return () => {
-				handlers!.delete( handler );
-				if ( handlers!.size === 0 ) {
-					eventHandlers.delete( event );
-				}
-			};
-		},
-
-		onMessage( handler: WPSMessageHandler ): () => void {
-			messageHandlers.add( handler );
-			return () => { messageHandlers.delete( handler ); };
-		},
-
-		get connected(): boolean {
-			return connected;
-		},
-
-		onConnectionChange( handler: ( c: boolean ) => void ): () => void {
-			connectionChangeHandlers.add( handler );
-			return () => { connectionChangeHandlers.delete( handler ); };
-		},
-	};
-
-	if ( document.readyState === 'loading' ) {
-		document.addEventListener( 'DOMContentLoaded', init );
-	} else {
-		init();
-	}
+if (config?.baseUrl && config?.restUrl) {
+  const client = new WPSignalClient(config);
+  window.WPS = client;
+  client.start();
 }
