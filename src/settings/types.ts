@@ -16,6 +16,7 @@ export interface Settings {
 	api_key: string;
 	site_key: string;
 	is_connected: boolean;
+	yjs_provider_enabled: boolean;
 }
 
 export interface ConnectResponse {

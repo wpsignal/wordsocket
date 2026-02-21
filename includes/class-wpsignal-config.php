@@ -126,6 +126,28 @@ class Config {
 	}
 
 	/**
+	 * Whether the WPSignal Yjs sync provider should be registered with the
+	 * block editor. When false, the yjs-provider script is not enqueued and
+	 * WordPress falls back to its default HTTP polling transport.
+	 *
+	 * Defaults to true so the provider is active after connecting.
+	 *
+	 * @return bool
+	 */
+	public function yjs_provider_enabled() {
+		return get_option( 'wpsignal_yjs_provider_enabled', '1' ) !== '0';
+	}
+
+	/**
+	 * Check whether the WordPress version is compatible with the WPSignal Yjs sync provider.
+	 *
+	 * @return bool True if the WordPress version is compatible, false otherwise.
+	 */
+	public function is_wp_sync_available() {
+		return is_wp_version_compatible( '7.0' );
+	}
+
+	/**
 	 * Check whether the plugin is fully configured for publishing.
 	 *
 	 * Returns true when base_url, site_key, and site_secret are all set.

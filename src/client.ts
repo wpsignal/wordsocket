@@ -9,12 +9,15 @@
  * on the shared connection. Enqueue with `'wpsignal'` as a script dependency.
  */
 
+import { wpsDebug } from "./utils";
+
 class WPSignalClient implements WPSApi {
   private readonly config: WpSignalConfig;
   private readonly baseUrl: string;
 
   // --- Transport state ---
-  private transport: "ws" | "sse" | null = null;
+  private _transport: "ws" | "sse" | null = null;
+  private static ssePublishWarned = false;
   private ws: WebSocket | null = null;
   private sseReader: EventSource | null = null;
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
@@ -77,10 +80,15 @@ class WPSignalClient implements WPSApi {
    * No-ops on SSE (one-way transport) or when not connected.
    */
   publishBinary(channel: string, data: Uint8Array): void {
-    if (this.transport === "sse") {
-      console.error(
-        "[WPSignal] publishBinary() is not supported on SSE (one-way transport).",
-      );
+    if (this._transport === "sse") {
+      if (!WPSignalClient.ssePublishWarned) {
+        WPSignalClient.ssePublishWarned = true;
+        wpsDebug(
+          "[WPSignal] WebSocket connection failed",
+          "real-time collaboration is unavailable SSE is receive-only so Yjs updates cannot reach peers. Reload the page to retry WebSocket, or deregister the WPSignal Yjs provider to restore HTTP polling.",
+          "error",
+        );
+      }
       return;
     }
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
@@ -102,12 +110,7 @@ class WPSignalClient implements WPSApi {
     event: string,
     data: Record<string, unknown> = {},
   ): void {
-    if (this.transport === "sse") {
-      console.error(
-        "[WPSignal] publish() is not supported on SSE (one-way transport).",
-      );
-      return;
-    }
+    if (this._transport === "sse") return;
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type: "message", channel, event, data }));
     }
@@ -157,6 +160,11 @@ class WPSignalClient implements WPSApi {
   /** `true` when a transport connection is active. */
   get connected(): boolean {
     return this._connected;
+  }
+
+  /** Current transport layer, or null while still connecting. */
+  get transport(): "ws" | "sse" | null {
+    return this._transport;
   }
 
   /**
@@ -209,9 +217,11 @@ class WPSignalClient implements WPSApi {
 
     tokenPromise
       .then((data) => {
-        console.log(
-          "[WPSignal] Token obtained, expires at",
-          new Date(data.exp * 1000).toISOString(),
+        wpsDebug(
+          "[WPSignal] Token obtained",
+          { expiresAt: new Date(data.exp * 1000).toISOString() },
+          "log",
+          true,
         );
         this.scheduleRefresh(data.exp);
 
@@ -222,7 +232,7 @@ class WPSignalClient implements WPSApi {
         }
       })
       .catch((err) => {
-        console.error("[WPSignal]", err);
+        wpsDebug("[WPSignal] Token fetch failed", err, "error");
         setTimeout(() => this.init(), 30000);
       });
   }
@@ -230,7 +240,9 @@ class WPSignalClient implements WPSApi {
   private connectWebSocket(token: string, channels: string[]): void {
     const wsProto = this.baseUrl.startsWith("https") ? "wss" : "ws";
     const wsHost = this.baseUrl.replace(/^https?:\/\//, "");
-    const wsUrl = `${wsProto}://${wsHost}/ws?token=${encodeURIComponent(token)}`;
+    const wsUrl = `${wsProto}://${wsHost}/ws?token=${encodeURIComponent(
+      token,
+    )}`;
 
     let didFallback = false;
     let didOpen = false;
@@ -239,18 +251,18 @@ class WPSignalClient implements WPSApi {
       if (didFallback) return;
       didFallback = true;
       this.ws = null;
-      console.log("[WPSignal] Falling back to SSE");
+      wpsDebug("[WPSignal] Falling back to SSE", "SSE is receive-only so Yjs updates cannot reach peers. Reload the page to retry WebSocket, or deregister the WPSignal Yjs provider to restore HTTP polling.", "log");
       this.connectSSE(token, channels);
     };
 
     this.ws = new WebSocket(wsUrl);
     this.ws.binaryType = "arraybuffer";
-    this.transport = "ws";
+    this._transport = "ws";
 
     this.ws.addEventListener("open", () => {
       didOpen = true;
       this.setConnected(true);
-      console.log("[WPSignal] WebSocket connected");
+      wpsDebug("[WPSignal] WebSocket connected");
       this.ws!.send(JSON.stringify({ type: "subscribe", channels }));
       this.flushPendingSubscriptions();
     });
@@ -264,7 +276,6 @@ class WPSignalClient implements WPSApi {
         const msg = JSON.parse(e.data);
         switch (msg.type) {
           case "message":
-            console.log("[WPSignal] MESSAGE", msg);
             if (
               msg.event === "encrypted" &&
               msg.data?.v === 1 &&
@@ -272,11 +283,16 @@ class WPSignalClient implements WPSApi {
             ) {
               this.decryptMessage(msg.data.p as string).then((plain) => {
                 if (plain) {
-                  this.dispatchEvent(plain.event, msg.channel, plain.data ?? {});
-                } else {
-                  console.warn(
-                    "[WPSignal] Could not decrypt message on channel",
+                  this.dispatchEvent(
+                    plain.event,
                     msg.channel,
+                    plain.data ?? {},
+                  );
+                } else {
+                  wpsDebug(
+                    "Could not decrypt message on channel",
+                    msg.channel,
+                    "warn",
                   );
                 }
               });
@@ -288,34 +304,31 @@ class WPSignalClient implements WPSApi {
             this.ws!.send(JSON.stringify({ type: "pong" }));
             break;
           case "subscribed":
-            console.log("[WPSignal] Subscribed to", msg.channels);
+            wpsDebug("Subscribed to", msg.channels);
             break;
           case "unsubscribed":
-            console.log("[WPSignal] Unsubscribed from", msg.channels);
+            wpsDebug("Unsubscribed from", msg.channels);
             break;
           case "auth_ok":
-            console.log(
-              "[WPSignal] Auth refreshed, expires at",
-              new Date(msg.exp * 1000).toISOString(),
-            );
+            wpsDebug("Auth refreshed, expires at", new Date(msg.exp * 1000).toISOString());
             break;
           case "error":
-            console.warn("[WPSignal] Server error:", msg.code, msg.message);
+            wpsDebug("Server error:", msg.code, msg.message);
             break;
         }
       } catch (err) {
-        console.warn("[WPSignal] Failed to parse WS message", err);
+        wpsDebug("Failed to parse WS message", err, "error");
       }
     });
 
     this.ws.addEventListener("close", (e: CloseEvent) => {
-      console.log(`[WPSignal] WebSocket closed (code=${e.code})`);
+      wpsDebug(`WebSocket closed (code=${e.code})`);
       this.ws = null;
       this.setConnected(false);
       if (!didOpen) {
         fallbackToSSE();
       } else {
-        console.log("[WPSignal] Reconnecting in 5s...");
+        wpsDebug("Reconnecting in 5s...");
         setTimeout(() => {
           this.cleanup();
           this.init();
@@ -324,23 +337,25 @@ class WPSignalClient implements WPSApi {
     });
 
     this.ws.addEventListener("error", () => {
-      console.warn("[WPSignal] WebSocket error");
+      wpsDebug("WebSocket error", null, "warn");
     });
   }
 
   private connectSSE(token: string, channels: string[]): void {
-    this.transport = "sse";
+    this._transport = "sse";
     this.setConnected(true);
-    const url = `${this.baseUrl}/sse?token=${encodeURIComponent(token)}&channels=${encodeURIComponent(channels.join(","))}`;
+    const url = `${this.baseUrl}/sse?token=${encodeURIComponent(
+      token,
+    )}&channels=${encodeURIComponent(channels.join(","))}`;
     const source = new EventSource(url);
     this.sseReader = source;
 
     source.addEventListener("open", () => {
-      console.log("[WPSignal] SSE connected");
+      wpsDebug("SSE connected");
     });
 
     source.addEventListener("error", (e) => {
-      console.error("[WPSignal] SSE error", e);
+      wpsDebug("SSE error", e, "error");
     });
 
     const eventTypes = [
@@ -355,7 +370,7 @@ class WPSignalClient implements WPSApi {
           const payload = JSON.parse((e as MessageEvent).data);
           this.dispatchEvent(eventType, "", payload);
         } catch (err) {
-          console.error("[WPSignal] Failed to parse SSE data", err);
+          wpsDebug("Failed to parse SSE data", err, "error");
         }
       });
     });
@@ -366,20 +381,19 @@ class WPSignalClient implements WPSApi {
         if (data.v === 1 && typeof data.p === "string") {
           this.decryptMessage(data.p).then((plain) => {
             if (plain) {
-              console.log("[WPSignal] DECRYPTED MESSAGE", plain);
               this.dispatchEvent(plain.event, "", plain.data ?? {});
             } else {
-              console.error("[WPSignal] Could not decrypt SSE message");
+              wpsDebug("Could not decrypt SSE message", null, "error");
             }
           });
         }
       } catch (err) {
-        console.error("[WPSignal] Failed to parse encrypted SSE data", err);
+        wpsDebug("Failed to parse encrypted SSE data", err, "error");
       }
     });
 
     source.addEventListener("message", (e: MessageEvent) => {
-      console.log("[WPSignal] SSE message", e.data);
+      wpsDebug("SSE message", e.data);
     });
   }
 
@@ -396,7 +410,7 @@ class WPSignalClient implements WPSApi {
       this.sseReader.close();
       this.sseReader = null;
     }
-    this.transport = null;
+    this._transport = null;
     this.setConnected(false);
   }
 
@@ -409,7 +423,11 @@ class WPSignalClient implements WPSApi {
     this.connectionHandlers.forEach((fn) => fn(value));
   }
 
-  private async fetchToken(): Promise<{ token: string; channels: string[]; exp: number }> {
+  private async fetchToken(): Promise<{
+    token: string;
+    channels: string[];
+    exp: number;
+  }> {
     const res = await fetch(this.config.restUrl, {
       method: "POST",
       credentials: "same-origin",
@@ -429,7 +447,7 @@ class WPSignalClient implements WPSApi {
     channel: string,
     data: Record<string, unknown>,
   ): void {
-    console.log(`[WPSignal] ${eventName}`, data);
+    wpsDebug(eventName, data);
     document.dispatchEvent(
       new CustomEvent(`wpsignal:${eventName}`, {
         detail: { channel, data },
@@ -447,10 +465,13 @@ class WPSignalClient implements WPSApi {
     const refreshAt = Math.max(ttl * 0.8, 10000);
 
     this.refreshTimer = setTimeout(() => {
-      console.log("[WPSignal] Refreshing token...");
+      wpsDebug("Refreshing token...");
       this.fetchToken()
         .then((data) => {
-          if (this.transport === "ws" && this.ws?.readyState === WebSocket.OPEN) {
+          if (
+            this._transport === "ws" &&
+            this.ws?.readyState === WebSocket.OPEN
+          ) {
             this.ws.send(JSON.stringify({ type: "auth", token: data.token }));
           } else {
             this.cleanup();
@@ -459,7 +480,7 @@ class WPSignalClient implements WPSApi {
           this.scheduleRefresh(data.exp);
         })
         .catch((err) => {
-          console.error("[WPSignal] Token refresh failed", err);
+          wpsDebug("Token refresh failed", err, "error");
           setTimeout(() => {
             this.cleanup();
             this.init();
@@ -469,7 +490,10 @@ class WPSignalClient implements WPSApi {
   }
 
   private flushPendingSubscriptions(): void {
-    if (this.pendingSubscriptions.length && this.ws?.readyState === WebSocket.OPEN) {
+    if (
+      this.pendingSubscriptions.length &&
+      this.ws?.readyState === WebSocket.OPEN
+    ) {
       this.ws.send(
         JSON.stringify({
           type: "subscribe",
@@ -540,7 +564,7 @@ class WPSignalClient implements WPSApi {
       );
       return JSON.parse(new TextDecoder().decode(plain));
     } catch {
-      console.warn("[WPSignal] Decryption failed");
+      wpsDebug("Decryption failed", null, "warn");
       return null;
     }
   }

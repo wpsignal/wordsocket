@@ -22,7 +22,7 @@ export function getSettings(): Promise< Settings > {
 	return apiFetch( { path: '/wpsignal/v1/settings' } );
 }
 
-export function saveSettings( data: { base_url: string; api_key: string } ): Promise< Settings > {
+export function saveSettings( data: { base_url: string; api_key: string; yjs_provider_enabled?: boolean } ): Promise< Settings > {
 	return apiFetch( {
 		path: '/wpsignal/v1/settings',
 		method: 'POST',

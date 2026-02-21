@@ -1,5 +1,6 @@
 /** Localized by class-wpsignal-client.php */
 interface WpSignalConfig {
+	debug: boolean;
 	restUrl: string;
 	nonce: string;
 	baseUrl: string;
@@ -66,6 +67,8 @@ interface WPSApi {
 	onBinaryMessage( handler: WPSBinaryHandler ): () => void;
 	/** Whether the connection is currently open. */
 	readonly connected: boolean;
+	/** Current transport layer, or null while still connecting. */
+	readonly transport: 'ws' | 'sse' | null;
 	/** Register a callback for connection state changes. Returns unsubscribe fn. */
 	onConnectionChange( handler: ( connected: boolean ) => void ): () => void;
 }

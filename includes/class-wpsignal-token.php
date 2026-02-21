@@ -325,10 +325,11 @@ class Token {
 		}
 
 		return rest_ensure_response( array(
-			'base_url'     => $this->config->base_url(),
-			'api_key'      => $this->config->api_key(),
-			'site_key'     => $is_connected ? $this->config->site_key() : '',
-			'is_connected' => $is_connected,
+			'base_url'             => $this->config->base_url(),
+			'api_key'              => $this->config->api_key(),
+			'site_key'             => $is_connected ? $this->config->site_key() : '',
+			'is_connected'         => $is_connected,
+			'yjs_provider_enabled' => $this->config->yjs_provider_enabled(),
 		) );
 	}
 
@@ -391,8 +392,9 @@ class Token {
 	 * @return WP_REST_Response Updated settings response.
 	 */
 	public function handle_save_settings( WP_REST_Request $request ) {
-		$base_url = $request->get_param( 'base_url' );
-		$api_key  = $request->get_param( 'api_key' );
+		$base_url     = $request->get_param( 'base_url' );
+		$api_key      = $request->get_param( 'api_key' );
+		$yjs_enabled  = $request->get_param( 'yjs_provider_enabled' );
 
 		if ( $base_url !== null ) {
 			update_option( 'wpsignal_base_url', esc_url_raw( $base_url ) );
@@ -400,12 +402,16 @@ class Token {
 		if ( $api_key !== null ) {
 			update_option( 'wpsignal_api_key', sanitize_text_field( $api_key ) );
 		}
+		if ( $yjs_enabled !== null ) {
+			update_option( 'wpsignal_yjs_provider_enabled', $yjs_enabled ? '1' : '0' );
+		}
 
 		return rest_ensure_response( array(
-			'base_url'     => $this->config->base_url(),
-			'api_key'      => $this->config->api_key(),
-			'site_key'     => $this->config->site_key(),
-			'is_connected' => $this->config->is_configured(),
+			'base_url'             => $this->config->base_url(),
+			'api_key'              => $this->config->api_key(),
+			'site_key'             => $this->config->site_key(),
+			'is_connected'         => $this->config->is_configured(),
+			'yjs_provider_enabled' => $this->config->yjs_provider_enabled(),
 		) );
 	}
 
