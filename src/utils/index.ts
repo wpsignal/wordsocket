@@ -27,7 +27,7 @@ export function wpsDebug(
   prefix: string = "",
 ) {
   const _type = type === "info" ? "log" : type;
-  if (!window.wpSignalConfig?.debug && type === "log") {
+  if (!window.wpSignalConfig?.debug && _type === "log") {
     return;
   }
   const styledLabel = [
