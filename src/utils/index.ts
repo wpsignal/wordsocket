@@ -1,3 +1,10 @@
+/**
+ * WPSignal utility functions.
+ */
+
+/**
+ * Console styles for the different message types.
+ */
 const CONSOLE_STYLES = {
   log: "color: black; background-color: white;",
   error: "color: white; background-color: red;",

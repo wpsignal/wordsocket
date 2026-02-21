@@ -84,7 +84,7 @@ class WPSignalClient implements WPSApi {
       if (!WPSignalClient.ssePublishWarned) {
         WPSignalClient.ssePublishWarned = true;
         wpsDebug(
-          "[WPSignal] WebSocket connection failed",
+          "WebSocket connection failed",
           "real-time collaboration is unavailable SSE is receive-only so Yjs updates cannot reach peers. Reload the page to retry WebSocket, or deregister the WPSignal Yjs provider to restore HTTP polling.",
           "error",
         );
@@ -218,7 +218,7 @@ class WPSignalClient implements WPSApi {
     tokenPromise
       .then((data) => {
         wpsDebug(
-          "[WPSignal] Token obtained",
+          "Token obtained",
           { expiresAt: new Date(data.exp * 1000).toISOString() },
           "log",
           true,
@@ -232,7 +232,7 @@ class WPSignalClient implements WPSApi {
         }
       })
       .catch((err) => {
-        wpsDebug("[WPSignal] Token fetch failed", err, "error");
+        wpsDebug("Token fetch failed", err, "error");
         setTimeout(() => this.init(), 30000);
       });
   }
@@ -251,7 +251,11 @@ class WPSignalClient implements WPSApi {
       if (didFallback) return;
       didFallback = true;
       this.ws = null;
-      wpsDebug("[WPSignal] Falling back to SSE", "SSE is receive-only so Yjs updates cannot reach peers. Reload the page to retry WebSocket, or deregister the WPSignal Yjs provider to restore HTTP polling.", "log");
+      wpsDebug(
+        "Falling back to SSE",
+        "SSE is receive-only so Yjs updates cannot reach peers. Reload the page to retry WebSocket, or deregister the WPSignal Yjs provider to restore HTTP polling.",
+        "log",
+      );
       this.connectSSE(token, channels);
     };
 
@@ -262,7 +266,7 @@ class WPSignalClient implements WPSApi {
     this.ws.addEventListener("open", () => {
       didOpen = true;
       this.setConnected(true);
-      wpsDebug("[WPSignal] WebSocket connected");
+      wpsDebug("WebSocket connected");
       this.ws!.send(JSON.stringify({ type: "subscribe", channels }));
       this.flushPendingSubscriptions();
     });
@@ -310,7 +314,10 @@ class WPSignalClient implements WPSApi {
             wpsDebug("Unsubscribed from", msg.channels);
             break;
           case "auth_ok":
-            wpsDebug("Auth refreshed, expires at", new Date(msg.exp * 1000).toISOString());
+            wpsDebug(
+              "Auth refreshed, expires at",
+              new Date(msg.exp * 1000).toISOString(),
+            );
             break;
           case "error":
             wpsDebug("Server error:", msg.code, msg.message);

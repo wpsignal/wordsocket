@@ -27,7 +27,7 @@ addFilter("sync.providers", "wpsignal/yjs-provider", (providers) => {
       "in this browser. The Yjs provider has not been registered — real-time collaboration will use HTTP polling instead.",
       "error",
       false,
-      "[WPSignal Yjs]"
+      "[WPSignal Yjs]",
     );
     return providers;
   }
