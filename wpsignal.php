@@ -3,7 +3,7 @@
  * Plugin Name:       Signal
  * Plugin URI:        https://wpsignal.io
  * Description:       Realtime push events from WordPress to browsers via WP Signal (wpsignal.io) using WebSocket and SSE.
- * Version:           0.4.0
+ * Version:           0.5.0
  * Author:            World House
  * Author URI:        https://worldhouse.dev
  * License:           GPL-2.0-or-later
