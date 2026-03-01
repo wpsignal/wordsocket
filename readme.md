@@ -237,3 +237,37 @@ Alternatively, block the WebSocket URL in Chrome DevTools: open the **Network** 
 | Only gets short-lived JWT (5 min) | Verifies JWT on every WS/SSE connect | Only mints tokens for logged-in users |
 | Channel access restricted by JWT | Rejects stale timestamps (60s) | Publish proxy keeps secret server-side |
 | Decrypts payloads with SubtleCrypto | Relay never handles key material | Encryption key derived from WP salts |
+
+## Changelog
+
+### 0.5.1
+* Fixed: WordPress 7.0 Beta 2 compatibility for the Yjs sync provider. Collection-level providers (e.g. collaborative notes) receive a null `objectId`; the provider now maps this to a shared `"collection"` channel suffix so all peers join the same channel.
+* Fixed: `ProviderCreatorOptions` type updated to accept `objectId: string | number | null`, matching the Beta 2 provider creator API.
+
+### 0.5.0
+* New: `wpsignal_token_channels` filter: plugins can append channels to the initial auto-subscribe list in the minted JWT.
+* New: `wpsignal_token_channel_prefixes` filter: plugins can add channel-prefix permissions to the JWT `allowed_channel_prefixes` claim.
+* Improved: `window.WPS.subscribe()` and `window.WPS.unsubscribe()` now work on SSE connections via a debounced reconnect.
+* Developer: `forceSSE` config flag available for testing the SSE transport.
+
+### 0.4.0
+* New: AES-256-GCM encrypted event payloads. The WPSignal relay receives ciphertext only.
+* New: Encryption key derived from WordPress salts and site key via HKDF-SHA256.
+* New: `wpsignal_encryption_seed` filter for custom key material.
+* New: `SubtleCrypto` decryption in the browser client.
+
+### 0.3.0
+* New: Real-time collaborative editing in the block editor (WordPress 7.0+) via Yjs WebSocket sync provider.
+* New: `publishBinary()` and `onBinaryMessage()` methods on `window.WPS`.
+* New: `transport` property on `window.WPS` (`'ws'`, `'sse'`, or `null`).
+* New: Admin toggle to enable or disable the collaboration provider.
+
+### 0.2.0
+* New: Custom trigger builder, Settings React app, Monitor admin page.
+* New: Public JavaScript API (`window.WPS`).
+* New: `WPS::trigger()` fluent builder and `WPS::publish()` facade.
+* New: Support for self-hosted servers.
+* Improved: OOP architecture with PSR-4 autoloading under the `WPSignal` namespace.
+
+### 0.1.0
+* Initial release.

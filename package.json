@@ -1,11 +1,11 @@
 {
   "name": "wpsignal",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "scripts": {
     "build": "wp-scripts build",
     "start": "wp-scripts start",
-    "make-pot": "wp i18n make-pot . languages/wpsignal.pot --slug=wpsignal --domain=wpsignal --skip-js",
+    "make-pot": "wp i18n make-pot . languages/signal-realtime.pot --slug=signal-realtime --domain=signal-realtime --skip-js",
     "dist": "bash bin/dist.sh"
   },
   "devDependencies": {

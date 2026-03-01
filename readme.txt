@@ -1,23 +1,23 @@
-=== Signal ===
-Contributors: worldhouse
+=== Eventra for WPSignal ===
+Contributors: wpsignal
 Tags: realtime, websocket, push, events, collaboration
 Requires at least: 6.2
-Tested up to: 6.9
-Stable tag: 0.5.0
+Tested up to: 7.0
+Stable tag: 0.5.1
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Signal is the official WordPress plugin for WP Signal (wpsignal.io), a third-party WebSocket/SSE delivery service.
+Eventra for WPSignal is the official WordPress plugin for WPSignal (wpsignal.io), a third-party WebSocket/SSE delivery service.
 
 == Description ==
 
-Signal sends realtime events from your WordPress site to connected browsers.
+Eventra sends realtime events from your WordPress site to connected browsers.
 When content changes: a post is published, a comment is approved, an option is updated: the plugin pushes the event to subscribers instantly via WebSocket (with SSE fallback).
 
 On WordPress 7.0+, Signal also registers as a WebSocket-based Yjs sync provider for real-time collaborative editing in the block editor, replacing the default HTTP polling transport with a low-latency WebSocket connection.
 
-WP Signal is an independent service and is not affiliated with or endorsed by the WordPress project.
+WPSignal is an independent service and is not affiliated with or endorsed by the WordPress project.
 
 **Features:**
 
@@ -56,7 +56,7 @@ Event payloads are AES-256-GCM encrypted before leaving WordPress. The WPSignal 
 
 == Installation ==
 
-1. Upload the `wpsignal` folder to `/wp-content/plugins/`, or install directly from the WordPress plugin directory.
+1. Upload the `eventra-for-wpsignal` folder to `/wp-content/plugins/`, or install directly from the WordPress plugin directory.
 2. Activate the plugin through the "Plugins" menu in WordPress.
 3. Go to **WPSignal > Settings** and enter your WPSignal server URL and API key.
 4. Click **Connect to WPSignal**: the plugin registers with the server and saves credentials automatically.
@@ -104,6 +104,10 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 
 == Changelog ==
 
+= 0.5.1 =
+* Fixed: WordPress 7.0 Beta 2 compatibility for the Yjs sync provider. Collection-level providers (e.g. collaborative notes) receive a null `objectId`; the provider now maps this to a shared `"collection"` channel suffix so all peers join the same channel.
+* Fixed: `ProviderCreatorOptions` type updated to accept `objectId: string | number | null`, matching the Beta 2 provider creator API.
+
 = 0.5.0 =
 * New: `wpsignal_token_channels` filter: plugins can append channels to the initial auto-subscribe list in the minted JWT.
 * New: `wpsignal_token_channel_prefixes` filter: plugins can add channel-prefix permissions to the JWT `allowed_channel_prefixes` claim, enabling server-enforced access to custom channel namespaces.
@@ -137,6 +141,9 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 * Initial release.
 
 == Upgrade Notice ==
+
+= 0.5.1 =
+Fixes Yjs provider compatibility with WordPress 7.0 Beta 2, including collection-level sync (collaborative notes). No configuration changes required.
 
 = 0.5.0 =
 Adds PHP filters for extending JWT channel access and fixes `subscribe()`/`unsubscribe()` on SSE connections. No configuration changes required.

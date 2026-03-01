@@ -33,7 +33,7 @@ export function TriggersApp() {
 				}
 			} )
 			.catch( () => {
-				setNotice( { type: 'error', message: __( 'Failed to load triggers.', 'signal' ) } );
+				setNotice( { type: 'error', message: __( 'Failed to load triggers.', 'eventa-for-wpsignal' ) } );
 			} );
 	}, [] );
 
@@ -60,7 +60,7 @@ export function TriggersApp() {
 			setTriggers( res.triggers );
 			setNotice( { type: 'success', message: res.message || 'Saved.' } );
 		} catch {
-			setNotice( { type: 'error', message: __( 'Failed to save triggers.', 'signal' ) } );
+			setNotice( { type: 'error', message: __( 'Failed to save triggers.', 'eventa-for-wpsignal' ) } );
 		} finally {
 			setSaving( false );
 		}
@@ -79,7 +79,7 @@ export function TriggersApp() {
 			) }
 
 			{ triggers.length === 0 && (
-				<p>{ __( 'No custom triggers configured. Click "Add Trigger" to create one.', 'signal' ) }</p>
+				<p>{ __( 'No custom triggers configured. Click "Add Trigger" to create one.', 'eventa-for-wpsignal' ) }</p>
 			) }
 
 			{ triggers.map( ( trigger, index ) => (
@@ -95,7 +95,7 @@ export function TriggersApp() {
 
 			<div className="wpsignal-triggers-footer">
 				<Button variant="secondary" onClick={ addTrigger }>
-					{ __( 'Add Trigger', 'signal' ) }
+					{ __( 'Add Trigger', 'eventa-for-wpsignal' ) }
 				</Button>
 				<Button
 					variant="primary"
@@ -103,7 +103,7 @@ export function TriggersApp() {
 					isBusy={ saving }
 					disabled={ saving }
 				>
-					{ __( 'Save Triggers', 'signal' ) }
+					{ __( 'Save Triggers', 'eventa-for-wpsignal' ) }
 				</Button>
 			</div>
 		</div>

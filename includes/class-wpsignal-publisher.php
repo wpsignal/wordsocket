@@ -67,7 +67,7 @@ class Publisher {
 	 */
 	public function publish( $channel, $event, $data = array() ) {
 		if ( ! $this->config->is_configured() ) {
-			return new \WP_Error( 'wpsignal_not_configured', __( 'WPSignal is not configured.', 'signal' ) );
+			return new \WP_Error( 'wpsignal_not_configured', __( 'WPSignal is not configured.', 'eventra-for-wpsignal' ), array( 'status' => 500 ) );
 		}
 
 		// Encrypt the event name and data so the relay only ever sees ciphertext.

@@ -39,7 +39,7 @@ class Config {
 	 * @return string Server URL or empty string if not set.
 	 */
 	public function base_url() {
-		return get_option( 'wpsignal_base_url', '' );
+		return 'https://api.wpsignal.io';
 	}
 
 	/**
