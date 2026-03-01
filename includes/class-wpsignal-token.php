@@ -64,7 +64,7 @@ class Token {
 				if ( empty( $nonce ) || ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
 					return new WP_Error(
 						'rest_nonce_invalid',
-						__( 'Nonce verification failed.', 'signal' ),
+						__( 'Nonce verification failed.', 'eventra-for-wpsignal' ),
 						array( 'status' => 403 )
 					);
 				}
@@ -129,7 +129,7 @@ class Token {
 		if ( empty( $jwt_secret ) ) {
 			return new WP_Error(
 				'wpsignal_no_jwt_secret',
-				__( 'JWT secret not configured.', 'signal' ),
+				__( 'JWT secret not configured.', 'eventra-for-wpsignal' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -138,7 +138,7 @@ class Token {
 		if ( empty( $site_key ) ) {
 			return new WP_Error(
 				'wpsignal_not_configured',
-				__( 'WPSignal is not configured.', 'signal' ),
+				__( 'WPSignal is not configured.', 'eventra-for-wpsignal' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -249,7 +249,7 @@ class Token {
 		if ( empty( $channel ) || empty( $event ) ) {
 			return new WP_Error(
 				'wpsignal_missing_params',
-				__( 'Channel and event are required.', 'signal' ),
+				__( 'Channel and event are required.', 'eventra-for-wpsignal' ),
 				array( 'status' => 400 )
 			);
 		}
