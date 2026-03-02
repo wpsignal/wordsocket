@@ -43,6 +43,19 @@ class Config {
 	}
 
 	/**
+	 * Define in wp-config.php to point the plugin at a self-hosted WPSignal server.
+	 *
+	 * When defined, overrides the default `https://api.wpsignal.io` endpoint for
+	 * all publish, registration, and token requests.
+	 *
+	 * @const WPSignal\BASE_URL
+	 * @usage: self-hosted server:
+	 * ```php
+	 *     define( 'WPSignal\BASE_URL', 'https://signal.example.com' );
+	 * ```
+	 */
+
+	/**
 	 * Get the site key (public site identifier).
 	 *
 	 * Assigned by the server during site registration. Used in publish headers
@@ -96,6 +109,20 @@ class Config {
 	}
 
 	/**
+	 * Legacy override: define in wp-config.php to supply the JWT signing secret.
+	 *
+	 * Superseded by the secret returned during site registration (stored in
+	 * wp_options as `wpsignal_jwt_secret`). Only needed for sites that were
+	 * configured before the auto-registration flow existed.
+	 *
+	 * @const WPSIGNAL_JWT_SECRET
+	 * @usage: legacy JWT secret:
+	 * ```php
+	 *     define( 'WPSIGNAL_JWT_SECRET', 'your-64-char-hex-secret' );
+	 * ```
+	 */
+
+	/**
 	 * Derive the AES-256-GCM encryption key from WordPress salts and the site key.
 	 *
 	 * Uses HKDF-SHA256 to produce a 32-byte key. The seed defaults to
@@ -104,12 +131,12 @@ class Config {
 	 * modifying core. The site key is used as the HKDF salt to scope the
 	 * derived key to this specific site registration.
 	 *
-	 * Example: supply a custom seed:
-	 *
+	 * @usage: supply a custom seed:
+	 * ```php
 	 *     add_filter( 'wpsignal_encryption_seed', function ( $default ) {
 	 *         return 'my-application-specific-secret';
 	 *     } );
-	 *
+	 * ```
 	 * @return string Raw 32-byte key, or empty string if site key is missing
 	 *                or WP salt constants are not defined.
 	 */
@@ -121,6 +148,20 @@ class Config {
 		if ( ! defined( 'AUTH_KEY' ) || ! defined( 'SECURE_AUTH_KEY' ) ) {
 			return '';
 		}
+		/**
+		 * Filters the seed used to derive the AES-256-GCM encryption key.
+		 *
+		 * The default seed is `AUTH_KEY . SECURE_AUTH_KEY`. Override this to
+		 * supply your own key material without modifying WordPress salts.
+		 *
+		 * @param string $seed The default seed string.
+		 * @usage: custom encryption seed:
+		 * ```php
+		 *     add_filter( 'wpsignal_encryption_seed', function ( $seed ) {
+		 *         return 'my-application-specific-secret';
+		 *     } );
+		 * ```
+		 */
 		$seed = apply_filters( 'wpsignal_encryption_seed', AUTH_KEY . SECURE_AUTH_KEY );
 		return hash_hkdf( 'sha256', $seed, 32, 'wpsignal-v1', $site_key );
 	}

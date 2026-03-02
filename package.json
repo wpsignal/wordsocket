@@ -5,7 +5,7 @@
   "scripts": {
     "build": "wp-scripts build",
     "start": "wp-scripts start",
-    "make-pot": "wp i18n make-pot . languages/signal-realtime.pot --slug=signal-realtime --domain=signal-realtime --skip-js",
+    "make-pot": "wp i18n make-pot . languages/eventra-for-wpsignal.pot --slug=eventra-for-wpsignal --domain=eventra-for-wpsignal --skip-js",
     "dist": "bash bin/dist.sh"
   },
   "devDependencies": {

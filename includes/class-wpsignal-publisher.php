@@ -53,13 +53,14 @@ class Publisher {
 	 * to {base_url}/publish. The server normalizes the channel name and
 	 * fans out the event to all subscribed connections.
 	 *
-	 * Example:
-	 *
+	 * @usage: publish an event:
+	 * ```php
+	 *     $publisher = WPS::instance()->publisher();
 	 *     $publisher->publish( 'events', 'post.updated', [
 	 *         'post_id'    => 42,
 	 *         'post_title' => 'Hello World',
 	 *     ] );
-	 *
+	 * ```
 	 * @param string $channel Channel name (e.g. "events"). Scoped server-side.
 	 * @param string $event   Event name (e.g. "post.updated").
 	 * @param mixed  $data    Arbitrary data (will be JSON-encoded).

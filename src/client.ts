@@ -60,6 +60,11 @@ class WPSignalClient implements WPSApi {
    * On WebSocket, sends a subscribe frame immediately.
    * On SSE, adds channels to the tracked set and reconnects to pick them up.
    * Otherwise queues them until a connection opens.
+   * 
+   * @usage: subscribe to a channel:
+   * ```js
+   *     WPS.subscribe( ['events'] );
+   * ```
    */
   subscribe(channels: string[]): void {
     if (this.ws?.readyState === WebSocket.OPEN) {

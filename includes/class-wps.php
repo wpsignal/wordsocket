@@ -6,8 +6,8 @@
  * the two most common operations (registering triggers and publishing events)
  * and wires all internal components during boot().
  *
- * Usage: register a custom trigger:
- *
+ * @usage: register a custom trigger:
+ * ```php
  *     add_action( 'wpsignal_loaded', function () {
  *         WPS::trigger( 'comment.created' )
  *             ->on( 'wp_insert_comment', 10, 2 )
@@ -23,11 +23,11 @@
  *             } )
  *             ->register();
  *     } );
- *
- * Usage: publish an event directly (no hook):
- *
+ * ```
+ * @usage: publish an event directly (no hook):
+ * ```php
  *     WPS::publish( 'events', 'custom.event', [ 'key' => 'value' ] );
- *
+ * ```
  * @package WPSignal
  */
 
@@ -72,8 +72,10 @@ class WPS {
 	 * Creates the instance on first call. Subsequent calls return the same
 	 * object. This is the recommended way to access internal components:
 	 *
+	 * @usage: get the configuration accessor:
+	 * ```php
 	 *     $config = WPSignal::instance()->config();
-	 *
+	 * ```
 	 * @return WPS
 	 */
 	public static function instance() {
@@ -118,7 +120,9 @@ class WPS {
 		 * Fires when WPSignal is fully loaded and ready for trigger registration.
 		 *
 		 * Third-party plugins should hook here to register custom triggers:
-		 *
+		 * 
+		 * @usage: register a custom trigger:
+		 * ```php
 		 *     add_action( 'wpsignal_loaded', function () {
 		 *         WPS::trigger( 'order.completed' )
 		 *             ->on( 'woocommerce_order_status_completed' )
@@ -129,6 +133,7 @@ class WPS {
 		 *             } )
 		 *             ->register();
 		 *     } );
+		 * ```
 		 */
 		do_action( 'wpsignal_loaded' );
 
@@ -188,15 +193,15 @@ class WPS {
 	 * Returns a fluent builder: chain ->on(), ->channel(), ->data(), ->when(),
 	 * then call ->register() to wire it up.
 	 *
-	 * Example:
-	 *
+	 * @usage: create a new trigger builder:
+	 * ```php
 	 *     WPS::trigger( 'user.login' )
 	 *         ->on( 'wp_login', 10, 2 )
 	 *         ->data( function ( $user_login, $user ) {
 	 *             return [ 'user_id' => $user->ID, 'login' => $user_login ];
 	 *         } )
 	 *         ->register();
-	 *
+	 * ```
 	 * @param string $event Event name (e.g. "post.updated", "comment.created").
 	 * @return Trigger A new trigger builder instance.
 	 */
@@ -210,10 +215,10 @@ class WPS {
 	 * Sends an HMAC-signed POST to the WPSignal server. The plugin must be
 	 * configured (site_key, site_secret, base_url) or this returns a WP_Error.
 	 *
-	 * Example:
-	 *
+	 * @usage: publish an event directly (no hook):
+	 * ```php
 	 *     WPS::publish( 'events', 'custom.event', [ 'key' => 'value' ] );
-	 *
+	 * ```
 	 * @param string $channel Channel name (e.g. "events"). Scoped server-side.
 	 * @param string $event   Event name (e.g. "post.updated").
 	 * @param mixed  $data    Arbitrary data (will be JSON-encoded).
