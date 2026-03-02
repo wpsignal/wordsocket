@@ -53,13 +53,14 @@ class Publisher {
 	 * to {base_url}/publish. The server normalizes the channel name and
 	 * fans out the event to all subscribed connections.
 	 *
-	 * Example:
-	 *
+	 * @usage: publish an event:
+	 * ```php
+	 *     $publisher = WPS::instance()->publisher();
 	 *     $publisher->publish( 'events', 'post.updated', [
 	 *         'post_id'    => 42,
 	 *         'post_title' => 'Hello World',
 	 *     ] );
-	 *
+	 * ```
 	 * @param string $channel Channel name (e.g. "events"). Scoped server-side.
 	 * @param string $event   Event name (e.g. "post.updated").
 	 * @param mixed  $data    Arbitrary data (will be JSON-encoded).
@@ -67,7 +68,7 @@ class Publisher {
 	 */
 	public function publish( $channel, $event, $data = array() ) {
 		if ( ! $this->config->is_configured() ) {
-			return new \WP_Error( 'wpsignal_not_configured', __( 'WPSignal is not configured.', 'signal' ) );
+			return new \WP_Error( 'wpsignal_not_configured', __( 'WPSignal is not configured.', 'eventra-for-wpsignal' ), array( 'status' => 500 ) );
 		}
 
 		// Encrypt the event name and data so the relay only ever sees ciphertext.
@@ -116,11 +117,15 @@ class Publisher {
 
 		$code = wp_remote_retrieve_response_code( $response );
 		if ( $code < 200 || $code >= 300 ) {
-			$body_text = wp_remote_retrieve_body( $response );
+			$body_text  = wp_remote_retrieve_body( $response );
+			$error_data = json_decode( $body_text, true );
+			$message    = is_array( $error_data ) && isset( $error_data['message'] )
+				? $error_data['message']
+				: sprintf( 'HTTP %d', $code );
 			if ( $is_dev ) {
-				error_log( sprintf( '[WPSignal] Publish HTTP %d: %s', $code, $body_text ) );
+				error_log( sprintf( '[WPSignal] Publish HTTP %d: %s', $code, $message ) );
 			}
-			return new \WP_Error( 'wpsignal_publish_error', sprintf( 'HTTP %d: %s', $code, $body_text ) );
+			return new \WP_Error( 'wpsignal_publish_error', $message );
 		}
 
 		return $response;

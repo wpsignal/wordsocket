@@ -11,6 +11,8 @@
 
 import { wpsDebug } from "./utils";
 
+window.wpsDebug ??= wpsDebug;
+
 class WPSignalClient implements WPSApi {
   private readonly config: WpSignalConfig;
   private readonly baseUrl: string;
@@ -23,13 +25,21 @@ class WPSignalClient implements WPSApi {
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
   private _connected = false;
 
+  // --- SSE channel tracking ---
+  /** Token for the current SSE connection; retained so reconnects can reuse it when channels change. */
+  private sseToken: string | null = null;
+  /** All channels subscribed via SSE. Persists across reconnects so token refreshes don't lose subscriptions. */
+  private readonly sseChannels = new Set<string>();
+  /** Debounce handle for SSE reconnects triggered by subscribe/unsubscribe calls. */
+  private sseReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
   // --- Handler registries ---
   private readonly messageHandlers = new Set<WPSMessageHandler>();
   private readonly eventHandlers = new Map<string, Set<WPSEventHandler>>();
   private readonly connectionHandlers = new Set<(c: boolean) => void>();
   private readonly binaryHandlers = new Set<WPSBinaryHandler>();
 
-  /** Channels requested by external consumers (queued until WS is open). */
+  /** Channels requested while transport is null; flushed to WS on open or merged into SSE URL on connect. */
   private readonly pendingSubscriptions: string[] = [];
 
   // --- Decryption ---
@@ -47,11 +57,24 @@ class WPSignalClient implements WPSApi {
 
   /**
    * Subscribe to one or more channels.
-   * If the WebSocket is not yet open, the channels are queued and sent on connect.
+   * On WebSocket, sends a subscribe frame immediately.
+   * On SSE, adds channels to the tracked set and reconnects to pick them up.
+   * Otherwise queues them until a connection opens.
+   * 
+   * @usage: subscribe to a channel:
+   * ```js
+   *     WPS.subscribe( ['events'] );
+   * ```
    */
   subscribe(channels: string[]): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type: "subscribe", channels }));
+    } else if (this._transport === "sse") {
+      const added = channels.filter((ch) => !this.sseChannels.has(ch));
+      if (added.length > 0) {
+        added.forEach((ch) => this.sseChannels.add(ch));
+        this.scheduleSseReconnect();
+      }
     } else {
       this.pendingSubscriptions.push(...channels);
     }
@@ -59,11 +82,18 @@ class WPSignalClient implements WPSApi {
 
   /**
    * Unsubscribe from one or more channels.
-   * If the WebSocket is not open, channels are removed from the pending queue.
+   * On WebSocket, sends an unsubscribe frame immediately.
+   * On SSE, removes channels from the tracked set and reconnects.
+   * Otherwise removes them from the pending queue.
    */
   unsubscribe(channels: string[]): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type: "unsubscribe", channels }));
+    } else if (this._transport === "sse") {
+      const removed = channels.filter((ch) => this.sseChannels.delete(ch));
+      if (removed.length > 0) {
+        this.scheduleSseReconnect();
+      }
     } else {
       for (const ch of channels) {
         const idx = this.pendingSubscriptions.indexOf(ch);
@@ -84,8 +114,8 @@ class WPSignalClient implements WPSApi {
       if (!WPSignalClient.ssePublishWarned) {
         WPSignalClient.ssePublishWarned = true;
         wpsDebug(
-          "WebSocket connection failed",
-          "real-time collaboration is unavailable SSE is receive-only so Yjs updates cannot reach peers. Reload the page to retry WebSocket, or deregister the WPSignal Yjs provider to restore HTTP polling.",
+          "WebSocket unavailable",
+          "SSE is receive-only; binary frames cannot be sent. Reload to retry WebSocket.",
           "error",
         );
       }
@@ -225,7 +255,7 @@ class WPSignalClient implements WPSApi {
         );
         this.scheduleRefresh(data.exp);
 
-        if (typeof WebSocket !== "undefined") {
+        if (typeof WebSocket !== "undefined" && !this.config.forceSSE) {
           this.connectWebSocket(data.token, data.channels);
         } else {
           this.connectSSE(data.token, data.channels);
@@ -237,12 +267,14 @@ class WPSignalClient implements WPSApi {
       });
   }
 
+  private wsUrl(token: string, baseUrl: string): string {
+    const wsProto = baseUrl.startsWith("https") ? "wss" : "ws";
+    const wsHost = baseUrl.replace(/^https?:\/\//, "");
+    return `${wsProto}://${wsHost}/ws?token=${encodeURIComponent(token)}`;
+  }
+
   private connectWebSocket(token: string, channels: string[]): void {
-    const wsProto = this.baseUrl.startsWith("https") ? "wss" : "ws";
-    const wsHost = this.baseUrl.replace(/^https?:\/\//, "");
-    const wsUrl = `${wsProto}://${wsHost}/ws?token=${encodeURIComponent(
-      token,
-    )}`;
+    const wsUrl = this.wsUrl(token, this.baseUrl);
 
     let didFallback = false;
     let didOpen = false;
@@ -253,7 +285,7 @@ class WPSignalClient implements WPSApi {
       this.ws = null;
       wpsDebug(
         "Falling back to SSE",
-        "SSE is receive-only so Yjs updates cannot reach peers. Reload the page to retry WebSocket, or deregister the WPSignal Yjs provider to restore HTTP polling.",
+        "WebSocket connection failed; using SSE (receive-only). Features requiring bidirectional communication are unavailable.",
         "log",
       );
       this.connectSSE(token, channels);
@@ -348,12 +380,22 @@ class WPSignalClient implements WPSApi {
     });
   }
 
+  /**
+   * Open an SSE connection.
+   * Merges the provided channels with any pending subscriptions and the
+   * persistent sseChannels set so reconnects never drop previously subscribed channels.
+   */
   private connectSSE(token: string, channels: string[]): void {
+    this.sseToken = token;
+
+    // Absorb any channels queued before the connection was established.
+    this.pendingSubscriptions.splice(0).forEach((ch) => this.sseChannels.add(ch));
+    channels.forEach((ch) => this.sseChannels.add(ch));
+
     this._transport = "sse";
     this.setConnected(true);
-    const url = `${this.baseUrl}/sse?token=${encodeURIComponent(
-      token,
-    )}&channels=${encodeURIComponent(channels.join(","))}`;
+
+    const url = `${this.baseUrl}/sse?token=${encodeURIComponent(token)}&channels=${encodeURIComponent([...this.sseChannels].join(","))}`;
     const source = new EventSource(url);
     this.sseReader = source;
 
@@ -405,6 +447,10 @@ class WPSignalClient implements WPSApi {
   }
 
   private cleanup(): void {
+    if (this.sseReconnectTimer !== null) {
+      clearTimeout(this.sseReconnectTimer);
+      this.sseReconnectTimer = null;
+    }
     if (this.refreshTimer) {
       clearTimeout(this.refreshTimer);
       this.refreshTimer = null;
@@ -419,6 +465,8 @@ class WPSignalClient implements WPSApi {
     }
     this._transport = null;
     this.setConnected(false);
+    // sseToken and sseChannels are intentionally kept so the next connectSSE
+    // call (e.g. after a token refresh) restores all subscriptions automatically.
   }
 
   // ---------------------------------------------------------------------------
@@ -508,6 +556,22 @@ class WPSignalClient implements WPSApi {
         }),
       );
     }
+  }
+
+  /**
+   * Debounced SSE reconnect used when subscribe/unsubscribe changes the channel set.
+   * Batches rapid calls into a single reconnect after 50 ms.
+   */
+  private scheduleSseReconnect(): void {
+    if (this.sseReconnectTimer !== null) return;
+    this.sseReconnectTimer = setTimeout(() => {
+      this.sseReconnectTimer = null;
+      if (this._transport === "sse" && this.sseToken) {
+        this.sseReader?.close();
+        this.sseReader = null;
+        this.connectSSE(this.sseToken, []);
+      }
+    }, 50);
   }
 
   /**

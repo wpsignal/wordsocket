@@ -40,7 +40,8 @@ import { wpsDebug } from "./utils";
 
 interface ProviderCreatorOptions {
   objectType: string;
-  objectId: string | number;
+  /** null for collection-level providers (WordPress 7.0 Beta 2+). */
+  objectId: string | number | null;
   ydoc: YDoc;
   awareness: unknown;
 }
@@ -114,7 +115,11 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
     // Use the server-localized prefix so the channel falls within the JWT's
     // allowed_channel_prefixes (e.g. `site:{site_id}:yjs:`).
     const prefix = window.wpSignalYjsConfig?.channelPrefix ?? "yjs:";
-    this.channel = `${prefix}${objectType}:${objectId}`;
+    // objectId is null for collection-level loads (e.g. collaborative notes).
+    // Fall back to "collection" so all peers share the same channel for that
+    // objectType rather than each getting an isolated "yjs:type:null" channel.
+    const id = objectId !== null ? String(objectId) : "collection";
+    this.channel = `${prefix}${objectType}:${id}`;
     this.ydoc = ydoc;
     this.init();
   }

@@ -1,17 +1,17 @@
 <?php
 /**
- * Plugin Name:       Signal
- * Plugin URI:        https://wpsignal.io
- * Description:       Realtime push events from WordPress to browsers via WP Signal (wpsignal.io) using WebSocket and SSE.
- * Version:           0.4.0
- * Author:            World House
- * Author URI:        https://worldhouse.dev
+ * Plugin Name:       Eventra for WPSignal
+ * Plugin URI:        https://wpsignal.io/eventra
+ * Description:       Eventra for WPSignal is the official WordPress plugin for WPSignal (wpsignal.io).
+ * Version:           0.5.1
+ * Author:            WPSignal
+ * Author URI:        https://wpsignal.io
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       signal
+ * Text Domain:       eventra-for-wpsignal
  * Domain Path:       /languages
  * Requires at least: 6.2
- * Tested up to:      6.9
+ * Tested up to:      7.0
  * Requires PHP:      7.4
  *
  * @package WPSignal

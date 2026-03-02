@@ -45,14 +45,15 @@ export function TriggerRow( { trigger, index, postTypes, onChange, onRemove }: P
 	};
 
 	const typeOptions = [
-		{ value: 'post_type', label: __( 'Post Type', 'signal' ) },
-		{ value: 'option', label: __( 'Option', 'signal' ) },
+		{ value: 'post_type', label: __( 'Post Type', 'eventa-for-wpsignal' ) },
+		{ value: 'option', label: __( 'Option', 'eventa-for-wpsignal' ) },
 	];
 
 	return (
 		<div className="wpsignal-trigger-row">
 			<SelectControl
-				label={ __( 'Type', 'signal' ) }
+				className="wpsignal-settings-select"
+				label={ __( 'Type', 'eventa-for-wpsignal' ) }
 				value={ trigger.type }
 				options={ typeOptions }
 				onChange={ ( val ) => update( 'type', val ) }
@@ -61,10 +62,11 @@ export function TriggerRow( { trigger, index, postTypes, onChange, onRemove }: P
 
 			{ trigger.type === 'post_type' && (
 				<SelectControl
-					label={ __( 'Post Type', 'signal' ) }
+					className="wpsignal-settings-select"
+					label={ __( 'Post Type', 'eventa-for-wpsignal' ) }
 					value={ trigger.post_type }
 					options={ [
-						{ value: '', label: __( '-- Select --', 'signal' ) },
+						{ value: '', label: __( '-- Select --', 'eventa-for-wpsignal' ) },
 						...postTypes,
 					] }
 					onChange={ ( val ) => update( 'post_type', val ) }
@@ -73,26 +75,28 @@ export function TriggerRow( { trigger, index, postTypes, onChange, onRemove }: P
 			) }
 
 			{ trigger.type === 'option' && (
-				<ComboboxControl
-					label={ __( 'Option Name', 'signal' ) }
+				<SelectControl
+					className="wpsignal-settings-select"
+					label={ __( 'Option Name', 'eventa-for-wpsignal' ) }
 					value={ trigger.option_name }
-					options={ OPTION_PRESETS }
+					options={ [
+						{ value: '', label: __( '-- Select --', 'eventa-for-wpsignal' ) },
+						...OPTION_PRESETS,
+					] }
 					onChange={ ( val ) => update( 'option_name', val || '' ) }
-					onFilterValueChange={ () => {} }
-					allowReset={ false }
 					__nextHasNoMarginBottom
 				/>
 			) }
 
 			<TextControl
-				label={ __( 'Channel', 'signal' ) }
+				label={ __( 'Channel', 'eventa-for-wpsignal' ) }
 				value={ trigger.channel }
 				onChange={ ( val ) => update( 'channel', val ) }
 				__nextHasNoMarginBottom
 			/>
 
 			<TextControl
-				label={ __( 'Event', 'signal' ) }
+				label={ __( 'Event', 'eventa-for-wpsignal' ) }
 				value={ trigger.event }
 				onChange={ ( val ) => update( 'event', val ) }
 				__nextHasNoMarginBottom
@@ -104,7 +108,7 @@ export function TriggerRow( { trigger, index, postTypes, onChange, onRemove }: P
 					isDestructive
 					onClick={ () => onRemove( index ) }
 				>
-					{ __( 'Remove', 'signal' ) }
+					{ __( 'Remove', 'eventa-for-wpsignal' ) }
 				</Button>
 			</div>
 		</div>

@@ -85,6 +85,32 @@ add_action( 'wpsignal_loaded', function () {
 WPS::publish( 'events', 'custom.event', [ 'key' => 'value' ] );
 ```
 
+### Extending the connection token
+
+Two filters let plugins add channels and channel-prefix permissions to the JWT that is minted for each logged-in user. Use these when your plugin needs browsers to subscribe to channels outside the default `site:{site_id}:` namespace.
+
+**`wpsignal_token_channels`** appends channels to the initial auto-subscribe list:
+
+```php
+add_filter( 'wpsignal_token_channels', function ( array $channels, int $user_id, string $site_id ): array {
+    // Subscribe each user to their own private channel on connect.
+    $channels[] = 'my-plugin.user.' . $user_id;
+    return $channels;
+}, 10, 3 );
+```
+
+**`wpsignal_token_channel_prefixes`** adds entries to the JWT `allowed_channel_prefixes` claim, which the server uses to enforce which channels a client may subscribe to:
+
+```php
+add_filter( 'wpsignal_token_channel_prefixes', function ( array $prefixes, int $user_id, string $site_id ): array {
+    // Allow the browser to subscribe to any channel in the my-plugin.user.* namespace.
+    $prefixes[] = 'my-plugin.user.';
+    return $prefixes;
+}, 10, 3 );
+```
+
+Both filters receive `$user_id` (the current logged-in user) and `$site_id` (the normalized site identifier) as extra arguments.
+
 ### Listening for events in the browser
 
 For logged-in users, the plugin connects via WebSocket (SSE fallback) and dispatches DOM events:
@@ -101,8 +127,8 @@ The client script exposes `window.WPS` so any theme or plugin can share the WebS
 
 | Method / Property | Returns | Description |
 |---|---|---|
-| `WPS.subscribe( channels )` | `void` | Subscribe to additional channels. Queued if not yet connected. |
-| `WPS.unsubscribe( channels )` | `void` | Unsubscribe from channels (or remove from pending queue). |
+| `WPS.subscribe( channels )` | `void` | Subscribe to additional channels. On WebSocket, sends immediately. On SSE, adds to the tracked channel set and reconnects with the updated list. Queued if not yet connected. |
+| `WPS.unsubscribe( channels )` | `void` | Unsubscribe from channels. On WebSocket, sends immediately. On SSE, removes from the tracked set and reconnects. |
 | `WPS.publish( channel, event, data? )` | `void` | Send a JSON message via WebSocket. No-op on SSE. |
 | `WPS.publishBinary( channel, data )` | `void` | Send a raw binary frame via WebSocket. No-op on SSE. |
 | `WPS.on( event, handler )` | `() => void` | Listen for a specific event name. Returns unsubscribe fn. |
@@ -191,6 +217,18 @@ add_filter( 'wpsignal_encryption_seed', function ( $default_seed ) {
 
 Useful when you need a stable seed that is independent of WordPress salts (e.g. multisite, key rotation). The seed is used server-side only and is never transmitted.
 
+## Testing SSE fallback
+
+To force the client to use SSE instead of WebSocket (useful for verifying SSE-path behaviour without browser tooling), add this to `wp-config.php` or a must-use plugin:
+
+```php
+define( 'WPSIGNAL_FORCE_SSE', true );
+```
+
+The client will skip the WebSocket upgrade and connect via SSE only. Remove the constant to restore normal WebSocket-first behaviour.
+
+Alternatively, block the WebSocket URL in Chrome DevTools: open the **Network** panel, right-click the `ws://...` request, and choose **Block request URL**.
+
 ## Security
 
 | Browser (public) | Server (trusted) | WP (trusted) |
@@ -199,3 +237,37 @@ Useful when you need a stable seed that is independent of WordPress salts (e.g. 
 | Only gets short-lived JWT (5 min) | Verifies JWT on every WS/SSE connect | Only mints tokens for logged-in users |
 | Channel access restricted by JWT | Rejects stale timestamps (60s) | Publish proxy keeps secret server-side |
 | Decrypts payloads with SubtleCrypto | Relay never handles key material | Encryption key derived from WP salts |
+
+## Changelog
+
+### 0.5.1
+* Fixed: WordPress 7.0 Beta 2 compatibility for the Yjs sync provider. Collection-level providers (e.g. collaborative notes) receive a null `objectId`; the provider now maps this to a shared `"collection"` channel suffix so all peers join the same channel.
+* Fixed: `ProviderCreatorOptions` type updated to accept `objectId: string | number | null`, matching the Beta 2 provider creator API.
+
+### 0.5.0
+* New: `wpsignal_token_channels` filter: plugins can append channels to the initial auto-subscribe list in the minted JWT.
+* New: `wpsignal_token_channel_prefixes` filter: plugins can add channel-prefix permissions to the JWT `allowed_channel_prefixes` claim.
+* Improved: `window.WPS.subscribe()` and `window.WPS.unsubscribe()` now work on SSE connections via a debounced reconnect.
+* Developer: `forceSSE` config flag available for testing the SSE transport.
+
+### 0.4.0
+* New: AES-256-GCM encrypted event payloads. The WPSignal relay receives ciphertext only.
+* New: Encryption key derived from WordPress salts and site key via HKDF-SHA256.
+* New: `wpsignal_encryption_seed` filter for custom key material.
+* New: `SubtleCrypto` decryption in the browser client.
+
+### 0.3.0
+* New: Real-time collaborative editing in the block editor (WordPress 7.0+) via Yjs WebSocket sync provider.
+* New: `publishBinary()` and `onBinaryMessage()` methods on `window.WPS`.
+* New: `transport` property on `window.WPS` (`'ws'`, `'sse'`, or `null`).
+* New: Admin toggle to enable or disable the collaboration provider.
+
+### 0.2.0
+* New: Custom trigger builder, Settings React app, Monitor admin page.
+* New: Public JavaScript API (`window.WPS`).
+* New: `WPS::trigger()` fluent builder and `WPS::publish()` facade.
+* New: Support for self-hosted servers.
+* Improved: OOP architecture with PSR-4 autoloading under the `WPSignal` namespace.
+
+### 0.1.0
+* Initial release.

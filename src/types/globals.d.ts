@@ -10,6 +10,8 @@ interface WpSignalConfig {
 	exp?: number;
 	/** Base64-encoded raw AES-256 key for decrypting incoming "encrypted" messages. Never sent to WPSignal. */
 	encryptionKey?: string;
+	/** Force use of SSE instead of WebSocket. */
+	forceSSE?: boolean;
 }
 
 /** Localized by class-wpsignal-admin-page.php (Settings React app) */

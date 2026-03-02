@@ -93,11 +93,11 @@ class Trigger {
 	/**
 	 * Set the WordPress action hook to listen on.
 	 *
-	 * Example:
-	 *
+	 * @usage: set the WordPress action hook to listen on:
+	 * ```php
 	 *     ->on( 'save_post', 20, 3 )    // priority 20, 3 args
 	 *     ->on( 'wp_login' )            // defaults: priority 10, 1 arg
-	 *
+	 * ```
 	 * @param string $hook          WordPress action hook name.
 	 * @param int    $priority      Optional. Hook priority. Default 10.
 	 * @param int    $accepted_args Optional. Number of hook arguments. Default 1.
@@ -116,10 +116,10 @@ class Trigger {
 	 * Defaults to "events" if not called. The server normalizes this to
 	 * the full tenant-scoped channel name.
 	 *
-	 * Example:
-	 *
+	 * @usage: set the channel to publish on:
+	 * ```php
 	 *     ->channel( 'orders' )
-	 *
+	 * ```
 	 * @param string $channel Channel name.
 	 * @return $this
 	 */
@@ -135,15 +135,15 @@ class Trigger {
 	 * should return an associative array. This array becomes the `data`
 	 * field in the published event payload.
 	 *
-	 * Example:
-	 *
+	 * @usage: set the data builder callback:
+	 * ```php
 	 *     ->data( function ( $post_id, $post, $update ) {
 	 *         return [
 	 *             'post_id'    => $post_id,
 	 *             'post_title' => $post->post_title,
 	 *         ];
 	 *     } )
-	 *
+	 * ```
 	 * @param callable $callback Data builder. Receives hook args, returns array.
 	 * @return $this
 	 */
@@ -159,12 +159,12 @@ class Trigger {
 	 * Return false to skip publishing for this hook invocation.
 	 * If not set, the trigger always fires.
 	 *
-	 * Example:
-	 *
+	 * @usage: set the condition callback:
+	 * ```php
 	 *     ->when( function ( $post_id, $post ) {
 	 *         return 'publish' === $post->post_status;
 	 *     } )
-	 *
+	 * ```
 	 * @param callable $callback Condition check. Receives hook args, returns bool.
 	 * @return $this
 	 */
@@ -179,6 +179,17 @@ class Trigger {
 	 * This wires the WordPress hook so the trigger fires automatically.
 	 * Must be called after configuring the builder.
 	 *
+	 * @usage: register the trigger:
+	 * ```php
+	 *     WPS::trigger( 'post.updated' )
+	 *         ->on( 'save_post', 20, 3 )
+	 *         ->channel( 'events' )
+	 *         ->data( function ( $post_id, $post, $update ) {
+	 *             return array(
+	 *                 'post_id'    => $post_id,
+	 *                 'post_type'  => $post->post_type,
+	 *     ->register();
+	 * ```
 	 * @return void
 	 */
 	public function register() {

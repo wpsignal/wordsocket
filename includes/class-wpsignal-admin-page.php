@@ -54,8 +54,8 @@ class Admin_Page {
 	 */
 	public function register_menu() {
 		add_menu_page(
-			__( 'WPSignal', 'signal' ),
-			__( 'WPSignal', 'signal' ),
+			__( 'WPSignal', 'eventra-for-wpsignal' ),
+			__( 'WPSignal', 'eventra-for-wpsignal' ),
 			'manage_options',
 			'wpsignal',
 			array( $this, 'render_settings_page' ),
@@ -65,8 +65,8 @@ class Admin_Page {
 
 		add_submenu_page(
 			'wpsignal',
-			__( 'Settings', 'signal' ),
-			__( 'Settings', 'signal' ),
+			__( 'Settings', 'eventra-for-wpsignal' ),
+			__( 'Settings', 'eventra-for-wpsignal' ),
 			'manage_options',
 			'wpsignal',
 			array( $this, 'render_settings_page' )
@@ -74,8 +74,8 @@ class Admin_Page {
 
 		add_submenu_page(
 			'wpsignal',
-			__( 'Monitor', 'signal' ),
-			__( 'Monitor', 'signal' ),
+			__( 'Monitor', 'eventra-for-wpsignal' ),
+			__( 'Monitor', 'eventra-for-wpsignal' ),
 			'manage_options',
 			'wpsignal-monitor',
 			array( $this->monitor, 'render_page' )
