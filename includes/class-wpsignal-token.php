@@ -281,12 +281,20 @@ class Token {
 	 */
 	public function handle_connect( WP_REST_Request $request ) {
 		$base_url = $this->config->base_url();
-		$api_key  = $this->config->api_key();
+		$api_key  = $request->get_param( 'api_key' );
 
-		if ( empty( $base_url ) || empty( $api_key ) ) {
+		if ( empty( $api_key ) ) {
 			return new WP_Error(
 				'wpsignal_not_configured',
-				__( 'Please save your Server URL and API Key first.', 'signal' ),
+				__( 'API Key is empty, please include it and try again.', 'eventra-for-wpsignal' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		if( strlen( $api_key ) !== 64 ) {
+			return new WP_Error(
+				'wpsignal_invalid_api_key',
+				__( 'API Key is invalid, please include a valid API Key and try again.', 'eventra-for-wpsignal' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -313,11 +321,18 @@ class Token {
 
 		$code = wp_remote_retrieve_response_code( $response );
 		if ( $code !== 200 ) {
-			$body = wp_remote_retrieve_body( $response );
+			$body       = wp_remote_retrieve_body( $response );
+			$error_data = json_decode( $body, true );
+			$error_code = is_array( $error_data ) && isset( $error_data['error'] )
+				? 'wpsignal_' . $error_data['error']
+				: 'wpsignal_connect_failed';
+			$message    = is_array( $error_data ) && isset( $error_data['message'] )
+				? $error_data['message']
+				: sprintf( 'HTTP %d', $code );
 			return new WP_Error(
-				'wpsignal_connect_failed',
-				sprintf( 'HTTP %d: %s', $code, $body ),
-				array( 'status' => 502 )
+				$error_code,
+				$message,
+				array( 'status' => $code )
 			);
 		}
 
@@ -326,7 +341,7 @@ class Token {
 		if ( empty( $data['site_key'] ) || empty( $data['publish_secret'] ) || empty( $data['jwt_secret'] ) ) {
 			return new WP_Error(
 				'wpsignal_invalid_response',
-				__( 'Invalid response from server.', 'signal' ),
+				__( 'Invalid response from server.', 'eventra-for-wpsignal' ),
 				array( 'status' => 502 )
 			);
 		}
@@ -334,7 +349,7 @@ class Token {
 		$this->config->save_registration( $data );
 
 		return rest_ensure_response( array(
-			'message'  => __( 'Connected to WPSignal!', 'signal' ),
+			'message'  => __( 'Connection settings validated!', 'eventra-for-wpsignal' ),
 			'site_key' => $data['site_key'],
 		) );
 	}
@@ -366,6 +381,8 @@ class Token {
 			'site_key'             => $is_connected ? $this->config->site_key() : '',
 			'is_connected'         => $is_connected,
 			'yjs_provider_enabled' => $this->config->yjs_provider_enabled(),
+			'is_rtc_enabled'       => (bool) get_option( 'wp_enable_real_time_collaboration', false ),
+			'wp_version'      	   => (float) wp_get_wp_version(),
 		) );
 	}
 
@@ -406,8 +423,9 @@ class Token {
 		}
 
 		$response_body = wp_remote_retrieve_body( $response );
+		$data          = json_decode( $response_body, true );
 
-		if ( strpos( $response_body, 'unknown site key' ) !== false ) {
+		if ( is_array( $data ) && isset( $data['error'] ) && $data['error'] === 'unknown_site_key' ) {
 			delete_option( 'wpsignal_site_key' );
 			delete_option( 'wpsignal_site_secret' );
 			delete_option( 'wpsignal_jwt_secret' );
@@ -436,7 +454,10 @@ class Token {
 			update_option( 'wpsignal_base_url', esc_url_raw( $base_url ) );
 		}
 		if ( $api_key !== null ) {
-			update_option( 'wpsignal_api_key', sanitize_text_field( $api_key ) );
+			if ( get_option( 'wpsignal_api_key' ) !== $api_key ) {
+				$this->clear_connection_options();
+				update_option( 'wpsignal_api_key', $api_key );
+			}
 		}
 		if ( $yjs_enabled !== null ) {
 			update_option( 'wpsignal_yjs_provider_enabled', $yjs_enabled ? '1' : '0' );
@@ -462,5 +483,17 @@ class Token {
 	 */
 	public static function base64url_encode( $data ) {
 		return rtrim( strtr( base64_encode( $data ), '+/', '-_' ), '=' );
+	}
+
+	/**
+	 * Clear all WPSignal options.
+	 *
+	 * @return void
+	 */
+	private function clear_connection_options() {
+		delete_option( 'wpsignal_api_key' );
+		delete_option( 'wpsignal_site_key' );
+		delete_option( 'wpsignal_site_secret' );
+		delete_option( 'wpsignal_jwt_secret' );
 	}
 }

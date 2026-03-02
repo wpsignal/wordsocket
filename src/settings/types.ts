@@ -12,11 +12,13 @@ export interface PostTypeOption {
 }
 
 export interface Settings {
-	base_url: string;
+	// base_url: string;
 	api_key: string;
 	site_key: string;
 	is_connected: boolean;
 	yjs_provider_enabled: boolean;
+	is_rtc_enabled: boolean;
+	wp_version: string;
 }
 
 export interface ConnectResponse {

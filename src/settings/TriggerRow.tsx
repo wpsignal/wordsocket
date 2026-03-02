@@ -52,6 +52,7 @@ export function TriggerRow( { trigger, index, postTypes, onChange, onRemove }: P
 	return (
 		<div className="wpsignal-trigger-row">
 			<SelectControl
+				className="wpsignal-settings-select"
 				label={ __( 'Type', 'eventa-for-wpsignal' ) }
 				value={ trigger.type }
 				options={ typeOptions }
@@ -61,6 +62,7 @@ export function TriggerRow( { trigger, index, postTypes, onChange, onRemove }: P
 
 			{ trigger.type === 'post_type' && (
 				<SelectControl
+					className="wpsignal-settings-select"
 					label={ __( 'Post Type', 'eventa-for-wpsignal' ) }
 					value={ trigger.post_type }
 					options={ [
@@ -73,13 +75,15 @@ export function TriggerRow( { trigger, index, postTypes, onChange, onRemove }: P
 			) }
 
 			{ trigger.type === 'option' && (
-				<ComboboxControl
+				<SelectControl
+					className="wpsignal-settings-select"
 					label={ __( 'Option Name', 'eventa-for-wpsignal' ) }
 					value={ trigger.option_name }
-					options={ OPTION_PRESETS }
+					options={ [
+						{ value: '', label: __( '-- Select --', 'eventa-for-wpsignal' ) },
+						...OPTION_PRESETS,
+					] }
 					onChange={ ( val ) => update( 'option_name', val || '' ) }
-					onFilterValueChange={ () => {} }
-					allowReset={ false }
 					__nextHasNoMarginBottom
 				/>
 			) }

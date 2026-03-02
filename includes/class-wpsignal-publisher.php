@@ -116,11 +116,15 @@ class Publisher {
 
 		$code = wp_remote_retrieve_response_code( $response );
 		if ( $code < 200 || $code >= 300 ) {
-			$body_text = wp_remote_retrieve_body( $response );
+			$body_text  = wp_remote_retrieve_body( $response );
+			$error_data = json_decode( $body_text, true );
+			$message    = is_array( $error_data ) && isset( $error_data['message'] )
+				? $error_data['message']
+				: sprintf( 'HTTP %d', $code );
 			if ( $is_dev ) {
-				error_log( sprintf( '[WPSignal] Publish HTTP %d: %s', $code, $body_text ) );
+				error_log( sprintf( '[WPSignal] Publish HTTP %d: %s', $code, $message ) );
 			}
-			return new \WP_Error( 'wpsignal_publish_error', sprintf( 'HTTP %d: %s', $code, $body_text ) );
+			return new \WP_Error( 'wpsignal_publish_error', $message );
 		}
 
 		return $response;

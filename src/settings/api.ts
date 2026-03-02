@@ -22,7 +22,7 @@ export function getSettings(): Promise< Settings > {
 	return apiFetch( { path: '/wpsignal/v1/settings' } );
 }
 
-export function saveSettings( data: { base_url: string; api_key: string; yjs_provider_enabled?: boolean } ): Promise< Settings > {
+export function saveSettings( data: { api_key: string; yjs_provider_enabled?: boolean; wp_version?: string } ): Promise< Settings > {
 	return apiFetch( {
 		path: '/wpsignal/v1/settings',
 		method: 'POST',
@@ -30,9 +30,10 @@ export function saveSettings( data: { base_url: string; api_key: string; yjs_pro
 	} );
 }
 
-export function connect(): Promise< ConnectResponse > {
+export function connect( api_key: string ): Promise< ConnectResponse > {
 	return apiFetch( {
 		path: '/wpsignal/v1/connect',
 		method: 'POST',
+		data: { api_key },
 	} );
 }

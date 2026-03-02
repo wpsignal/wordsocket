@@ -1,70 +1,119 @@
+/* Root */
+#wpsignal-settings-root > div {
+  padding: 1rem;
+  border: 1px solid rgb(0, 0, 0, 0.1);
+  border-radius: 8px;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
 /* Tab content */
 .wpsignal-tab-content {
-	max-width: 800px;
-	margin-top: 16px;
+  max-width: 800px;
+  margin-top: 16px;
+}
+
+.wpsignal-settings-select {
+
+  & select.components-select-control__input {
+    height: 40px !important;
+  }
 }
 
 /* Connection tab */
 .wpsignal-connection-tab .components-notice {
-	margin: 0 0 16px;
+  margin: 0 0 16px;
 }
 
 .wpsignal-connection-tab .components-base-control {
-	margin-bottom: 16px;
+  margin-bottom: 16px;
 }
 
-.wpsignal-connection-status {
-	margin-bottom: 16px;
+.wpsignal-connection-input {
+  --shimmer-gradient: linear-gradient(
+    90deg,
+    rgba(220, 220, 220, 0.2) 0,
+    rgba(255, 255, 255, 0.8) 50%,
+    rgba(220, 220, 220, 0.2) 100%
+  );
+
+  margin-bottom: 16px;
+
+  &.is-loading {
+    position: relative;
+    overflow: hidden;
+
+    input {
+      color: transparent;
+      background-color: transparent;
+      border-color: transparent;
+      background-image: var(--shimmer-gradient);
+      background-size: 200% 100%;
+      background-position: 100% 0;
+      animation: shimmer 1.5s infinite;
+      pointer-events: none;
+    }
+  }
 }
 
 .wpsignal-status-connected {
-	color: #46b450;
-	font-weight: 600;
+  color: #46b450;
+  font-weight: 600;
 }
 
 .wpsignal-status-disconnected {
-	color: #dc3232;
-	font-weight: 600;
+  color: #dc3232;
+  font-weight: 600;
 }
 
 .wpsignal-connection-actions {
-	display: flex;
-	gap: 8px;
-	margin-top: 16px;
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
 }
 
 /* Triggers tab */
 .wpsignal-triggers-app {
-	max-width: 800px;
-	margin-top: 16px;
+  max-width: 800px;
+  margin-top: 16px;
 }
 
 .wpsignal-triggers-app .components-notice {
-	margin: 0 0 16px;
+  margin: 0 0 16px;
 }
 
 .wpsignal-trigger-row {
-	display: flex;
-	gap: 12px;
-	align-items: flex-end;
-	padding: 16px;
-	margin-bottom: 12px;
-	background: #fff;
-	border: 1px solid #ddd;
-	border-radius: 4px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  padding: 16px;
+  margin-bottom: 12px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
 }
 
 .wpsignal-trigger-row > * {
-	flex: 1;
-	min-width: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .wpsignal-trigger-actions {
-	flex: 0 0 auto;
+  flex: 0 0 auto;
 }
 
 .wpsignal-triggers-footer {
-	display: flex;
-	gap: 8px;
-	margin-top: 16px;
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Shimmer animation */
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }
