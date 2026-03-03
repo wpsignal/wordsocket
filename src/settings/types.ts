@@ -18,7 +18,7 @@ export interface Settings {
 	is_connected: boolean;
 	yjs_provider_enabled: boolean;
 	is_rtc_enabled: boolean;
-	wp_version: string;
+	wp_version: number;
 }
 
 export interface ConnectResponse {

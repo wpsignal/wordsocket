@@ -57,3 +57,8 @@ function getStackTrace() {
   const trace = "Stack trace:\n" + stack.split("\n").slice(2).join("\n") + "\n";
   return trace;
 }
+
+export function truncate(text: string, maxLength: number, start: boolean = true) {
+  if (text.length <= maxLength) return text;
+  return start ? text.slice(0, maxLength) : text.slice(-maxLength);
+}

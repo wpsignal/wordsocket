@@ -1,4 +1,5 @@
 <?php
+
 /**
  * WPSignal\Token - JWT minting and REST API endpoints.
  *
@@ -20,15 +21,16 @@
  * @package WPSignal
  */
 
- namespace WPSignal;
+namespace WPSignal;
 
- use WP_REST_Request, WP_Error, WP_REST_Response;
+use WP_REST_Request, WP_Error, WP_REST_Response;
 
-if ( ! defined( 'ABSPATH' ) ) {
+if (! defined('ABSPATH')) {
 	exit;
 }
 
-class Token {
+class Token
+{
 
 	/** @var Config Configuration accessor. */
 	private $config;
@@ -40,7 +42,8 @@ class Token {
 	 * @param Config    $config    Configuration accessor.
 	 * @param Publisher $publisher Event publisher for the /publish proxy.
 	 */
-	public function __construct( Config $config, Publisher $publisher ) {
+	public function __construct(Config $config, Publisher $publisher)
+	{
 		$this->config    = $config;
 		$this->publisher = $publisher;
 	}
@@ -52,59 +55,60 @@ class Token {
 	 *
 	 * @return void
 	 */
-	public function register_routes() {
-		register_rest_route( 'wpsignal/v1', '/token', array(
+	public function register_routes()
+	{
+		register_rest_route('wpsignal/v1', '/token', array(
 			'methods'             => 'POST',
-			'callback'            => array( $this, 'handle_token' ),
+			'callback'            => array($this, 'handle_token'),
 			'permission_callback' => function () {
-				$nonce = isset( $_SERVER['HTTP_X_WP_NONCE'] )
-					? sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_WP_NONCE'] ) )
-					: ( isset( $_REQUEST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['_wpnonce'] ) ) : '' );
+				$nonce = isset($_SERVER['HTTP_X_WP_NONCE'])
+					? sanitize_text_field(wp_unslash($_SERVER['HTTP_X_WP_NONCE']))
+					: (isset($_REQUEST['_wpnonce']) ? sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])) : '');
 
-				if ( empty( $nonce ) || ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
+				if (empty($nonce) || ! wp_verify_nonce($nonce, 'wp_rest')) {
 					return new WP_Error(
 						'rest_nonce_invalid',
-						__( 'Nonce verification failed.', 'eventra-for-wpsignal' ),
-						array( 'status' => 403 )
+						__('Nonce verification failed.', 'eventra-for-wpsignal'),
+						array('status' => 403)
 					);
 				}
 
 				return true;
 			},
-		) );
+		));
 
-		register_rest_route( 'wpsignal/v1', '/connect', array(
+		register_rest_route('wpsignal/v1', '/connect', array(
 			'methods'             => 'POST',
-			'callback'            => array( $this, 'handle_connect' ),
+			'callback'            => array($this, 'handle_register'),
 			'permission_callback' => function () {
-				return current_user_can( 'manage_options' );
+				return current_user_can('manage_options');
 			},
-		) );
+		));
 
-		register_rest_route( 'wpsignal/v1', '/publish', array(
+		register_rest_route('wpsignal/v1', '/publish', array(
 			'methods'             => 'POST',
-			'callback'            => array( $this, 'handle_publish' ),
+			'callback'            => array($this, 'handle_publish'),
 			'permission_callback' => function () {
-				return current_user_can( 'manage_options' );
+				return current_user_can('manage_options');
 			},
-		) );
+		));
 
-		register_rest_route( 'wpsignal/v1', '/settings', array(
+		register_rest_route('wpsignal/v1', '/settings', array(
 			array(
 				'methods'             => 'GET',
-				'callback'            => array( $this, 'handle_get_settings' ),
+				'callback'            => array($this, 'handle_get_settings'),
 				'permission_callback' => function () {
-					return current_user_can( 'manage_options' );
+					return current_user_can('manage_options');
 				},
 			),
 			array(
 				'methods'             => 'POST',
-				'callback'            => array( $this, 'handle_save_settings' ),
+				'callback'            => array($this, 'handle_save_settings'),
 				'permission_callback' => function () {
-					return current_user_can( 'manage_options' );
+					return current_user_can('manage_options');
 				},
 			),
-		) );
+		));
 	}
 
 	/**
@@ -124,35 +128,36 @@ class Token {
 	 *
 	 * @return array|\WP_Error Token data array or error.
 	 */
-	public function mint() {
+	public function mint()
+	{
 		$jwt_secret = $this->config->jwt_secret();
-		if ( empty( $jwt_secret ) ) {
+		if (empty($jwt_secret)) {
 			return new WP_Error(
 				'wpsignal_no_jwt_secret',
-				__( 'JWT secret not configured.', 'eventra-for-wpsignal' ),
-				array( 'status' => 500 )
+				__('JWT secret not configured.', 'eventra-for-wpsignal'),
+				array('status' => 500)
 			);
 		}
 
 		$site_key = $this->config->site_key();
-		if ( empty( $site_key ) ) {
+		if (empty($site_key)) {
 			return new WP_Error(
 				'wpsignal_not_configured',
-				__( 'WPSignal is not configured.', 'eventra-for-wpsignal' ),
-				array( 'status' => 500 )
+				__('WPSignal is not configured.', 'eventra-for-wpsignal'),
+				array('status' => 500)
 			);
 		}
 
 		$user      = wp_get_current_user();
 		$now       = time();
 		$exp       = $now + 300;
-		$tenant_id = hash( 'sha256', 'tenant:' . $site_key );
-		$site_id   = hash( 'sha256', 'site:' . $site_key );
+		$tenant_id = hash('sha256', 'tenant:' . $site_key);
+		$site_id   = hash('sha256', 'site:' . $site_key);
 
-		$header = self::base64url_encode( wp_json_encode( array(
+		$header = self::base64url_encode(wp_json_encode(array(
 			'alg' => 'HS256',
 			'typ' => 'JWT',
-		) ) );
+		)));
 
 		/**
 		 * Filters the channels the client auto-subscribes to on connect.
@@ -166,7 +171,7 @@ class Token {
 		 */
 		$channels = apply_filters(
 			'wpsignal_token_channels',
-			array( 'site:' . $site_id . ':events' ),
+			array('site:' . $site_id . ':events'),
 			$user->ID,
 			$site_id
 		);
@@ -185,22 +190,22 @@ class Token {
 		 */
 		$allowed_prefixes = apply_filters(
 			'wpsignal_token_channel_prefixes',
-			array( 'site:' . $site_id . ':' ),
+			array('site:' . $site_id . ':'),
 			$user->ID,
 			$site_id
 		);
 
-		$payload = self::base64url_encode( wp_json_encode( array(
+		$payload = self::base64url_encode(wp_json_encode(array(
 			'tenant_id'                => $tenant_id,
 			'site_id'                  => $site_id,
 			'user_id'                  => (string) $user->ID,
 			'allowed_channel_prefixes' => $allowed_prefixes,
 			'iat'                      => $now,
 			'exp'                      => $exp,
-		) ) );
+		)));
 
 		$signature = self::base64url_encode(
-			hash_hmac( 'sha256', $header . '.' . $payload, $jwt_secret, true )
+			hash_hmac('sha256', $header . '.' . $payload, $jwt_secret, true)
 		);
 
 		return array(
@@ -216,12 +221,13 @@ class Token {
 	 * @param WP_REST_Request $request The incoming REST request.
 	 * @return \WP_REST_Response|\WP_Error Token response or error.
 	 */
-	public function handle_token( WP_REST_Request $request ) {
+	public function handle_token(WP_REST_Request $request)
+	{
 		$result = $this->mint();
-		if ( is_wp_error( $result ) ) {
+		if (is_wp_error($result)) {
 			return $result;
 		}
-		return rest_ensure_response( $result );
+		return rest_ensure_response($result);
 	}
 
 	/**
@@ -241,26 +247,27 @@ class Token {
 	 * @param WP_REST_Request $request The incoming REST request.
 	 * @return WP_REST_Response|\WP_Error Success response or error.
 	 */
-	public function handle_publish( WP_REST_Request $request ) {
-		$channel = $request->get_param( 'channel' );
-		$event   = $request->get_param( 'event' );
-		$data    = $request->get_param( 'data' );
+	public function handle_publish(WP_REST_Request $request)
+	{
+		$channel = $request->get_param('channel');
+		$event   = $request->get_param('event');
+		$data    = $request->get_param('data');
 
-		if ( empty( $channel ) || empty( $event ) ) {
+		if (empty($channel) || empty($event)) {
 			return new WP_Error(
 				'wpsignal_missing_params',
-				__( 'Channel and event are required.', 'eventra-for-wpsignal' ),
-				array( 'status' => 400 )
+				__('Channel and event are required.', 'eventra-for-wpsignal'),
+				array('status' => 400)
 			);
 		}
 
-		$result = $this->publisher->publish( $channel, $event, $data ? $data : array() );
+		$result = $this->publisher->publish($channel, $event, $data ? $data : array());
 
-		if ( is_wp_error( $result ) ) {
+		if (is_wp_error($result)) {
 			return $result;
 		}
 
-		return rest_ensure_response( array( 'ok' => true ) );
+		return rest_ensure_response(array('ok' => true));
 	}
 
 	/**
@@ -279,79 +286,81 @@ class Token {
 	 * @param WP_REST_Request $request The incoming REST request.
 	 * @return WP_REST_Response|\WP_Error Success response or error.
 	 */
-	public function handle_connect( WP_REST_Request $request ) {
+	public function handle_register(WP_REST_Request $request)
+	{
 		$base_url = $this->config->base_url();
-		$api_key  = $request->get_param( 'api_key' );
+		$api_key  = $request->get_param('api_key');
 
-		if ( empty( $api_key ) ) {
+		if (empty($api_key)) {
 			return new WP_Error(
 				'wpsignal_not_configured',
-				__( 'API Key is empty, please include it and try again.', 'eventra-for-wpsignal' ),
-				array( 'status' => 400 )
+				__('API Key is empty, please include it and try again.', 'eventra-for-wpsignal'),
+				array('status' => 400)
 			);
 		}
 
-		if( strlen( $api_key ) !== 64 ) {
+		if (strlen($api_key) !== 64) {
 			return new WP_Error(
 				'wpsignal_invalid_api_key',
-				__( 'API Key is invalid, please include a valid API Key and try again.', 'eventra-for-wpsignal' ),
-				array( 'status' => 400 )
+				__('API Key is invalid, please include a valid API Key and try again.', 'eventra-for-wpsignal'),
+				array('status' => 400)
 			);
 		}
 
-		$response = wp_remote_post( trailingslashit( $base_url ) . 'api/sites/register', array(
+		$response = wp_remote_post(trailingslashit($base_url) . 'api/sites/register', array(
 			'timeout' => 10,
 			'headers' => array(
 				'Content-Type'  => 'application/json',
 				'Authorization' => 'Bearer ' . $api_key,
 			),
-			'body' => wp_json_encode( array(
+			'body' => wp_json_encode(array(
 				'site_url'  => home_url(),
-				'site_name' => get_bloginfo( 'name' ),
-			) ),
-		) );
+				'site_name' => get_bloginfo('name'),
+			)),
+		));
 
-		if ( is_wp_error( $response ) ) {
+		if (is_wp_error($response)) {
 			return new WP_Error(
 				'wpsignal_connect_failed',
 				$response->get_error_message(),
-				array( 'status' => 502 )
+				array('status' => 502)
 			);
 		}
 
-		$code = wp_remote_retrieve_response_code( $response );
-		if ( $code !== 200 ) {
-			$body       = wp_remote_retrieve_body( $response );
-			$error_data = json_decode( $body, true );
-			$error_code = is_array( $error_data ) && isset( $error_data['error'] )
+		$code = wp_remote_retrieve_response_code($response);
+		if ($code !== 200) {
+			$body       = wp_remote_retrieve_body($response);
+			$error_data = json_decode($body, true);
+			$error_code = is_array($error_data) && isset($error_data['error'])
 				? 'wpsignal_' . $error_data['error']
 				: 'wpsignal_connect_failed';
-			$message    = is_array( $error_data ) && isset( $error_data['message'] )
+			$message    = is_array($error_data) && isset($error_data['message'])
 				? $error_data['message']
-				: sprintf( 'HTTP %d', $code );
+				: sprintf('HTTP %d', $code);
 			return new WP_Error(
 				$error_code,
 				$message,
-				array( 'status' => $code )
+				array('status' => $code)
 			);
 		}
 
-		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		$data = json_decode(wp_remote_retrieve_body($response), true);
 
-		if ( empty( $data['site_key'] ) || empty( $data['publish_secret'] ) || empty( $data['jwt_secret'] ) ) {
+		if (empty($data['site_key']) || empty($data['publish_secret']) || empty($data['jwt_secret'])) {
 			return new WP_Error(
 				'wpsignal_invalid_response',
-				__( 'Invalid response from server.', 'eventra-for-wpsignal' ),
-				array( 'status' => 502 )
+				__('Invalid response from server.', 'eventra-for-wpsignal'),
+				array('status' => 502)
 			);
 		}
 
-		$this->config->save_registration( $data );
+		$data['api_key'] = $api_key;
+		$this->config->save_registration($data);
 
-		return rest_ensure_response( array(
-			'message'  => __( 'Connection settings validated!', 'eventra-for-wpsignal' ),
+		return rest_ensure_response(array(
+			'message'  => __('Connection settings validated!', 'eventra-for-wpsignal'),
 			'site_key' => $data['site_key'],
-		) );
+		));
 	}
 
 	/**
@@ -368,22 +377,23 @@ class Token {
 	 * @param WP_REST_Request $request The incoming REST request.
 	 * @return WP_REST_Response Settings response.
 	 */
-	public function handle_get_settings( WP_REST_Request $request ) {
+	public function handle_get_settings(WP_REST_Request $request)
+	{
 		$is_connected = $this->config->is_configured();
 
-		if ( $is_connected ) {
+		if ($is_connected) {
 			$is_connected = $this->verify_site_exists();
 		}
 
-		return rest_ensure_response( array(
+		return rest_ensure_response(array(
 			'base_url'             => $this->config->base_url(),
 			'api_key'              => $this->config->api_key(),
 			'site_key'             => $is_connected ? $this->config->site_key() : '',
 			'is_connected'         => $is_connected,
 			'yjs_provider_enabled' => $this->config->yjs_provider_enabled(),
-			'is_rtc_enabled'       => (bool) get_option( 'wp_enable_real_time_collaboration', false ),
-			'wp_version'      	   => (float) wp_get_wp_version(),
-		) );
+			'is_rtc_enabled'       => (bool) get_option('wp_enable_real_time_collaboration', false),
+			'wp_version'      	   => (float) 6.9,
+		));
 	}
 
 	/**
@@ -402,12 +412,13 @@ class Token {
 	 *
 	 * @return bool True if the site still exists (or server is unreachable).
 	 */
-	private function verify_site_exists() {
+	private function verify_site_exists()
+	{
 		$body         = '{}';
-		$timestamp_ms = (string) round( microtime( true ) * 1000 );
-		$url          = trailingslashit( $this->config->base_url() ) . 'publish';
+		$timestamp_ms = (string) round(microtime(true) * 1000);
+		$url          = trailingslashit($this->config->base_url()) . 'publish';
 
-		$response = wp_remote_post( $url, array(
+		$response = wp_remote_post($url, array(
 			'timeout' => 3,
 			'headers' => array(
 				'Content-Type'     => 'application/json',
@@ -416,60 +427,21 @@ class Token {
 				'X-WP-Signal-Sign' => 'dummy',
 			),
 			'body' => $body,
-		) );
+		));
 
-		if ( is_wp_error( $response ) ) {
+		if (is_wp_error($response)) {
 			return true; // Network error: assume still connected.
 		}
 
-		$response_body = wp_remote_retrieve_body( $response );
-		$data          = json_decode( $response_body, true );
+		$response_body = wp_remote_retrieve_body($response);
+		$data          = json_decode($response_body, true);
 
-		if ( is_array( $data ) && isset( $data['error'] ) && $data['error'] === 'unknown_site_key' ) {
-			delete_option( 'wpsignal_site_key' );
-			delete_option( 'wpsignal_site_secret' );
-			delete_option( 'wpsignal_jwt_secret' );
-			return false;
+		if (is_array($data) && isset($data['error']) && $data['error'] === 'unknown_site_key') {
+			return false; // Site was deleted on the server.
 		}
 
+		// 'invalid_signature' means the site key is known: expected with a dummy sig.
 		return true;
-	}
-
-	/**
-	 * Save connection settings (Server URL and API Key).
-	 *
-	 * Request body:
-	 *
-	 *     { "base_url": "https://…", "api_key": "abc123" }
-	 *
-	 * @param WP_REST_Request $request The incoming REST request.
-	 * @return WP_REST_Response Updated settings response.
-	 */
-	public function handle_save_settings( WP_REST_Request $request ) {
-		$base_url     = $request->get_param( 'base_url' );
-		$api_key      = $request->get_param( 'api_key' );
-		$yjs_enabled  = $request->get_param( 'yjs_provider_enabled' );
-
-		if ( $base_url !== null ) {
-			update_option( 'wpsignal_base_url', esc_url_raw( $base_url ) );
-		}
-		if ( $api_key !== null ) {
-			if ( get_option( 'wpsignal_api_key' ) !== $api_key ) {
-				$this->clear_connection_options();
-				update_option( 'wpsignal_api_key', $api_key );
-			}
-		}
-		if ( $yjs_enabled !== null ) {
-			update_option( 'wpsignal_yjs_provider_enabled', $yjs_enabled ? '1' : '0' );
-		}
-
-		return rest_ensure_response( array(
-			'base_url'             => $this->config->base_url(),
-			'api_key'              => $this->config->api_key(),
-			'site_key'             => $this->config->site_key(),
-			'is_connected'         => $this->config->is_configured(),
-			'yjs_provider_enabled' => $this->config->yjs_provider_enabled(),
-		) );
 	}
 
 	/**
@@ -481,19 +453,9 @@ class Token {
 	 * @param string $data Raw binary or string data to encode.
 	 * @return string Base64url-encoded string.
 	 */
-	public static function base64url_encode( $data ) {
-		return rtrim( strtr( base64_encode( $data ), '+/', '-_' ), '=' );
+	public static function base64url_encode($data)
+	{
+		return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
 	}
 
-	/**
-	 * Clear all WPSignal options.
-	 *
-	 * @return void
-	 */
-	private function clear_connection_options() {
-		delete_option( 'wpsignal_api_key' );
-		delete_option( 'wpsignal_site_key' );
-		delete_option( 'wpsignal_site_secret' );
-		delete_option( 'wpsignal_jwt_secret' );
-	}
 }

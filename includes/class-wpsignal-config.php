@@ -217,6 +217,7 @@ class Config {
 	 * @return void
 	 */
 	public function save_registration( $data ) {
+		update_option( 'wpsignal_api_key', $data['api_key'] );
 		update_option( 'wpsignal_site_key', $data['site_key'] );
 		update_option( 'wpsignal_site_secret', $data['publish_secret'] );
 		update_option( 'wpsignal_jwt_secret', $data['jwt_secret'] );
