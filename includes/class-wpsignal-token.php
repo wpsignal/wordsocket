@@ -392,7 +392,7 @@ class Token
 			'is_connected'         => $is_connected,
 			'yjs_provider_enabled' => $this->config->yjs_provider_enabled(),
 			'is_rtc_enabled'       => (bool) get_option('wp_enable_real_time_collaboration', false),
-			'wp_version'      	   => (float) 6.9,
+			'wp_version'      	   => (float) wp_get_wp_version(),
 		));
 	}
 

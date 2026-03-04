@@ -1,6 +1,6 @@
 import { useState, useEffect } from "@wordpress/element";
 import { TextControl, ToggleControl, Button } from "@wordpress/components";
-import { __ } from "@wordpress/i18n";
+import { __, sprintf } from "@wordpress/i18n";
 import { truncate } from "../utils";
 import { Notice } from "./Notice";
 import { getSettings, saveSettings, connect } from "./api";
@@ -87,8 +87,7 @@ export function ConnectionTab() {
           </Notice>
         ) : (
           <>
-          {wpVersion >= 7.0 ? 'show' : 'hide'}
-            {isConnecting && wpVersion >= 7.0 && (
+            {isConnecting && (
               <Notice status="info">
                 {__(
                   "Validating connection settings...",
@@ -139,37 +138,53 @@ export function ConnectionTab() {
         )}
         __nextHasNoMarginBottom
       />
-      {!isConnecting &&
-        (isRTCEnabled ? (
-          <ToggleControl
-            disabled={!isRTCEnabled}
-            label={
-              yjsProviderEnabled
-                ? __(
-                    "Disable WPSignal for real-time collaboration?",
-                    "eventra-for-wpsignal",
-                  )
-                : __(
-                    "Enable WPSignal for real-time collaboration?",
-                    "eventra-for-wpsignal",
-                  )
-            }
-            help={__(
-              "Registers WPSignal as the Yjs sync provider in the block editor. Disable this to fall back to WordPress HTTP polling if WebSocket connections are unavailable.",
-              "eventra-for-wpsignal",
-            )}
-            checked={yjsProviderEnabled}
-            onChange={setYjsProviderEnabled}
-            __nextHasNoMarginBottom
-          />
-        ) : (
+      {wpVersion >= 7.0 ? (
+        <>
+          {!isConnecting &&
+            (isRTCEnabled ? (
+              <ToggleControl
+                disabled={!isRTCEnabled}
+                label={
+                  yjsProviderEnabled
+                    ? __(
+                        "Disable WPSignal for real-time collaboration?",
+                        "eventra-for-wpsignal",
+                      )
+                    : __(
+                        "Enable WPSignal for real-time collaboration?",
+                        "eventra-for-wpsignal",
+                      )
+                }
+                help={__(
+                  "Registers WPSignal as the Yjs sync provider in the block editor. Disable this to fall back to WordPress HTTP polling if WebSocket connections are unavailable.",
+                  "eventra-for-wpsignal",
+                )}
+                checked={yjsProviderEnabled}
+                onChange={setYjsProviderEnabled}
+                __nextHasNoMarginBottom
+              />
+            ) : (
+              <Notice status="warning">
+                {__(
+                  "Real-time collaboration is not enabled. Please enable it under Settings > Writing.",
+                  "eventra-for-wpsignal",
+                )}
+              </Notice>
+            ))}
+        </>
+      ) : (
+        <>
           <Notice status="warning">
-            {__(
-              "Real-time collaboration is not enabled. Please enable it under Settings > Writing.",
-              "eventra-for-wpsignal",
+            {sprintf(
+              __(
+                "Real-time collaboration is not supported on WordPress %s. Please upgrade to WordPress 7.0 or later.",
+                "eventra-for-wpsignal",
+              ),
+              wpVersion.toString(),
             )}
           </Notice>
-        ))}
+        </>
+      )}
 
       <div className="wpsignal-connection-actions">
         <Button
