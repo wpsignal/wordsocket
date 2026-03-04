@@ -11,7 +11,7 @@
  *   - post_type: hooks transition_post_status, fires on publish/update
  *   - option:    hooks update_option_{name}, fires on any change
  *
- * @package WPSignal
+ * @package WordSocket
  */
 
 namespace WPSignal;

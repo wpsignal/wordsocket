@@ -1,11 +1,11 @@
 <?php
 /**
- * WPSignal uninstall handler.
+ * WordSocket uninstall handler.
  *
  * Fired when the plugin is deleted via the WordPress admin.
  * Removes all plugin options from the database.
  *
- * @package WPSignal
+ * @package WordSocket
  */
 
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {

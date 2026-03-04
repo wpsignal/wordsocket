@@ -1,7 +1,7 @@
 /**
- * WPSignal Yjs Provider Boot
+ * WordSocket Yjs Provider Boot
  *
- * Registers the WPSignal Yjs sync provider with WordPress 7.0+ via the
+ * Registers the WordSocket Yjs sync provider with WordPress 7.0+ via the
  * `sync.providers` filter (PR #72183). Enqueued only in the block editor
  * context when WP 7.0+ is detected (see class-wpsignal-client.php).
  *
@@ -9,7 +9,7 @@
  *   applyFilters( 'sync.providers', [] )
  * and expects an array of async provider creator functions.
  *
- * The callback replaces the incoming providers array with only WPSignal's
+ * The callback replaces the incoming providers array with only WordSocket's
  * creator, which removes the default HTTP polling provider. If WebSocket is
  * unavailable the callback passes the array through unchanged, preserving
  * HTTP polling as the active transport.
@@ -27,7 +27,7 @@ addFilter("sync.providers", "wpsignal/yjs-provider", (providers) => {
       "in this browser. The Yjs provider has not been registered — real-time collaboration will use HTTP polling instead.",
       "error",
       false,
-      "[WPSignal Yjs]",
+      "[WordSocket Yjs]",
     );
     return providers;
   }

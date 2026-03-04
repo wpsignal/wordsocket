@@ -1,5 +1,5 @@
 /**
- * WPSignal Monitor: interactive admin demo page.
+ * WordSocket Monitor: interactive admin demo page.
  */
 
 const cfg = window.wpSignalMonitor;

@@ -1,5 +1,5 @@
 /**
- * WPSignal utility functions.
+ * WordSocket utility functions.
  */
 
 /**
@@ -12,7 +12,7 @@ const CONSOLE_STYLES = {
 };
 
 /**
- * A utility function to debug the WPSignal JS API.
+ * A utility function to debug the WordSocket JS API.
  *
  * @param label - The label to display in the console.
  * @param summary - The summary to display in the console. Can be a string or an object.
@@ -31,7 +31,7 @@ export function wpsDebug(
     return;
   }
   const styledLabel = [
-    `%c[WPSignal${prefix ? ` ${prefix}` : ""}] ${label}`,
+    `%c[WordSocket${prefix ? ` ${prefix}` : ""}] ${label}`,
     CONSOLE_STYLES[_type],
   ];
   if (summary === null) {

@@ -6,7 +6,7 @@
  * for backward compatibility with any code that calls them directly.
  * New code should use the class-based API instead.
  *
- * @package WPSignal
+ * @package WordSocket
  * @see Config::jwt_secret()
  * @see Token::base64url_encode()
  */

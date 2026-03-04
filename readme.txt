@@ -1,4 +1,4 @@
-=== WordSocket for WPSignal ===
+=== WordSocket ===
 Contributors: wpsignal
 Tags: realtime, websocket, push, events, collaboration
 Requires at least: 6.2
@@ -8,7 +8,7 @@ Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-WordSocket for WPSignal is the official WordPress plugin for WPSignal (wpsignal.io), a third-party WebSocket/SSE delivery service.
+WordSocket is the official WordPress plugin for WPSignal (wpsignal.io), a third-party WebSocket/SSE delivery service.
 
 == Description ==
 
@@ -56,9 +56,9 @@ Event payloads are AES-256-GCM encrypted before leaving WordPress. The WPSignal 
 
 == Installation ==
 
-1. Upload the `wordsocket-for-wpsignal` folder to `/wp-content/plugins/`, or install directly from the WordPress plugin directory.
+1. Upload the `wordsocket` folder to `/wp-content/plugins/`, or install directly from the WordPress plugin directory.
 2. Activate the plugin through the "Plugins" menu in WordPress.
-3. Go to **WPSignal > Settings** and enter your WPSignal server URL and API key.
+3. Go to **WordSocket > Settings** and enter your WPSignal server URL and API key.
 4. Click **Connect to WPSignal**: the plugin registers with the server and saves credentials automatically.
 
 To get an API key, create a free account at [wpsignal.io](https://wpsignal.io).
@@ -83,7 +83,7 @@ Event payloads are encrypted with AES-256-GCM before leaving WordPress. The encr
 
 = Can I use this with a self-hosted server? =
 
-Yes. Enter your server URL in **WPSignal > Settings** instead of the default `api.wpsignal.io`.
+Yes. Enter your server URL in **WordSocket > Settings** instead of the default `api.wpsignal.io`.
 
 = Does this work for logged-out visitors? =
 
@@ -91,7 +91,7 @@ The built-in client script loads for logged-in users by default. You can enqueue
 
 = What happens if WebSocket is unavailable? =
 
-The client falls back to SSE for receiving events. `window.WPS.subscribe()` and `window.WPS.unsubscribe()` work on SSE connections: channel changes are tracked and applied immediately via a lightweight SSE reconnect (50 ms debounce). For collaborative editing, the plugin detects the fallback and emits a "not synced" status so WordPress can surface the appropriate indicator. You can also disable the collaboration provider entirely from **WPSignal > Settings > Connection** to restore WordPress HTTP polling for all editors.
+The client falls back to SSE for receiving events. `window.WPS.subscribe()` and `window.WPS.unsubscribe()` work on SSE connections: channel changes are tracked and applied immediately via a lightweight SSE reconnect (50 ms debounce). For collaborative editing, the plugin detects the fallback and emits a "not synced" status so WordPress can surface the appropriate indicator. You can also disable the collaboration provider entirely from **WordSocket > Settings > Connection** to restore WordPress HTTP polling for all editors.
 
 = Does collaborative editing require WordPress 7.0? =
 
@@ -105,7 +105,7 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 == Changelog ==
 
 = 0.6.0 =
-* New: Plugin renamed to "WordSocket for WPSignal" to comply with WordPress.org plugin directory guidelines.
+* New: Plugin renamed to "WordSocket" to comply with WordPress.org plugin directory guidelines.
 * Improved: Settings Connection tab revamped: server URL field removed, flow simplified to API Key entry and a single Connect action.
 * Improved: API key validated client-side before attempting connection.
 * Improved: Connection tab now surfaces WordPress real-time collaboration (RTC) availability and WP version compatibility, with clearer, more descriptive warnings when collaborative editing is unavailable.
@@ -163,7 +163,7 @@ Adds PHP filters for extending JWT channel access and fixes `subscribe()`/`unsub
 Adds relay-blind AES-256-GCM encryption for all event payloads. No configuration required: encryption is automatic after connecting. The WPSignal relay never has access to plaintext message content.
 
 = 0.3.0 =
-Adds real-time collaborative editing support for WordPress 7.0+. No configuration changes required: the collaboration provider is enabled by default and can be toggled from WPSignal > Settings.
+Adds real-time collaborative editing support for WordPress 7.0+. No configuration changes required: the collaboration provider is enabled by default and can be toggled from WordSocket > Settings.
 
 = 0.2.0 =
 Major update with new admin UI, custom triggers, and public JS API. Existing installations will continue to work: no configuration changes required.

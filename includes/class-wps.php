@@ -28,7 +28,7 @@
  * ```php
  *     WPS::publish( 'events', 'custom.event', [ 'key' => 'value' ] );
  * ```
- * @package WPSignal
+ * @package WordSocket
  */
 
 namespace WPSignal;

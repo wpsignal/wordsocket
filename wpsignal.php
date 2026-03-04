@@ -1,22 +1,22 @@
 <?php
 /**
- * Plugin Name:       WordSocket for WPSignal
- * Plugin URI:        https://wpsignal.io/eventra
- * Description:       WordSocket for WPSignal is the official WordPress plugin for WPSignal (wpsignal.io).
+ * Plugin Name:       WordSocket
+ * Plugin URI:        https://wpsignal.io/wordsocket
+ * Description:       WordSocket is the official WordPress plugin for WPSignal (wpsignal.io).
  * Version:           0.6.0
  * Author:            WPSignal
  * Author URI:        https://wpsignal.io
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       wordsocket-for-wpsignal
+ * Text Domain:       wordsocket
  * Domain Path:       /languages
  * Requires at least: 6.2
  * Tested up to:      7.0
  * Requires PHP:      7.4
  *
- * @package WPSignal
+ * @package WordSocket
  *
- * This is the main bootstrap file for the WPSignal plugin. It defines global
+ * This is the main bootstrap file for the WordSocket plugin. It defines global
  * constants, loads the class autoloader and backward-compatibility wrappers,
  * then boots the plugin via the WPSignal singleton facade.
  *

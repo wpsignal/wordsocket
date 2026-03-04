@@ -1,5 +1,5 @@
 /**
- * WPSignal Client
+ * WordSocket Client
  *
  * Prefers WebSocket for bidirectional communication, falls back to SSE.
  * Dispatches `wpsignal:<event>` DOM custom events regardless of transport.
@@ -492,7 +492,7 @@ class WPSignalClient implements WPSApi {
       },
     });
     if (!res.ok) {
-      throw new Error(`WPSignal: token request failed (${res.status})`);
+      throw new Error(`WordSocket: token request failed (${res.status})`);
     }
     return res.json();
   }

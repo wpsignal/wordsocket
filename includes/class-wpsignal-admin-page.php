@@ -2,11 +2,11 @@
 /**
  * WPSignal\Admin_Page - WordPress admin settings page and menu registration.
  *
- * Registers a top-level "WPSignal" admin menu with two subpages:
+ * Registers a top-level "WordSocket" admin menu with two subpages:
  *   - Settings: React SPA with Connection and Triggers tabs.
  *   - Monitor : interactive debug/test page (delegated to Monitor_Page).
  *
- * @package WPSignal
+ * @package WordSocket
  */
 
  namespace WPSignal;
@@ -43,10 +43,10 @@ class Admin_Page {
 	}
 
 	/**
-	 * Register the top-level WPSignal menu and subpages.
+	 * Register the top-level WordSocket menu and subpages.
 	 *
 	 * Creates:
-	 *   - WPSignal (top-level, dashicons-rss)
+	 *   - WordSocket (top-level, dashicons-rss)
 	 *     - Settings (React app: Connection + Triggers tabs)
 	 *     - Monitor  (renamed from Monitor)
 	 *
@@ -54,8 +54,8 @@ class Admin_Page {
 	 */
 	public function register_menu() {
 		add_menu_page(
-			__( 'WordSocket', 'wordsocket-for-wpsignal' ),
-			__( 'WordSocket', 'wordsocket-for-wpsignal' ),
+			__( 'WordSocket', 'wordsocket' ),
+			__( 'WordSocket', 'wordsocket' ),
 			'manage_options',
 			'wordsocket',
 			array( $this, 'render_settings_page' ),
@@ -65,8 +65,8 @@ class Admin_Page {
 
 		add_submenu_page(
 			'wordsocket',
-			__( 'WordSocket Settings', 'wordsocket-for-wpsignal' ),
-			__( 'Settings', 'wordsocket-for-wpsignal' ),
+			__( 'WordSocket Settings', 'wordsocket' ),
+			__( 'Settings', 'wordsocket' ),
 			'manage_options',
 			'wordsocket',
 			array( $this, 'render_settings_page' )
@@ -74,8 +74,8 @@ class Admin_Page {
 
 		add_submenu_page(
 			'wordsocket',
-			__( 'WordSocket Monitor', 'wordsocket-for-wpsignal' ),
-			__( 'Monitor', 'wordsocket-for-wpsignal' ),
+			__( 'WordSocket Monitor', 'wordsocket' ),
+			__( 'Monitor', 'wordsocket' ),
 			'manage_options',
 			'wordsocket-monitor',
 			array( $this->monitor, 'render_page' )
@@ -83,7 +83,7 @@ class Admin_Page {
 	}
 
 	/**
-	 * Menu icon for the top-level WPSignal item.
+	 * Menu icon for the top-level WordSocket item.
 	 *
 	 * Returns the URL to the plugin SVG icon. Alternatively you can return a
 	 * data URI: 'data:image/svg+xml;base64,' . base64_encode( $svg_markup )

@@ -2,7 +2,7 @@
 /**
  * WPSignal\Monitor_Page: interactive admin demo page.
  *
- * Renders a full-page admin view at WPSignal > Monitor with five panels
+ * Renders a full-page admin view at WordSocket > Monitor with five panels
  * for testing and inspecting all plugin features:
  *
  *   1. Connection Status: configured badge, site_key, "Test Connection" button
@@ -15,7 +15,7 @@
  * Publishing goes through the PHP REST endpoint (POST /wpsignal/v1/publish)
  * so the HMAC site secret never reaches the browser.
  *
- * @package WPSignal
+ * @package WordSocket
  */
 
  namespace WPSignal;
@@ -110,34 +110,34 @@ class Monitor_Page {
 		$base_url   = $this->config->base_url();
 		?>
 		<div class="card" style="max-width:100%;">
-			<h2><?php esc_html_e( 'Connection Status', 'wordsocket-for-wpsignal' ); ?></h2>
+			<h2><?php esc_html_e( 'Connection Status', 'wordsocket' ); ?></h2>
 
 			<p>
 				<?php if ( $configured ) : ?>
 					<span class="dashicons dashicons-yes-alt" style="color:#46b450;"></span>
-					<strong><?php esc_html_e( 'Configured', 'wordsocket-for-wpsignal' ); ?></strong>
+					<strong><?php esc_html_e( 'Configured', 'wordsocket' ); ?></strong>
 				<?php else : ?>
 					<span class="dashicons dashicons-dismiss" style="color:#dc3232;"></span>
-					<strong><?php esc_html_e( 'Not Configured', 'wordsocket-for-wpsignal' ); ?></strong>
-					&mdash; <?php esc_html_e( 'Go to Settings to connect.', 'wordsocket-for-wpsignal' ); ?>
+					<strong><?php esc_html_e( 'Not Configured', 'wordsocket' ); ?></strong>
+					&mdash; <?php esc_html_e( 'Go to Settings to connect.', 'wordsocket' ); ?>
 				<?php endif; ?>
 			</p>
 
 			<?php if ( $configured ) : ?>
 				<table class="form-table" role="presentation">
 					<tr>
-						<th scope="row"><?php esc_html_e( 'Server URL', 'wordsocket-for-wpsignal' ); ?></th>
+						<th scope="row"><?php esc_html_e( 'Server URL', 'wordsocket' ); ?></th>
 						<td><code><?php echo esc_html( $base_url ); ?></code></td>
 					</tr>
 					<tr>
-						<th scope="row"><?php esc_html_e( 'Site Key', 'wordsocket-for-wpsignal' ); ?></th>
+						<th scope="row"><?php esc_html_e( 'Site Key', 'wordsocket' ); ?></th>
 						<td><code><?php echo esc_html( $site_key ); ?></code></td>
 					</tr>
 				</table>
 
 				<p>
 					<button type="button" id="wpsignal-ks-test-connection" class="button">
-						<?php esc_html_e( 'Test Connection', 'wordsocket-for-wpsignal' ); ?>
+						<?php esc_html_e( 'Test Connection', 'wordsocket' ); ?>
 					</button>
 					<span id="wpsignal-ks-test-status" style="margin-left:10px;"></span>
 				</p>
@@ -158,20 +158,20 @@ class Monitor_Page {
 	private function render_triggers_table( $triggers ) {
 		?>
 		<div class="card" style="max-width:100%;margin-top:20px;">
-			<h2><?php esc_html_e( 'Registered Triggers', 'wordsocket-for-wpsignal' ); ?></h2>
+			<h2><?php esc_html_e( 'Registered Triggers', 'wordsocket' ); ?></h2>
 
 			<?php if ( empty( $triggers ) ) : ?>
-				<p><?php esc_html_e( 'No triggers registered.', 'wordsocket-for-wpsignal' ); ?></p>
+				<p><?php esc_html_e( 'No triggers registered.', 'wordsocket' ); ?></p>
 			<?php else : ?>
 				<table class="widefat striped">
 					<thead>
 						<tr>
-							<th><?php esc_html_e( 'Event', 'wordsocket-for-wpsignal' ); ?></th>
-							<th><?php esc_html_e( 'Hook', 'wordsocket-for-wpsignal' ); ?></th>
-							<th><?php esc_html_e( 'Priority', 'wordsocket-for-wpsignal' ); ?></th>
-							<th><?php esc_html_e( 'Args', 'wordsocket-for-wpsignal' ); ?></th>
-							<th><?php esc_html_e( 'Channel', 'wordsocket-for-wpsignal' ); ?></th>
-							<th><?php esc_html_e( 'Condition', 'wordsocket-for-wpsignal' ); ?></th>
+							<th><?php esc_html_e( 'Event', 'wordsocket' ); ?></th>
+							<th><?php esc_html_e( 'Hook', 'wordsocket' ); ?></th>
+							<th><?php esc_html_e( 'Priority', 'wordsocket' ); ?></th>
+							<th><?php esc_html_e( 'Args', 'wordsocket' ); ?></th>
+							<th><?php esc_html_e( 'Channel', 'wordsocket' ); ?></th>
+							<th><?php esc_html_e( 'Condition', 'wordsocket' ); ?></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -203,27 +203,27 @@ class Monitor_Page {
 	private function render_event_log() {
 		?>
 		<div class="card" style="max-width:100%;margin-top:20px;">
-			<h2><?php esc_html_e( 'Live Event Log', 'wordsocket-for-wpsignal' ); ?></h2>
+			<h2><?php esc_html_e( 'Live Event Log', 'wordsocket' ); ?></h2>
 
 			<p>
 				<label for="wpsignal-ks-channels">
-					<?php esc_html_e( 'Channels (comma-separated):', 'wordsocket-for-wpsignal' ); ?>
+					<?php esc_html_e( 'Channels (comma-separated):', 'wordsocket' ); ?>
 				</label>
 				<input type="text" id="wpsignal-ks-channels" value="events" class="regular-text" />
 			</p>
 
 			<p>
 				<button type="button" id="wpsignal-ks-connect" class="button button-primary">
-					<?php esc_html_e( 'Connect', 'wordsocket-for-wpsignal' ); ?>
+					<?php esc_html_e( 'Connect', 'wordsocket' ); ?>
 				</button>
 				<button type="button" id="wpsignal-ks-disconnect" class="button" disabled>
-					<?php esc_html_e( 'Disconnect', 'wordsocket-for-wpsignal' ); ?>
+					<?php esc_html_e( 'Disconnect', 'wordsocket' ); ?>
 				</button>
 				<span id="wpsignal-ks-ws-status" style="margin-left:10px;"></span>
 			</p>
 
 			<div id="wpsignal-ks-event-log" style="max-height:300px;overflow-y:auto;background:#1d2327;color:#c3c4c7;padding:10px;font-family:monospace;font-size:13px;border-radius:4px;">
-				<div style="color:#72aee6;"><?php esc_html_e( 'Waiting for connection...', 'wordsocket-for-wpsignal' ); ?></div>
+				<div style="color:#72aee6;"><?php esc_html_e( 'Waiting for connection...', 'wordsocket' ); ?></div>
 			</div>
 		</div>
 		<?php
@@ -241,26 +241,26 @@ class Monitor_Page {
 	private function render_publish_form() {
 		?>
 		<div class="card" style="max-width:100%;margin-top:20px;">
-			<h2><?php esc_html_e( 'Publish Test Event', 'wordsocket-for-wpsignal' ); ?></h2>
+			<h2><?php esc_html_e( 'Publish Test Event', 'wordsocket' ); ?></h2>
 
 			<table class="form-table" role="presentation">
 				<tr>
-					<th scope="row"><label for="wpsignal-ks-pub-channel"><?php esc_html_e( 'Channel', 'wordsocket-for-wpsignal' ); ?></label></th>
+					<th scope="row"><label for="wpsignal-ks-pub-channel"><?php esc_html_e( 'Channel', 'wordsocket' ); ?></label></th>
 					<td><input type="text" id="wpsignal-ks-pub-channel" value="events" class="regular-text" /></td>
 				</tr>
 				<tr>
-					<th scope="row"><label for="wpsignal-ks-pub-event"><?php esc_html_e( 'Event Name', 'wordsocket-for-wpsignal' ); ?></label></th>
+					<th scope="row"><label for="wpsignal-ks-pub-event"><?php esc_html_e( 'Event Name', 'wordsocket' ); ?></label></th>
 					<td><input type="text" id="wpsignal-ks-pub-event" value="test.event" class="regular-text" /></td>
 				</tr>
 				<tr>
-					<th scope="row"><label for="wpsignal-ks-pub-data"><?php esc_html_e( 'JSON Data', 'wordsocket-for-wpsignal' ); ?></label></th>
+					<th scope="row"><label for="wpsignal-ks-pub-data"><?php esc_html_e( 'JSON Data', 'wordsocket' ); ?></label></th>
 					<td><textarea id="wpsignal-ks-pub-data" class="large-text" rows="4">{"message": "Hello from Monitor!"}</textarea></td>
 				</tr>
 			</table>
 
 			<p>
 				<button type="button" id="wpsignal-ks-publish" class="button button-primary">
-					<?php esc_html_e( 'Publish Event', 'wordsocket-for-wpsignal' ); ?>
+					<?php esc_html_e( 'Publish Event', 'wordsocket' ); ?>
 				</button>
 				<span id="wpsignal-ks-pub-status" style="margin-left:10px;"></span>
 			</p>
@@ -279,19 +279,19 @@ class Monitor_Page {
 	private function render_token_inspector() {
 		?>
 		<div class="card" style="max-width:100%;margin-top:20px;">
-			<h2><?php esc_html_e( 'Token Inspector', 'wordsocket-for-wpsignal' ); ?></h2>
+			<h2><?php esc_html_e( 'Token Inspector', 'wordsocket' ); ?></h2>
 
 			<p>
 				<button type="button" id="wpsignal-ks-mint-token" class="button">
-					<?php esc_html_e( 'Mint Token', 'wordsocket-for-wpsignal' ); ?>
+					<?php esc_html_e( 'Mint Token', 'wordsocket' ); ?>
 				</button>
 			</p>
 
 			<div id="wpsignal-ks-token-display" style="display:none;">
-				<h3><?php esc_html_e( 'Raw Token', 'wordsocket-for-wpsignal' ); ?></h3>
+				<h3><?php esc_html_e( 'Raw Token', 'wordsocket' ); ?></h3>
 				<textarea id="wpsignal-ks-token-raw" class="large-text" rows="3" readonly></textarea>
 
-				<h3><?php esc_html_e( 'Decoded Claims', 'wordsocket-for-wpsignal' ); ?></h3>
+				<h3><?php esc_html_e( 'Decoded Claims', 'wordsocket' ); ?></h3>
 				<pre id="wpsignal-ks-token-claims" style="background:#f0f0f1;padding:10px;overflow-x:auto;"></pre>
 
 				<p id="wpsignal-ks-token-expiry"></p>

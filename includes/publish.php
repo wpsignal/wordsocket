@@ -5,7 +5,7 @@
  * This file provides the legacy `wpsignal_publish()` function for any code
  * that calls it directly. It delegates to the OOP publisher via the facade.
  *
- * @package WPSignal
+ * @package WordSocket
  * @see WPS::publish()
  * @see Publisher::publish()
  */

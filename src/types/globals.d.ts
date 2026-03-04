@@ -47,7 +47,7 @@ type WPSEventHandler = ( data: Record< string, unknown >, channel: string ) => v
 /** Handler for incoming binary WebSocket frames (e.g. Yjs updates). */
 type WPSBinaryHandler = ( channel: string, data: Uint8Array ) => void;
 
-/** Public API exposed by the WPSignal client on window.WPS */
+/** Public API exposed by the WordSocket client on window.WPS */
 interface WPSApi {
 	/** Subscribe to additional channels on the shared connection. */
 	subscribe( channels: string[] ): void;

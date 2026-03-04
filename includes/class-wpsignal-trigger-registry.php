@@ -22,7 +22,7 @@
  *         echo $trigger->get_event() . ' → ' . $trigger->get_hook();
  *     }
  *
- * @package WPSignal
+ * @package WordSocket
  */
 
  namespace WPSignal;

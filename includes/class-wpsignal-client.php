@@ -19,7 +19,7 @@
  *   - nonce  : WordPress REST nonce for authentication
  *   - baseUrl: WPSignal server URL for WebSocket/SSE connections
  *
- * @package WPSignal
+ * @package WordSocket
  */
 
  namespace WPSignal;
@@ -68,7 +68,7 @@ class Client {
 	 */
 	public function enqueue() {
 		/**
-		 * Controls whether the WPSignal client script is enqueued for the current request.
+		 * Controls whether the WordSocket client script is enqueued for the current request.
 		 *
 		 * Return `false` to prevent the script from loading (e.g. on specific post types
 		 * or for guest users). Return `true` to force-load it regardless of login state.
@@ -146,7 +146,7 @@ class Client {
 	/**
 	 * Enqueue the Yjs sync provider in the block editor (WordPress 7.0+).
 	 *
-	 * Registers the WPSignal provider creator with the `sync.providers` filter
+	 * Registers the WordSocket provider creator with the `sync.providers` filter
 	 * so Gutenberg can use WPSignal WebSocket connections for real-time
 	 * collaborative editing instead of the default HTTP polling transport.
 	 *

@@ -2,7 +2,7 @@
 /**
  * WPSignal\Trigger - fluent builder for registering custom event triggers.
  *
- * Each trigger maps a WordPress action hook to a WPSignal event. When the
+ * Each trigger maps a WordPress action hook to a WordSocket event. When the
  * hook fires, the trigger evaluates an optional condition, builds a data
  * payload, and publishes the event to the server.
  *
@@ -47,7 +47,7 @@
  *         } )
  *         ->register();
  *
- * @package WPSignal
+ * @package WordSocket
  */
 
  namespace WPSignal;

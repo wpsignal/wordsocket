@@ -1,6 +1,4 @@
-# WPSignal WordPress Plugin
-
-> **Note:** This `README.md` is for GitHub. The WordPress.org plugin listing uses [`readme.txt`](readme.txt).
+# WordSocket:
 
 Sends realtime events from WordPress to browsers via [api.wpsignal.io](https://api.wpsignal.io). Connects via WebSocket (SSE fallback) and exposes a public JS API for other plugins to share the connection. On WordPress 7.0+, also registers as a WebSocket-based Yjs sync provider for real-time collaborative editing.
 
@@ -17,7 +15,7 @@ wp plugin activate wp-signal
 
 ## Configuration
 
-Go to **WPSignal > Settings** and fill in:
+Go to **WordSocket > Settings** and fill in:
 
 | Field | Description |
 |---|---|
@@ -26,7 +24,7 @@ Go to **WPSignal > Settings** and fill in:
 
 Then click **Connect to WPSignal**. The plugin registers with the server and saves the site key, publish secret, and JWT secret automatically.
 
-The **Enable real-time collaboration provider** toggle (on by default) controls whether WPSignal registers as the Yjs sync provider in the block editor. Disable it to fall back to WordPress HTTP polling if WebSocket connections are unavailable.
+The **Enable real-time collaboration provider** toggle (on by default) controls whether WordSocket registers as the Yjs sync provider in the block editor. Disable it to fall back to WordPress HTTP polling if WebSocket connections are unavailable.
 
 ## Real-Time Collaboration (WordPress 7.0+)
 

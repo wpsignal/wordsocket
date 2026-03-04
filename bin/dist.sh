@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# dist.sh: Build a WordPress.org-ready release of the WPSignal plugin
+# dist.sh: Build a WordPress.org-ready release of the WordSocket plugin
 #
 # Outputs:
 #   dist/signal-{version}.zip   Plugin zip for WordPress.org upload / SVN trunk
@@ -34,12 +34,12 @@ die()   { printf '\033[31mError:\033[0m %s\n' "$*" >&2; exit 1; }
 
 # ── Version ───────────────────────────────────────────────────────────────────
 VERSION="$(node -p "require('./package.json').version")"
-PLUGIN_SLUG="wordsocket-for-wpsignal"
+PLUGIN_SLUG="wordsocket"
 ZIP_NAME="${PLUGIN_SLUG}-${VERSION}.zip"
 DIST_DIR="$PLUGIN_DIR/dist"
 STAGE_DIR="$DIST_DIR/$PLUGIN_SLUG"
 
-bold "WPSignal dist: v${VERSION}"
+bold "WordSocket dist: v${VERSION}"
 echo ""
 
 # ── 1. Clean ──────────────────────────────────────────────────────────────────

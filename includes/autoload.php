@@ -14,7 +14,7 @@
  * WPSignal namespace are handled: all others are ignored so this autoloader
  * can coexist with Composer or other autoloaders.
  *
- * @package WPSignal
+ * @package WordSocket
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

@@ -2,7 +2,7 @@
 /**
  * WPSignal\Config: centralizes all wp_options access.
  *
- * Provides typed accessors for every WPSignal option stored in the WordPress
+ * Provides typed accessors for every WordSocket option stored in the WordPress
  * database. This keeps option key strings in one place and makes it easy to
  * mock configuration in tests.
  *
@@ -22,7 +22,7 @@
  *         $key = $config->site_key();
  *     }
  *
- * @package WPSignal
+ * @package WordSocket
  */
 
  namespace WPSignal;
@@ -167,7 +167,7 @@ class Config {
 	}
 
 	/**
-	 * Whether the WPSignal Yjs sync provider should be registered with the
+	 * Whether the WordSocket Yjs sync provider should be registered with the
 	 * block editor. When false, the yjs-provider script is not enqueued and
 	 * WordPress falls back to its default HTTP polling transport.
 	 *
@@ -180,7 +180,7 @@ class Config {
 	}
 
 	/**
-	 * Check whether the WordPress version is compatible with the WPSignal Yjs sync provider.
+	 * Check whether the WordPress version is compatible with the WordSocket Yjs sync provider.
 	 *
 	 * @return bool True if the WordPress version is compatible, false otherwise.
 	 */

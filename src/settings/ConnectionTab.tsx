@@ -37,7 +37,7 @@ export function ConnectionTab() {
           type: "error",
           message:
             error?.message ||
-            __("Failed to load settings.", "wordsocket-for-wpsignal"),
+            __("Failed to load settings.", "wordsocket"),
         });
       } finally {
         setIsConnecting(false);
@@ -55,7 +55,7 @@ export function ConnectionTab() {
           type: "error",
           message: __(
             "API Key is invalid, please include a valid API Key and try again.",
-            "wordsocket-for-wpsignal",
+            "wordsocket",
           ),
         });
         return;
@@ -70,7 +70,7 @@ export function ConnectionTab() {
           error?.message ||
           __(
             "Connection failed. Make sure your Server URL and API Key are saved.",
-            "wordsocket-for-wpsignal",
+            "wordsocket",
           ),
       });
     } finally {
@@ -91,13 +91,13 @@ export function ConnectionTab() {
               <Notice status="info">
                 {__(
                   "Validating connection settings...",
-                  "wordsocket-for-wpsignal",
+                  "wordsocket",
                 )}
               </Notice>
             )}
             {isConnected && (
               <Notice status="success">
-                &#10003; {__("Connected", "wordsocket-for-wpsignal")}
+                &#10003; {__("Connected", "wordsocket")}
                 {siteKey && (
                   <>
                     {" "}
@@ -114,7 +114,7 @@ export function ConnectionTab() {
               <Notice status="error">
                 {__(
                   "Connection failed. Make sure your API Key is valid.",
-                  "wordsocket-for-wpsignal",
+                  "wordsocket",
                 )}
               </Notice>
             )}
@@ -126,7 +126,7 @@ export function ConnectionTab() {
         className={`wpsignal-connection-input ${
           isConnecting ? " is-loading" : ""
         }`}
-        label={__("API Key", "wordsocket-for-wpsignal")}
+        label={__("API Key", "wordsocket")}
         value={apiKey}
         minLength={64}
         maxLength={64}
@@ -134,7 +134,7 @@ export function ConnectionTab() {
         type="password"
         help={__(
           "Get your API key from your wpsignal.io dashboard.",
-          "wordsocket-for-wpsignal",
+          "wordsocket",
         )}
         __nextHasNoMarginBottom
       />
@@ -147,17 +147,17 @@ export function ConnectionTab() {
                 label={
                   yjsProviderEnabled
                     ? __(
-                        "Disable WPSignal for real-time collaboration?",
-                        "wordsocket-for-wpsignal",
+                        "Disable WordSocket for real-time collaboration?",
+                        "wordsocket",
                       )
                     : __(
-                        "Enable WPSignal for real-time collaboration?",
-                        "wordsocket-for-wpsignal",
+                        "Enable WordSocket for real-time collaboration?",
+                        "wordsocket",
                       )
                 }
                 help={__(
-                  "Registers WPSignal as the Yjs sync provider in the block editor. Disable this to fall back to WordPress HTTP polling if WebSocket connections are unavailable.",
-                  "wordsocket-for-wpsignal",
+                  "Registers WordSocket as the Yjs sync provider in the block editor. Disable this to fall back to WordPress HTTP polling if WebSocket connections are unavailable.",
+                  "wordsocket",
                 )}
                 checked={yjsProviderEnabled}
                 onChange={setYjsProviderEnabled}
@@ -167,7 +167,7 @@ export function ConnectionTab() {
               <Notice status="warning">
                 {__(
                   "Real-time collaboration is not enabled. Please enable it under Settings > Writing.",
-                  "wordsocket-for-wpsignal",
+                  "wordsocket",
                 )}
               </Notice>
             ))}
@@ -178,7 +178,7 @@ export function ConnectionTab() {
             {sprintf(
               __(
                 "Real-time collaboration is not supported on WordPress %s. Please upgrade to WordPress 7.0 or later.",
-                "wordsocket-for-wpsignal",
+                "wordsocket",
               ),
               wpVersion.toString(),
             )}
@@ -193,7 +193,7 @@ export function ConnectionTab() {
           isBusy={isConnecting}
           disabled={!apiKey || saving || isConnecting || apiKey.length !== 64}
         >
-          {__("Save Settings", "wordsocket-for-wpsignal")}
+          {__("Save Settings", "wordsocket")}
         </Button>
       </div>
     </div>

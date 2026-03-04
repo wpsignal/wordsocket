@@ -6,7 +6,7 @@
  * wpsignal_custom_triggers option. The POST endpoint replaces the
  * entire array (sanitized) on each save.
  *
- * @package WPSignal
+ * @package WordSocket
  */
 
 namespace WPSignal;
@@ -113,7 +113,7 @@ class Triggers_REST {
 
 		return rest_ensure_response( array(
 			'triggers' => $sanitized,
-			'message'  => __( 'Triggers saved.', 'wordsocket-for-wpsignal' ),
+			'message'  => __( 'Triggers saved.', 'wordsocket' ),
 		) );
 	}
 }
