@@ -68,7 +68,7 @@ class Token
 				if (empty($nonce) || ! wp_verify_nonce($nonce, 'wp_rest')) {
 					return new WP_Error(
 						'rest_nonce_invalid',
-						__('Nonce verification failed.', 'eventra-for-wpsignal'),
+						__('Nonce verification failed.', 'wordsocket-for-wpsignal'),
 						array('status' => 403)
 					);
 				}
@@ -134,7 +134,7 @@ class Token
 		if (empty($jwt_secret)) {
 			return new WP_Error(
 				'wpsignal_no_jwt_secret',
-				__('JWT secret not configured.', 'eventra-for-wpsignal'),
+				__('JWT secret not configured.', 'wordsocket-for-wpsignal'),
 				array('status' => 500)
 			);
 		}
@@ -143,7 +143,7 @@ class Token
 		if (empty($site_key)) {
 			return new WP_Error(
 				'wpsignal_not_configured',
-				__('WPSignal is not configured.', 'eventra-for-wpsignal'),
+				__('WPSignal is not configured.', 'wordsocket-for-wpsignal'),
 				array('status' => 500)
 			);
 		}
@@ -256,7 +256,7 @@ class Token
 		if (empty($channel) || empty($event)) {
 			return new WP_Error(
 				'wpsignal_missing_params',
-				__('Channel and event are required.', 'eventra-for-wpsignal'),
+				__('Channel and event are required.', 'wordsocket-for-wpsignal'),
 				array('status' => 400)
 			);
 		}
@@ -294,7 +294,7 @@ class Token
 		if (empty($api_key)) {
 			return new WP_Error(
 				'wpsignal_not_configured',
-				__('API Key is empty, please include it and try again.', 'eventra-for-wpsignal'),
+				__('API Key is empty, please include it and try again.', 'wordsocket-for-wpsignal'),
 				array('status' => 400)
 			);
 		}
@@ -302,7 +302,7 @@ class Token
 		if (strlen($api_key) !== 64) {
 			return new WP_Error(
 				'wpsignal_invalid_api_key',
-				__('API Key is invalid, please include a valid API Key and try again.', 'eventra-for-wpsignal'),
+				__('API Key is invalid, please include a valid API Key and try again.', 'wordsocket-for-wpsignal'),
 				array('status' => 400)
 			);
 		}
@@ -349,7 +349,7 @@ class Token
 		if (empty($data['site_key']) || empty($data['publish_secret']) || empty($data['jwt_secret'])) {
 			return new WP_Error(
 				'wpsignal_invalid_response',
-				__('Invalid response from server.', 'eventra-for-wpsignal'),
+				__('Invalid response from server.', 'wordsocket-for-wpsignal'),
 				array('status' => 502)
 			);
 		}
@@ -358,7 +358,7 @@ class Token
 		$this->config->save_registration($data);
 
 		return rest_ensure_response(array(
-			'message'  => __('Connection settings validated!', 'eventra-for-wpsignal'),
+			'message'  => __('Connection settings validated!', 'wordsocket-for-wpsignal'),
 			'site_key' => $data['site_key'],
 		));
 	}

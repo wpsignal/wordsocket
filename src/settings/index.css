@@ -1,15 +1,5 @@
-/* Root */
-#wpsignal-settings-root > div {
-  padding: 1rem;
-  border: 1px solid rgb(0, 0, 0, 0.1);
-  border-radius: 8px;
-  background: #ffffff;
-  box-sizing: border-box;
-}
-
 /* Tab content */
 .wpsignal-tab-content {
-  max-width: 800px;
   margin-top: 16px;
 }
 

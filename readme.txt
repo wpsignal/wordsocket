@@ -1,14 +1,14 @@
-=== Eventra for WPSignal ===
+=== WordSocket for WPSignal ===
 Contributors: wpsignal
 Tags: realtime, websocket, push, events, collaboration
 Requires at least: 6.2
 Tested up to: 7.0
-Stable tag: 0.5.1
+Stable tag: 0.6.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Eventra for WPSignal is the official WordPress plugin for WPSignal (wpsignal.io), a third-party WebSocket/SSE delivery service.
+WordSocket for WPSignal is the official WordPress plugin for WPSignal (wpsignal.io), a third-party WebSocket/SSE delivery service.
 
 == Description ==
 
@@ -56,7 +56,7 @@ Event payloads are AES-256-GCM encrypted before leaving WordPress. The WPSignal 
 
 == Installation ==
 
-1. Upload the `eventra-for-wpsignal` folder to `/wp-content/plugins/`, or install directly from the WordPress plugin directory.
+1. Upload the `wordsocket-for-wpsignal` folder to `/wp-content/plugins/`, or install directly from the WordPress plugin directory.
 2. Activate the plugin through the "Plugins" menu in WordPress.
 3. Go to **WPSignal > Settings** and enter your WPSignal server URL and API key.
 4. Click **Connect to WPSignal**: the plugin registers with the server and saves credentials automatically.
@@ -104,6 +104,14 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 
 == Changelog ==
 
+= 0.6.0 =
+* New: Plugin renamed to "WordSocket for WPSignal" to comply with WordPress.org plugin directory guidelines.
+* Improved: Settings Connection tab revamped: server URL field removed, flow simplified to API Key entry and a single Connect action.
+* Improved: API key validated client-side before attempting connection.
+* Improved: Connection tab now surfaces WordPress real-time collaboration (RTC) availability and WP version compatibility, with clearer, more descriptive warnings when collaborative editing is unavailable.
+* Improved: PHP documentation blocks updated across all core classes for better tooling and doc parser support.
+* Developer: `.pot` language file added (`eventra-for-wpsignal.pot`).
+
 = 0.5.1 =
 * Fixed: WordPress 7.0 Beta 2 compatibility for the Yjs sync provider. Collection-level providers (e.g. collaborative notes) receive a null `objectId`; the provider now maps this to a shared `"collection"` channel suffix so all peers join the same channel.
 * Fixed: `ProviderCreatorOptions` type updated to accept `objectId: string | number | null`, matching the Beta 2 provider creator API.
@@ -141,6 +149,9 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 * Initial release.
 
 == Upgrade Notice ==
+
+= 0.6.0 =
+Simplified settings UI: the Server URL field has been removed. Re-enter your API Key and click Connect if your site does not show as connected after upgrading.
 
 = 0.5.1 =
 Fixes Yjs provider compatibility with WordPress 7.0 Beta 2, including collection-level sync (collaborative notes). No configuration changes required.

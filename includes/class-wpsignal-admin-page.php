@@ -54,30 +54,30 @@ class Admin_Page {
 	 */
 	public function register_menu() {
 		add_menu_page(
-			__( 'WPSignal', 'eventra-for-wpsignal' ),
-			__( 'WPSignal', 'eventra-for-wpsignal' ),
+			__( 'WordSocket', 'wordsocket-for-wpsignal' ),
+			__( 'WordSocket', 'wordsocket-for-wpsignal' ),
 			'manage_options',
-			'wpsignal',
+			'wordsocket',
 			array( $this, 'render_settings_page' ),
 			$this->get_menu_icon(),
 			80
 		);
 
 		add_submenu_page(
-			'wpsignal',
-			__( 'Settings', 'eventra-for-wpsignal' ),
-			__( 'Settings', 'eventra-for-wpsignal' ),
+			'wordsocket',
+			__( 'WordSocket Settings', 'wordsocket-for-wpsignal' ),
+			__( 'Settings', 'wordsocket-for-wpsignal' ),
 			'manage_options',
-			'wpsignal',
+			'wordsocket',
 			array( $this, 'render_settings_page' )
 		);
 
 		add_submenu_page(
-			'wpsignal',
-			__( 'Monitor', 'eventra-for-wpsignal' ),
-			__( 'Monitor', 'eventra-for-wpsignal' ),
+			'wordsocket',
+			__( 'WordSocket Monitor', 'wordsocket-for-wpsignal' ),
+			__( 'Monitor', 'wordsocket-for-wpsignal' ),
 			'manage_options',
-			'wpsignal-monitor',
+			'wordsocket-monitor',
 			array( $this->monitor, 'render_page' )
 		);
 	}
@@ -148,7 +148,7 @@ class Admin_Page {
 
 		echo '<div class="wrap">';
 		echo '<h1>' . esc_html( get_admin_page_title() ) . '</h1>';
-		echo '<div id="wpsignal-settings-root"></div>';
+		echo '<div class="card" style="max-width:100%;" id="wpsignal-settings-root"></div>';
 		echo '</div>';
 	}
 

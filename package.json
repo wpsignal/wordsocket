@@ -1,11 +1,11 @@
 {
   "name": "wpsignal",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "private": true,
   "scripts": {
     "build": "wp-scripts build",
     "start": "wp-scripts start",
-    "make-pot": "wp i18n make-pot . languages/eventra-for-wpsignal.pot --slug=eventra-for-wpsignal --domain=eventra-for-wpsignal --skip-js",
+    "make-pot": "wp i18n make-pot . languages/wordsocket-for-wpsignal.pot --slug=wordsocket-for-wpsignal --domain=wordsocket-for-wpsignal --skip-js",
     "dist": "bash bin/dist.sh"
   },
   "devDependencies": {

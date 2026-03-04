@@ -1,14 +1,14 @@
 <?php
 /**
- * Plugin Name:       Eventra for WPSignal
+ * Plugin Name:       WordSocket for WPSignal
  * Plugin URI:        https://wpsignal.io/eventra
- * Description:       Eventra for WPSignal is the official WordPress plugin for WPSignal (wpsignal.io).
- * Version:           0.5.1
+ * Description:       WordSocket for WPSignal is the official WordPress plugin for WPSignal (wpsignal.io).
+ * Version:           0.6.0
  * Author:            WPSignal
  * Author URI:        https://wpsignal.io
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       eventra-for-wpsignal
+ * Text Domain:       wordsocket-for-wpsignal
  * Domain Path:       /languages
  * Requires at least: 6.2
  * Tested up to:      7.0

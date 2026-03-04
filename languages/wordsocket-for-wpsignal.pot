@@ -2,21 +2,21 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Eventra for WPSignal 0.5.1\n"
-"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/eventra-for-wpsignal\n"
+"Project-Id-Version: WordSocket for WPSignal 0.5.1\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wordsocket-for-wpsignal\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-03-02T14:36:33+00:00\n"
+"POT-Creation-Date: 2026-03-04T14:50:24+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
-"X-Domain: eventra-for-wpsignal\n"
+"X-Domain: wordsocket-for-wpsignal\n"
 
 #. Plugin Name of the plugin
 #: wpsignal.php
-msgid "Eventra for WPSignal"
+msgid "WordSocket for WPSignal"
 msgstr ""
 
 #. Plugin URI of the plugin
@@ -26,13 +26,11 @@ msgstr ""
 
 #. Description of the plugin
 #: wpsignal.php
-msgid "Eventra for WPSignal is the official WordPress plugin for WPSignal (wpsignal.io)."
+msgid "WordSocket for WPSignal is the official WordPress plugin for WPSignal (wpsignal.io)."
 msgstr ""
 
 #. Author of the plugin
 #: wpsignal.php
-#: includes/class-wpsignal-admin-page.php:57
-#: includes/class-wpsignal-admin-page.php:58
 msgid "WPSignal"
 msgstr ""
 
@@ -41,163 +39,170 @@ msgstr ""
 msgid "https://wpsignal.io"
 msgstr ""
 
+#: includes/class-wpsignal-admin-page.php:57
+#: includes/class-wpsignal-admin-page.php:58
+msgid "WordSocket"
+msgstr ""
+
 #: includes/class-wpsignal-admin-page.php:68
+msgid "WordSocket Settings"
+msgstr ""
+
 #: includes/class-wpsignal-admin-page.php:69
 msgid "Settings"
 msgstr ""
 
 #: includes/class-wpsignal-admin-page.php:77
+msgid "WordSocket Monitor"
+msgstr ""
+
 #: includes/class-wpsignal-admin-page.php:78
 msgid "Monitor"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:58
-msgid "WPSignal Monitor"
-msgstr ""
-
-#: includes/class-wpsignal-monitor-page.php:114
+#: includes/class-wpsignal-monitor-page.php:113
 msgid "Connection Status"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:119
+#: includes/class-wpsignal-monitor-page.php:118
 msgid "Configured"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:122
+#: includes/class-wpsignal-monitor-page.php:121
 msgid "Not Configured"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:123
+#: includes/class-wpsignal-monitor-page.php:122
 msgid "Go to Settings to connect."
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:130
+#: includes/class-wpsignal-monitor-page.php:129
 msgid "Server URL"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:134
+#: includes/class-wpsignal-monitor-page.php:133
 msgid "Site Key"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:141
+#: includes/class-wpsignal-monitor-page.php:140
 msgid "Test Connection"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:162
+#: includes/class-wpsignal-monitor-page.php:161
 msgid "Registered Triggers"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:165
+#: includes/class-wpsignal-monitor-page.php:164
 msgid "No triggers registered."
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:170
+#: includes/class-wpsignal-monitor-page.php:169
 msgid "Event"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:171
+#: includes/class-wpsignal-monitor-page.php:170
 msgid "Hook"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:172
+#: includes/class-wpsignal-monitor-page.php:171
 msgid "Priority"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:173
+#: includes/class-wpsignal-monitor-page.php:172
 msgid "Args"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:174
-#: includes/class-wpsignal-monitor-page.php:249
+#: includes/class-wpsignal-monitor-page.php:173
+#: includes/class-wpsignal-monitor-page.php:248
 msgid "Channel"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:175
+#: includes/class-wpsignal-monitor-page.php:174
 msgid "Condition"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:207
+#: includes/class-wpsignal-monitor-page.php:206
 msgid "Live Event Log"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:211
+#: includes/class-wpsignal-monitor-page.php:210
 msgid "Channels (comma-separated):"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:218
+#: includes/class-wpsignal-monitor-page.php:217
 msgid "Connect"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:221
+#: includes/class-wpsignal-monitor-page.php:220
 msgid "Disconnect"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:227
+#: includes/class-wpsignal-monitor-page.php:226
 msgid "Waiting for connection..."
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:245
+#: includes/class-wpsignal-monitor-page.php:244
 msgid "Publish Test Event"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:253
+#: includes/class-wpsignal-monitor-page.php:252
 msgid "Event Name"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:257
+#: includes/class-wpsignal-monitor-page.php:256
 msgid "JSON Data"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:264
+#: includes/class-wpsignal-monitor-page.php:263
 msgid "Publish Event"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:283
+#: includes/class-wpsignal-monitor-page.php:282
 msgid "Token Inspector"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:287
+#: includes/class-wpsignal-monitor-page.php:286
 msgid "Mint Token"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:292
+#: includes/class-wpsignal-monitor-page.php:291
 msgid "Raw Token"
 msgstr ""
 
-#: includes/class-wpsignal-monitor-page.php:295
+#: includes/class-wpsignal-monitor-page.php:294
 msgid "Decoded Claims"
 msgstr ""
 
 #: includes/class-wpsignal-publisher.php:71
-#: includes/class-wpsignal-token.php:141
+#: includes/class-wpsignal-token.php:146
 msgid "WPSignal is not configured."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:67
+#: includes/class-wpsignal-token.php:71
 msgid "Nonce verification failed."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:132
+#: includes/class-wpsignal-token.php:137
 msgid "JWT secret not configured."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:252
+#: includes/class-wpsignal-token.php:259
 msgid "Channel and event are required."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:289
+#: includes/class-wpsignal-token.php:297
 msgid "API Key is empty, please include it and try again."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:297
+#: includes/class-wpsignal-token.php:305
 msgid "API Key is invalid, please include a valid API Key and try again."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:344
+#: includes/class-wpsignal-token.php:352
 msgid "Invalid response from server."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:352
+#: includes/class-wpsignal-token.php:361
 msgid "Connection settings validated!"
 msgstr ""
 

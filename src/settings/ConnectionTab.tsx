@@ -37,7 +37,7 @@ export function ConnectionTab() {
           type: "error",
           message:
             error?.message ||
-            __("Failed to load settings.", "eventra-for-wpsignal"),
+            __("Failed to load settings.", "wordsocket-for-wpsignal"),
         });
       } finally {
         setIsConnecting(false);
@@ -55,7 +55,7 @@ export function ConnectionTab() {
           type: "error",
           message: __(
             "API Key is invalid, please include a valid API Key and try again.",
-            "eventra-for-wpsignal",
+            "wordsocket-for-wpsignal",
           ),
         });
         return;
@@ -70,7 +70,7 @@ export function ConnectionTab() {
           error?.message ||
           __(
             "Connection failed. Make sure your Server URL and API Key are saved.",
-            "eventra-for-wpsignal",
+            "wordsocket-for-wpsignal",
           ),
       });
     } finally {
@@ -91,13 +91,13 @@ export function ConnectionTab() {
               <Notice status="info">
                 {__(
                   "Validating connection settings...",
-                  "eventra-for-wpsignal",
+                  "wordsocket-for-wpsignal",
                 )}
               </Notice>
             )}
             {isConnected && (
               <Notice status="success">
-                &#10003; {__("Connected", "eventra-for-wpsignal")}
+                &#10003; {__("Connected", "wordsocket-for-wpsignal")}
                 {siteKey && (
                   <>
                     {" "}
@@ -114,7 +114,7 @@ export function ConnectionTab() {
               <Notice status="error">
                 {__(
                   "Connection failed. Make sure your API Key is valid.",
-                  "eventra-for-wpsignal",
+                  "wordsocket-for-wpsignal",
                 )}
               </Notice>
             )}
@@ -126,7 +126,7 @@ export function ConnectionTab() {
         className={`wpsignal-connection-input ${
           isConnecting ? " is-loading" : ""
         }`}
-        label={__("API Key", "eventra-for-wpsignal")}
+        label={__("API Key", "wordsocket-for-wpsignal")}
         value={apiKey}
         minLength={64}
         maxLength={64}
@@ -134,7 +134,7 @@ export function ConnectionTab() {
         type="password"
         help={__(
           "Get your API key from your wpsignal.io dashboard.",
-          "eventra-for-wpsignal",
+          "wordsocket-for-wpsignal",
         )}
         __nextHasNoMarginBottom
       />
@@ -148,16 +148,16 @@ export function ConnectionTab() {
                   yjsProviderEnabled
                     ? __(
                         "Disable WPSignal for real-time collaboration?",
-                        "eventra-for-wpsignal",
+                        "wordsocket-for-wpsignal",
                       )
                     : __(
                         "Enable WPSignal for real-time collaboration?",
-                        "eventra-for-wpsignal",
+                        "wordsocket-for-wpsignal",
                       )
                 }
                 help={__(
                   "Registers WPSignal as the Yjs sync provider in the block editor. Disable this to fall back to WordPress HTTP polling if WebSocket connections are unavailable.",
-                  "eventra-for-wpsignal",
+                  "wordsocket-for-wpsignal",
                 )}
                 checked={yjsProviderEnabled}
                 onChange={setYjsProviderEnabled}
@@ -167,7 +167,7 @@ export function ConnectionTab() {
               <Notice status="warning">
                 {__(
                   "Real-time collaboration is not enabled. Please enable it under Settings > Writing.",
-                  "eventra-for-wpsignal",
+                  "wordsocket-for-wpsignal",
                 )}
               </Notice>
             ))}
@@ -178,7 +178,7 @@ export function ConnectionTab() {
             {sprintf(
               __(
                 "Real-time collaboration is not supported on WordPress %s. Please upgrade to WordPress 7.0 or later.",
-                "eventra-for-wpsignal",
+                "wordsocket-for-wpsignal",
               ),
               wpVersion.toString(),
             )}
@@ -193,7 +193,7 @@ export function ConnectionTab() {
           isBusy={isConnecting}
           disabled={!apiKey || saving || isConnecting || apiKey.length !== 64}
         >
-          {__("Save Settings", "eventra-for-wpsignal")}
+          {__("Save Settings", "wordsocket-for-wpsignal")}
         </Button>
       </div>
     </div>
