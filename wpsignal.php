@@ -42,7 +42,7 @@ const VERSION = '0.4.0';
 const DIR = __DIR__ . '/';
 
 /** @var string URL to the plugin directory (with trailing slash). */
-define( __NAMESPACE__ . '\URL', plugin_dir_url( __FILE__ ) );
+define( 'WPSignal\URL', plugin_dir_url( __FILE__ ) );
 
 // Autoloader for WPSignal\ namespace classes.
 require_once DIR . 'includes/autoload.php';

@@ -60,21 +60,7 @@ class Token
 		register_rest_route('wpsignal/v1', '/token', array(
 			'methods'             => 'POST',
 			'callback'            => array($this, 'handle_token'),
-			'permission_callback' => function () {
-				$nonce = isset($_SERVER['HTTP_X_WP_NONCE'])
-					? sanitize_text_field(wp_unslash($_SERVER['HTTP_X_WP_NONCE']))
-					: (isset($_REQUEST['_wpnonce']) ? sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])) : '');
-
-				if (empty($nonce) || ! wp_verify_nonce($nonce, 'wp_rest')) {
-					return new WP_Error(
-						'rest_nonce_invalid',
-						__('Nonce verification failed.', 'wordsocket'),
-						array('status' => 403)
-					);
-				}
-
-				return true;
-			},
+			'permission_callback' => '__return_true',
 		));
 
 		register_rest_route('wpsignal/v1', '/connect', array(
