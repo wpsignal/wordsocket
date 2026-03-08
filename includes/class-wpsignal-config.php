@@ -64,6 +64,9 @@ class Config {
 	 * @return string Site key (hex string) or empty string if not registered.
 	 */
 	public function site_key() {
+		if ( defined( 'WPSIGNAL_SITE_KEY' ) ) {
+			return WPSIGNAL_SITE_KEY;
+		}
 		return get_option( 'wpsignal_site_key', '' );
 	}
 
@@ -75,6 +78,9 @@ class Config {
 	 * @return string Publish secret (hex string) or empty string if not registered.
 	 */
 	public function site_secret() {
+		if ( defined( 'WPSIGNAL_SITE_SECRET' ) ) {
+			return WPSIGNAL_SITE_SECRET;
+		}
 		return get_option( 'wpsignal_site_secret', '' );
 	}
 
@@ -221,5 +227,41 @@ class Config {
 		update_option( 'wpsignal_site_key', $data['site_key'] );
 		update_option( 'wpsignal_site_secret', $data['publish_secret'] );
 		update_option( 'wpsignal_jwt_secret', $data['jwt_secret'] );
+	}
+
+	/**
+	 * Save site credentials returned by the automatic connect flow.
+	 *
+	 * Unlike save_registration(), this does not touch the api_key option
+	 * because the automatic flow authenticates via session JWT rather than
+	 * an API key that the user pastes.
+	 *
+	 * @param array $data {
+	 *     @type string $site_key       The assigned site key.
+	 *     @type string $publish_secret The HMAC publish secret.
+	 *     @type string $jwt_secret     The shared JWT signing secret.
+	 * }
+	 * @return void
+	 */
+	public function save_connection( $data ) {
+		update_option( 'wpsignal_site_key', $data['site_key'] );
+		update_option( 'wpsignal_site_secret', $data['publish_secret'] );
+		update_option( 'wpsignal_jwt_secret', $data['jwt_secret'] );
+	}
+
+	/**
+	 * Determine where site credentials come from.
+	 *
+	 * Returns 'constant' when all three credential constants are defined in
+	 * wp-config.php, 'database' otherwise. Used by the settings UI to show a
+	 * read-only notice when credentials are injected via constants.
+	 *
+	 * @return string 'constant' | 'database'
+	 */
+	public function credential_source() {
+		if ( defined( 'WPSIGNAL_SITE_KEY' ) && defined( 'WPSIGNAL_SITE_SECRET' ) && defined( 'WPSIGNAL_JWT_SECRET' ) ) {
+			return 'constant';
+		}
+		return 'database';
 	}
 }

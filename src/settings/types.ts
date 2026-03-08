@@ -19,6 +19,7 @@ export interface Settings {
 	yjs_provider_enabled: boolean;
 	is_rtc_enabled: boolean;
 	wp_version: number;
+	credential_source?: 'constant' | 'database';
 }
 
 export interface ConnectResponse {

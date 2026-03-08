@@ -98,6 +98,22 @@
   margin-top: 16px;
 }
 
+/* Tab styles */
+.wpsignal-connection-tabs {
+  margin-bottom: 1rem;
+  
+  button {
+    flex: none;
+  }
+  p {
+    margin-top: 0;
+  }
+}
+
+.wpsignal-connection-tabs-content {
+  padding: 1rem;
+}
+
 /* Shimmer animation */
 @keyframes shimmer {
   0% {

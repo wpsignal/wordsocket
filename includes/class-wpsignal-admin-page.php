@@ -137,13 +137,17 @@ class Admin_Page {
 		}
 
 		wp_localize_script( 'wpsignal-settings', 'wpsignalSettings', array(
-			'connectUrl' => rest_url( 'wpsignal/v1/connect' ),
-			'restUrl'    => rest_url( 'wpsignal/v1/' ),
-			'nonce'      => wp_create_nonce( 'wp_rest' ),
-			'postTypes'  => $types_list,
-			'baseUrl'    => $this->config->base_url(),
-			'apiKey'     => $this->config->api_key(),
-			'siteKey'    => $this->config->site_key(),
+			'connectUrl'    => rest_url( 'wpsignal/v1/connect' ),
+			'oauthStartUrl' => wp_nonce_url(
+				admin_url( 'admin-post.php?action=wpsignal_oauth_start' ),
+				'wpsignal_oauth_start'
+			),
+			'restUrl'       => rest_url( 'wpsignal/v1/' ),
+			'nonce'         => wp_create_nonce( 'wp_rest' ),
+			'postTypes'     => $types_list,
+			'baseUrl'       => $this->config->base_url(),
+			'apiKey'        => $this->config->api_key(),
+			'siteKey'       => $this->config->site_key(),
 		) );
 
 		echo '<div class="wrap">';

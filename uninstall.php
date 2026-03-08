@@ -12,7 +12,6 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	exit;
 }
 
-delete_option( 'wpsignal_base_url' );
 delete_option( 'wpsignal_api_key' );
 delete_option( 'wpsignal_site_key' );
 delete_option( 'wpsignal_site_secret' );

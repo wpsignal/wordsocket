@@ -60,6 +60,9 @@ class WPS {
 	/** @var Admin_Page Admin pages and settings. */
 	private $admin_instance;
 
+	/** @var Connect Browser-based OAuth connect flow handler. */
+	private $connect_instance;
+
 	/** @var Triggers_REST REST endpoint for trigger management. */
 	private $triggers_rest;
 
@@ -108,6 +111,8 @@ class WPS {
 		$this->trigger_registry_instance = new Trigger_Registry( $this->publisher_instance );
 		$this->client_instance           = new Client( $this->config_instance, $this->token_instance );
 		$this->admin_instance            = new Admin_Page( $this->config_instance );
+		$this->connect_instance          = new Connect( $this->config_instance );
+		$this->connect_instance->init();
 
 		// Register built-in triggers.
 		$this->trigger_registry_instance->register_defaults();
