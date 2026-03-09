@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: WordSocket 0.6.0\n"
+"Project-Id-Version: WordSocket 0.7.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wordsocket\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-03-09T02:42:25+00:00\n"
+"POT-Creation-Date: 2026-03-09T02:53:59+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wordsocket\n"
@@ -175,31 +175,31 @@ msgid "Decoded Claims"
 msgstr ""
 
 #: includes/class-wpsignal-publisher.php:71
-#: includes/class-wpsignal-token.php:140
+#: includes/class-wpsignal-token.php:152
 msgid "WordSocket is not configured."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:131
+#: includes/class-wpsignal-token.php:143
 msgid "JWT secret not configured."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:253
+#: includes/class-wpsignal-token.php:265
 msgid "Channel and event are required."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:291
+#: includes/class-wpsignal-token.php:303
 msgid "API Key is empty, please include it and try again."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:299
+#: includes/class-wpsignal-token.php:311
 msgid "API Key is invalid, please include a valid API Key and try again."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:346
+#: includes/class-wpsignal-token.php:358
 msgid "Invalid response from server."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:355
+#: includes/class-wpsignal-token.php:367
 msgid "Connection settings validated!"
 msgstr ""
 
