@@ -4,7 +4,6 @@
 }
 
 .wpsignal-settings-select {
-
   & select.components-select-control__input {
     height: 40px !important;
   }
@@ -62,12 +61,6 @@
   margin-top: 16px;
 }
 
-/* Triggers tab */
-.wpsignal-triggers-app {
-  max-width: 800px;
-  margin-top: 16px;
-}
-
 .wpsignal-triggers-app .components-notice {
   margin: 0 0 16px;
 }
@@ -96,6 +89,27 @@
   display: flex;
   gap: 8px;
   margin-top: 16px;
+}
+
+/* Tab styles */
+.wpsignal-connection-tabs-container {
+  border-bottom: 1px solid #dcdcde;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+
+  button {
+    flex: none;
+  }
+  p {
+    margin-top: 0;
+  }
+  h3 {
+    margin-top: 0;
+  }
+}
+
+.wpsignal-connection-tabs-content {
+  padding: 0 1rem 1rem;
 }
 
 /* Shimmer animation */

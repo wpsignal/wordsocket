@@ -1,17 +1,17 @@
 import { TabPanel } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
 import { ConnectionTab } from './ConnectionTab';
-import { TriggersApp } from './TriggersApp';
+import { TriggersTab } from './TriggersTab';
 
 const TABS = [
 	{
 		name: 'connection',
-		title: __( 'Connection', 'eventa-for-wpsignal' ),
+		title: __( 'Connection', 'wordsocket' ),
 		className: 'wpsignal-tab-connection',
 	},
 	{
 		name: 'triggers',
-		title: __( 'Triggers', 'eventa-for-wpsignal' ),
+		title: __( 'Triggers', 'wordsocket' ),
 		className: 'wpsignal-tab-triggers',
 	},
 ];
@@ -22,7 +22,7 @@ export function SettingsApp() {
 			{ ( tab ) => (
 				<div className="wpsignal-tab-content">
 					{ tab.name === 'connection' && <ConnectionTab /> }
-					{ tab.name === 'triggers' && <TriggersApp /> }
+					{ tab.name === 'triggers' && <TriggersTab /> }
 				</div>
 			) }
 		</TabPanel>

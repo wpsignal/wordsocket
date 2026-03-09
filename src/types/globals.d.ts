@@ -31,8 +31,8 @@ interface WpSignalYjsConfig {
 	channelPrefix: string;
 }
 
-/** Localized by class-wpsignal-kitchen-sink-page.php */
-interface WpSignalKitchenSink {
+/** Localized by class-wpsignal-explorer-page.php */
+interface WpSignalExplorer {
 	baseUrl: string;
 	siteKey: string;
 	restUrl: string;

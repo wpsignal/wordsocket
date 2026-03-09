@@ -60,6 +60,9 @@ class WPS {
 	/** @var Admin_Page Admin pages and settings. */
 	private $admin_instance;
 
+	/** @var Connect Browser-based OAuth connect flow handler. */
+	private $connect_instance;
+
 	/** @var Triggers_REST REST endpoint for trigger management. */
 	private $triggers_rest;
 
@@ -92,12 +95,14 @@ class WPS {
 	 * Boot the plugin: instantiate and wire all components.
 	 *
 	 * Called once from wpsignal.php during plugin load. Performs the following:
-	 *   1. Instantiate Config, Publisher, Token, TriggerRegistry, Client, Admin
-	 *   2. Register built-in triggers (save_post → post.updated)
-	 *   3. Fire 'wpsignal_loaded' action for third-party trigger registration
-	 *   4. Hook REST route registration to rest_api_init
-	 *   5. Initialize frontend client (wp_enqueue_scripts)
-	 *   6. Initialize admin pages (if is_admin)
+	 *   1. Instantiate Config, Publisher, Token, TriggerRegistry, Client, Admin, Connect
+	 *   2. Initialize the browser-based connect flow (admin-post hooks)
+	 *   3. Register built-in triggers (save_post -> post.updated)
+	 *   4. Hydrate custom triggers saved via the admin UI
+	 *   5. Fire 'wpsignal_loaded' action for third-party trigger registration
+	 *   6. Hook REST route registration to rest_api_init (Token + Triggers_REST)
+	 *   7. Initialize frontend client (wp_enqueue_scripts)
+	 *   8. Initialize admin pages (if is_admin)
 	 *
 	 * @return void
 	 */
@@ -108,6 +113,8 @@ class WPS {
 		$this->trigger_registry_instance = new Trigger_Registry( $this->publisher_instance );
 		$this->client_instance           = new Client( $this->config_instance, $this->token_instance );
 		$this->admin_instance            = new Admin_Page( $this->config_instance );
+		$this->connect_instance          = new Connect( $this->config_instance );
+		$this->connect_instance->init();
 
 		// Register built-in triggers.
 		$this->trigger_registry_instance->register_defaults();

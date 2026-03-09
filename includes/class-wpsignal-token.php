@@ -3,20 +3,32 @@
 /**
  * WPSignal\Token - JWT minting and REST API endpoints.
  *
- * Registers three REST API endpoints under the `wpsignal/v1` namespace:
+ * Registers REST API endpoints under the `wpsignal/v1` namespace:
  *
- *   POST /wp-json/wpsignal/v1/token  : Mint a short-lived connection JWT (any logged-in user).
- *   POST /wp-json/wpsignal/v1/connect : Register this site with the WPSignal server (admin only).
- *   POST /wp-json/wpsignal/v1/publish : Publish an event via PHP proxy (admin only).
- *   GET  /wp-json/wpsignal/v1/settings: Read connection settings (admin only).
- *   POST /wp-json/wpsignal/v1/settings: Save connection settings (admin only).
+ *   POST /wp-json/wpsignal/v1/token      : Mint a short-lived connection JWT (any logged-in user).
+ *   POST /wp-json/wpsignal/v1/connect    : Manual connection flow: register this site with the
+ *                                          WPSignal server using an API key (admin only).
+ *                                          POSTs to /api/sites/register with Bearer api_key.
+ *   POST /wp-json/wpsignal/v1/disconnect : Remove this site from the WPSignal server and clear
+ *                                          local credentials. Supports both manual (Bearer api_key)
+ *                                          and automatic (publish_secret) auth (admin only).
+ *   POST /wp-json/wpsignal/v1/publish    : Publish an event via PHP proxy (admin only).
+ *   GET  /wp-json/wpsignal/v1/settings   : Read connection settings (admin only).
+ *   POST /wp-json/wpsignal/v1/settings   : Save connection settings (admin only).
  *
- * The token endpoint mints HS256 JWTs that browsers use to connect via
- * WebSocket or SSE. The JWT contains tenant_id, site_id, user_id, and
- * allowed_channel_prefixes: the server enforces these claims.
+ * Connection flows:
+ *   - Automatic: handled by the Connect class via admin-post hooks. Redirects the admin
+ *     to the WPSignal dashboard, which posts back a one-time code the plugin exchanges
+ *     for credentials (site_key, publish_secret, jwt_secret). No API key is stored.
+ *   - Manual: admin pastes their API key into the settings UI; this class POSTs it to
+ *     /api/sites/register and saves all returned credentials including api_key.
  *
- * The publish endpoint acts as a server-side proxy so the HMAC site secret
- * never reaches the browser. Used by the Kitchen Sink demo page.
+ * The token endpoint mints HS256 JWTs that browsers use to connect via WebSocket or SSE.
+ * The JWT contains tenant_id, site_id, user_id, and allowed_channel_prefixes, all enforced
+ * server-side.
+ *
+ * The publish endpoint acts as a server-side proxy so the HMAC site secret never reaches
+ * the browser. Used by the Explorer debug page.
  *
  * @package WordSocket
  */
@@ -74,6 +86,14 @@ class Token
 		register_rest_route('wpsignal/v1', '/publish', array(
 			'methods'             => 'POST',
 			'callback'            => array($this, 'handle_publish'),
+			'permission_callback' => function () {
+				return current_user_can('manage_options');
+			},
+		));
+
+		register_rest_route('wpsignal/v1', '/disconnect', array(
+			'methods'             => 'POST',
+			'callback'            => array($this, 'handle_disconnect'),
 			'permission_callback' => function () {
 				return current_user_can('manage_options');
 			},
@@ -350,6 +370,66 @@ class Token
 	}
 
 	/**
+	 * Disconnect this site: delete the site from the WPSignal server and clear local credentials.
+	 *
+	 * POSTs to {base_url}/api/sites/unregister. Supports two auth paths:
+	 *
+	 *   - Manual flow: sends `Authorization: Bearer {api_key}` header. The server looks up the
+	 *     user by API key and deletes their site.
+	 *   - Automatic flow: no api_key is stored locally, so the request is authenticated by
+	 *     including `publish_secret` in the request body. The server verifies it matches the
+	 *     stored site config and deletes the site unconditionally.
+	 *
+	 * If site_key is empty (already disconnected locally), the server call is skipped.
+	 * Returns WP_Error if the HTTP request itself fails (network error).
+	 *
+	 * Response on success:
+	 *
+	 *     { "ok": true }
+	 *
+	 * @param WP_REST_Request $request The incoming REST request.
+	 * @return WP_REST_Response|\WP_Error Success response or error.
+	 */
+	public function handle_disconnect(WP_REST_Request $request)
+	{
+		$base_url       = $this->config->base_url();
+		$api_key        = $this->config->api_key();
+		$site_key       = $this->config->site_key();
+		$publish_secret = $this->config->site_secret();
+
+		if (!empty($site_key)) {
+			// Build request: prefer API key auth (manual flow); fall back to
+			// publish_secret auth (automatic flow where no api_key is stored).
+			$args = array(
+				'timeout' => 10,
+				'headers' => array('Content-Type' => 'application/json'),
+				'body'    => wp_json_encode(array(
+					'site_key'       => $site_key,
+					'publish_secret' => $publish_secret,
+				)),
+			);
+
+			if (!empty($api_key)) {
+				$args['headers']['Authorization'] = 'Bearer ' . $api_key;
+			}
+
+			$response = wp_remote_post(trailingslashit($base_url) . 'api/sites/unregister', $args);
+
+			if (is_wp_error($response)) {
+				return new WP_Error(
+					'wpsignal_disconnect_failed',
+					$response->get_error_message(),
+					array('status' => 502)
+				);
+			}
+		}
+
+		$this->config->clear_registration();
+
+		return rest_ensure_response(array('ok' => true));
+	}
+
+	/**
 	 * Return current connection settings.
 	 *
 	 * When the site appears locally configured, verifies the site_key still
@@ -372,13 +452,14 @@ class Token
 		}
 
 		return rest_ensure_response(array(
-			'base_url'             => $this->config->base_url(),
-			'api_key'              => $this->config->api_key(),
-			'site_key'             => $is_connected ? $this->config->site_key() : '',
-			'is_connected'         => $is_connected,
+			'base_url'          => $this->config->base_url(),
+			'api_key'           => $this->config->api_key(),
+			'site_key'          => $is_connected ? $this->config->site_key() : '',
+			'is_connected'      => $is_connected,
 			'yjs_provider_enabled' => $this->config->yjs_provider_enabled(),
-			'is_rtc_enabled'       => (bool) get_option('wp_enable_real_time_collaboration', false),
-			'wp_version'      	   => (float) wp_get_wp_version(),
+			'is_rtc_enabled'    => (bool) get_option('wp_enable_real_time_collaboration', false),
+			'wp_version'        => (float) wp_get_wp_version(),
+			'credential_source' => $this->config->credential_source(),
 		));
 	}
 

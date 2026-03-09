@@ -1,8 +1,8 @@
 /**
- * WordSocket Monitor: interactive admin demo page.
+ * WordSocket Explorer: interactive admin demo page.
  */
 
-const cfg = window.wpSignalMonitor;
+const cfg = window.wpSignalExplorer;
 if (cfg) {
   let ws: WebSocket | null = null;
   let expiryInterval: ReturnType<typeof setInterval> | null = null;

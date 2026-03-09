@@ -3,7 +3,7 @@ Contributors: wpsignal
 Tags: realtime, websocket, push, events, collaboration
 Requires at least: 6.2
 Tested up to: 7.0
-Stable tag: 0.6.0
+Stable tag: 0.7.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -12,16 +12,20 @@ WordSocket is the official WordPress plugin for WPSignal (wpsignal.io), a third-
 
 == Description ==
 
-Eventra sends realtime events from your WordPress site to connected browsers.
+WordSocket sends realtime events from your WordPress site to connected browsers.
 When content changes: a post is published, a comment is approved, an option is updated: the plugin pushes the event to subscribers instantly via WebSocket (with SSE fallback).
 
-On WordPress 7.0+, Signal also registers as a WebSocket-based Yjs sync provider for real-time collaborative editing in the block editor, replacing the default HTTP polling transport with a low-latency WebSocket connection.
+On WordPress 7.0+, WordSocket also registers as a WebSocket-based Yjs sync provider for real-time collaborative editing in the block editor, replacing the default HTTP polling transport with a low-latency WebSocket connection.
 
 WPSignal is an independent service and is not affiliated with or endorsed by the WordPress project.
 
 **Features:**
 
+* One-click automatic connection via the WPSignal dashboard (no API key required)
+* Manual connection via API key for self-hosted or advanced setups
+* Disconnect button with inline confirmation, removes the site from the server immediately
 * WebSocket-first with automatic SSE fallback
+* Per-site JWT signing secrets: each site's connection tokens are cryptographically isolated
 * AES-256-GCM encrypted event payloads: the WPSignal relay receives ciphertext only and never has access to plaintext message content
 * Real-time collaborative editing in the block editor (WordPress 7.0+, via Yjs sync provider)
 * Admin toggle to disable the collaboration provider and fall back to WordPress HTTP polling
@@ -29,7 +33,7 @@ WPSignal is an independent service and is not affiliated with or endorsed by the
 * Custom trigger builder: map any WordPress action hook to a realtime event
 * Public JavaScript API (`window.WPS`) for themes and plugins to share the connection
 * Extensible connection token: `wpsignal_token_channels` and `wpsignal_token_channel_prefixes` filters let other plugins add channels and namespace permissions to the JWT without modifying core
-* Admin monitor page with live event log, publish form, and token inspector
+* Admin explorer page with live event log, publish form, and token inspector
 * Short-lived JWTs (5 min) with automatic refresh
 
 **How it works:**
@@ -44,7 +48,7 @@ WPSignal is an independent service and is not affiliated with or endorsed by the
 
 This plugin connects to the **WPSignal service** at [api.wpsignal.io](https://api.wpsignal.io) for the following operations:
 
-* **Site registration**: when you click "Connect to WPSignal" in the admin, the plugin registers your site with the server and receives credentials.
+* **Site registration**: when you connect in the admin (via the automatic one-click flow or by entering an API key manually), the plugin registers your site with the server and receives credentials.
 * **Event publishing**: when a trigger fires (e.g. a post is saved), the plugin sends an encrypted, HMAC-signed HTTP request to the server.
 * **Realtime connections**: logged-in users' browsers connect to the server via WebSocket or SSE to receive events.
 * **Collaborative editing**: on WordPress 7.0+, Yjs document updates are relayed over the same WebSocket connection.
@@ -58,10 +62,13 @@ Event payloads are AES-256-GCM encrypted before leaving WordPress. The WPSignal 
 
 1. Upload the `wordsocket` folder to `/wp-content/plugins/`, or install directly from the WordPress plugin directory.
 2. Activate the plugin through the "Plugins" menu in WordPress.
-3. Go to **WordSocket > Settings** and enter your WPSignal server URL and API key.
-4. Click **Connect to WPSignal**: the plugin registers with the server and saves credentials automatically.
+3. Go to **WordSocket > Settings > Connection**.
+4. Choose a connection method:
+   * **Automatic (recommended):** Click **Connect with WPSignal**. You will be redirected to the WPSignal dashboard to authorize the connection. No API key entry required.
+   * **Manual:** Switch to the Manual tab, paste your API key, and click **Save Settings**.
+5. The plugin registers with the server and saves credentials automatically.
 
-To get an API key, create a free account at [wpsignal.io](https://wpsignal.io).
+To create an account, visit [wpsignal.io](https://wpsignal.io).
 
 == Frequently Asked Questions ==
 
@@ -99,10 +106,17 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 
 == Screenshots ==
 
-1. Settings page: connection configuration, real-time collaboration toggle, and custom trigger management.
-2. Monitor page: live event log, publish form, and token inspector.
+1. Settings page: Automatic/Manual connection tabs, disconnect button, real-time collaboration toggle, and custom trigger management.
+2. Explorer page: live event log, publish form, and token inspector.
 
 == Changelog ==
+
+= 0.7.0 =
+* New: Automatic connection flow. Admins can connect via the WPSignal dashboard with a single click, without entering an API key. Uses a CSRF-protected OAuth-style code exchange.
+* New: Disconnect button in the Connection tab. Removes the site from the WPSignal server and clears all local credentials, with inline confirmation before proceeding.
+* New: Per-site JWT signing secrets. Each site's connection tokens are now signed with a unique secret, isolating sites cryptographically and eliminating cross-site token forgery risk.
+* Improved: Connection tab redesigned with Automatic and Manual sub-tabs to clearly separate the two connection methods.
+* Improved: Disconnect works correctly regardless of how the site was connected: API key authentication for manual connections, publish-secret authentication for automatic connections.
 
 = 0.6.0 =
 * New: Plugin renamed to "WordSocket" to comply with WordPress.org plugin directory guidelines.
@@ -138,7 +152,7 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 = 0.2.0 =
 * New: Custom trigger builder: register triggers from the admin UI without code.
 * New: Settings page rebuilt as a React app with Connection and Triggers tabs.
-* New: Monitor (Kitchen Sink) admin page with 5 interactive panels.
+* New: Explorer (Kitchen Sink) admin page with 5 interactive panels.
 * New: Public JavaScript API (`window.WPS`): subscribe, publish, event listeners.
 * New: `WPS::trigger()` fluent builder and `WPS::publish()` facade methods.
 * New: Support for self-hosted servers (configurable server URL).
@@ -149,6 +163,9 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 * Initial release.
 
 == Upgrade Notice ==
+
+= 0.7.0 =
+Adds one-click automatic connection, a Disconnect button, and per-site JWT secrets. No configuration changes required for existing connections. To use the automatic flow on a new site, go to WordSocket > Settings > Connection > Automatic.
 
 = 0.6.0 =
 Simplified settings UI: the Server URL field has been removed. Re-enter your API Key and click Connect if your site does not show as connected after upgrading.
