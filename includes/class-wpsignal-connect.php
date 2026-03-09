@@ -98,12 +98,30 @@ class Connect
 	/**
 	 * Handle the redirect back from the WPSignal dashboard.
 	 *
-	 * Validates the state nonce, exchanges the authorization code for site
-	 * credentials via a server-to-server POST to /api/connect/exchange, saves
-	 * the credentials, then redirects to the Settings page with a notice.
+	 * The dashboard POSTs back to this handler with the following parameters:
+	 *
+	 *   wps_state (POST) : The state nonce originally sent by handle_start().
+	 *   wps_code  (POST) : A one-time authorization code to exchange for credentials.
+	 *   wps_error (GET)  : Set to any non-empty value when the user cancelled.
+	 *
+	 * Flow:
+	 *   1. If wps_error is set, redirect with 'cancelled' notice and exit.
+	 *   2. Validate the state nonce against the stored transient (CSRF check).
+	 *   3. Exchange wps_code via POST to /api/connect/exchange.
+	 *   4. Expect response: { site_key, publish_secret, jwt_secret }.
+	 *   5. Save credentials via Config::save_connection() (does NOT store api_key).
+	 *   6. Redirect to Settings page with 'connected' notice.
+	 *
+	 * Redirects with wps_notice query param on all outcomes:
+	 *   connected      : Success.
+	 *   cancelled      : User cancelled on the dashboard.
+	 *   error_state    : State nonce missing or mismatched.
+	 *   error_code     : Authorization code missing.
+	 *   error_exchange : Server call to /api/connect/exchange failed.
+	 *   error_data     : Server response missing required credential fields.
 	 *
 	 * Can run without a WordPress session (nopriv) because the state nonce
-	 * is the sole security check.
+	 * provides the sole CSRF protection.
 	 *
 	 * @return void
 	 */

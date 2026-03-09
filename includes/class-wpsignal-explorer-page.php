@@ -27,9 +27,9 @@ class Explorer_Page {
 	}
 
 	/**
-	 * Render the Monitor admin page.
+	 * Render the Explorer admin page.
 	 *
-	 * Called as the callback for the "Monitor" submenu page.
+	 * Called as the callback for the "Explorer" submenu page.
 	 * Requires `manage_options` capability.
 	 *
 	 * @return void
@@ -244,7 +244,7 @@ class Explorer_Page {
 				</tr>
 				<tr>
 					<th scope="row"><label for="wpsignal-ks-pub-data"><?php esc_html_e( 'JSON Data', 'wordsocket' ); ?></label></th>
-					<td><textarea id="wpsignal-ks-pub-data" class="large-text" rows="4">{"message": "Hello from Monitor!"}</textarea></td>
+					<td><textarea id="wpsignal-ks-pub-data" class="large-text" rows="4">{"message": "Hello from Explorer!"}</textarea></td>
 				</tr>
 			</table>
 

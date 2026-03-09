@@ -15,14 +15,13 @@ wp plugin activate wp-signal
 
 ## Configuration
 
-Go to **WordSocket > Settings** and fill in:
+Go to **WordSocket > Settings > Connection** and choose a connection method:
 
-| Field | Description |
-|---|---|
-| **Server URL** | The wpsignal server URL (e.g. [https://api.wpsignal.io](https://api.wpsignal.io)) |
-| **API Key** | Your API key from the wpsignal.io dashboard |
+**Automatic (recommended):** Click **Connect with WPSignal** on the Automatic tab. Your browser redirects to the WPSignal dashboard to authorize the connection. No API key required. The plugin receives and stores credentials automatically on return.
 
-Then click **Connect to WPSignal**. The plugin registers with the server and saves the site key, publish secret, and JWT secret automatically.
+**Manual:** Switch to the Manual tab, paste your 64-character API key, and click **Save Settings**. The plugin registers with the server via `POST /api/sites/register` and saves the returned site key, publish secret, and JWT secret.
+
+To disconnect, click **Disconnect** in the Connection tab. This removes the site from the WPSignal server and clears all local credentials.
 
 The **Enable real-time collaboration provider** toggle (on by default) controls whether WordSocket registers as the Yjs sync provider in the block editor. Disable it to fall back to WordPress HTTP polling if WebSocket connections are unavailable.
 
@@ -173,17 +172,22 @@ window.WPS.unsubscribe(['my-channel']);
 | Endpoint | Auth | Purpose |
 |---|---|---|
 | `POST /wp-json/wpsignal/v1/token` | Logged-in user | Mint a 5-minute connection JWT |
-| `POST /wp-json/wpsignal/v1/connect` | Admin (`manage_options`) | Register site with WPSignal server |
+| `POST /wp-json/wpsignal/v1/connect` | Admin (`manage_options`) | Manual flow: register site with API key |
+| `POST /wp-json/wpsignal/v1/disconnect` | Admin (`manage_options`) | Remove site from server, clear local credentials |
 | `POST /wp-json/wpsignal/v1/publish` | Admin (`manage_options`) | Publish proxy (HMAC handled server-side) |
 | `GET /wp-json/wpsignal/v1/settings` | Admin (`manage_options`) | Get connection settings (includes `yjs_provider_enabled`) |
 | `POST /wp-json/wpsignal/v1/settings` | Admin (`manage_options`) | Save connection settings (accepts `yjs_provider_enabled`) |
 | `GET /wp-json/wpsignal/v1/triggers` | Admin (`manage_options`) | Get saved custom triggers |
 | `POST /wp-json/wpsignal/v1/triggers` | Admin (`manage_options`) | Save custom triggers |
 
+The automatic connection flow does not go through these REST endpoints. It uses `admin-post.php` action hooks (`wpsignal_oauth_start` and `wpsignal_oauth_callback`) handled by the `Connect` class.
+
 ## Admin pages
 
-- **Settings**: React app with two tabs: Connection (server URL, API key, RTC provider toggle, connect button, status) and Triggers (custom trigger CRUD).
-- **Monitor**: Five test panels: connection status, registered triggers, live event log, publish form, token inspector.
+- **Settings**: React app with two tabs:
+  - **Connection**: Automatic and Manual sub-tabs for connecting; status notice; Disconnect button (when connected); real-time collaboration toggle (WordPress 7.0+).
+  - **Triggers**: Custom trigger CRUD (add, edit, delete).
+- **Explorer**: Interactive debug page with live event log, publish form, and token inspector.
 
 ## Build
 
@@ -238,6 +242,20 @@ Alternatively, block the WebSocket URL in Chrome DevTools: open the **Network** 
 
 ## Changelog
 
+### 0.7.0
+* New: Automatic connection flow. Admins can connect via the WPSignal dashboard with a single click, without entering an API key. Uses a CSRF-protected OAuth-style code exchange (`wpsignal_oauth_start` / `wpsignal_oauth_callback`).
+* New: Disconnect button in the Connection tab. Removes the site from the WPSignal server and clears all local credentials, with inline confirmation. Works for both automatic and manual connections.
+* New: Per-site JWT signing secrets. Each registered site gets a unique `jwt_secret` stored in `wp_options`. Connection tokens are signed with that secret, isolating sites cryptographically from one another.
+* Improved: Connection tab redesigned with Automatic and Manual sub-tabs.
+* Improved: `POST /wpsignal/v1/disconnect` authenticates via API key (manual flow) or `publish_secret` (automatic flow), so disconnect works correctly regardless of how the site was connected.
+
+### 0.6.0
+* New: Plugin renamed to "WordSocket" to comply with WordPress.org plugin directory guidelines.
+* Improved: Settings Connection tab revamped: server URL field removed, flow simplified to API key entry and a single Connect action.
+* Improved: API key validated client-side before attempting connection.
+* Improved: Connection tab surfaces WordPress RTC availability and WP version compatibility.
+* Improved: PHP documentation blocks updated across all core classes.
+
 ### 0.5.1
 * Fixed: WordPress 7.0 Beta 2 compatibility for the Yjs sync provider. Collection-level providers (e.g. collaborative notes) receive a null `objectId`; the provider now maps this to a shared `"collection"` channel suffix so all peers join the same channel.
 * Fixed: `ProviderCreatorOptions` type updated to accept `objectId: string | number | null`, matching the Beta 2 provider creator API.
@@ -261,7 +279,7 @@ Alternatively, block the WebSocket URL in Chrome DevTools: open the **Network** 
 * New: Admin toggle to enable or disable the collaboration provider.
 
 ### 0.2.0
-* New: Custom trigger builder, Settings React app, Monitor admin page.
+* New: Custom trigger builder, Settings React app, Explorer admin page.
 * New: Public JavaScript API (`window.WPS`).
 * New: `WPS::trigger()` fluent builder and `WPS::publish()` facade.
 * New: Support for self-hosted servers.

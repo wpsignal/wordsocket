@@ -95,12 +95,14 @@ class WPS {
 	 * Boot the plugin: instantiate and wire all components.
 	 *
 	 * Called once from wpsignal.php during plugin load. Performs the following:
-	 *   1. Instantiate Config, Publisher, Token, TriggerRegistry, Client, Admin
-	 *   2. Register built-in triggers (save_post → post.updated)
-	 *   3. Fire 'wpsignal_loaded' action for third-party trigger registration
-	 *   4. Hook REST route registration to rest_api_init
-	 *   5. Initialize frontend client (wp_enqueue_scripts)
-	 *   6. Initialize admin pages (if is_admin)
+	 *   1. Instantiate Config, Publisher, Token, TriggerRegistry, Client, Admin, Connect
+	 *   2. Initialize the browser-based connect flow (admin-post hooks)
+	 *   3. Register built-in triggers (save_post -> post.updated)
+	 *   4. Hydrate custom triggers saved via the admin UI
+	 *   5. Fire 'wpsignal_loaded' action for third-party trigger registration
+	 *   6. Hook REST route registration to rest_api_init (Token + Triggers_REST)
+	 *   7. Initialize frontend client (wp_enqueue_scripts)
+	 *   8. Initialize admin pages (if is_admin)
 	 *
 	 * @return void
 	 */

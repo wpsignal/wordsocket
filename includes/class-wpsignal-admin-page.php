@@ -46,9 +46,9 @@ class Admin_Page {
 	 * Register the top-level WordSocket menu and subpages.
 	 *
 	 * Creates:
-	 *   - WordSocket (top-level, dashicons-rss)
-	 *     - Settings (React app: Connection + Triggers tabs)
-	 *     - Explorer (renamed from Explorer)
+	 *   - WordSocket (top-level, custom SVG icon)
+	 *     - Settings (React app: Connection tab + Triggers tab)
+	 *     - Explorer (interactive publish/subscribe debug page)
 	 *
 	 * @return void
 	 */
@@ -96,10 +96,19 @@ class Admin_Page {
 	}
 
 	/**
-	 * Render the Settings page: mounts the React app.
+	 * Render the Settings page: mounts the React settings app.
 	 *
-	 * Enqueues build/settings.js + build/settings.css, localizes configuration
-	 * data, and renders the mount point div.
+	 * Enqueues build/settings.js + build/settings.css and localizes the
+	 * following configuration data as `window.wpsignalSettings`:
+	 *
+	 *   connectUrl    : REST URL for manual API key registration (POST /wpsignal/v1/connect).
+	 *   oauthStartUrl : Nonce-protected admin-post URL to start the automatic connect flow.
+	 *   restUrl       : Base REST URL for the wpsignal/v1 namespace.
+	 *   nonce         : wp_rest nonce for authenticated REST requests.
+	 *   postTypes     : Array of public post type objects (value, label) for trigger dropdowns.
+	 *   baseUrl       : WPSignal server base URL.
+	 *   apiKey        : Stored API key (manual flow only; empty for automatic connections).
+	 *   siteKey       : Stored site key (set after either connection flow completes).
 	 *
 	 * @return void
 	 */
