@@ -79,6 +79,14 @@ class Token
 			},
 		));
 
+		register_rest_route('wpsignal/v1', '/disconnect', array(
+			'methods'             => 'POST',
+			'callback'            => array($this, 'handle_disconnect'),
+			'permission_callback' => function () {
+				return current_user_can('manage_options');
+			},
+		));
+
 		register_rest_route('wpsignal/v1', '/settings', array(
 			array(
 				'methods'             => 'GET',
@@ -347,6 +355,59 @@ class Token
 			'message'  => __('Connection settings validated!', 'wordsocket'),
 			'site_key' => $data['site_key'],
 		));
+	}
+
+	/**
+	 * Disconnect this site: delete the site from the WPSignal server and clear local credentials.
+	 *
+	 * POSTs to {base_url}/api/sites/unregister with the stored API key and site_key.
+	 * Local wp_options are cleared regardless of whether the server call succeeds,
+	 * so the plugin always ends up in a disconnected state.
+	 *
+	 * Response on success:
+	 *
+	 *     { "ok": true }
+	 *
+	 * @param WP_REST_Request $request The incoming REST request.
+	 * @return WP_REST_Response|\WP_Error Success response or error.
+	 */
+	public function handle_disconnect(WP_REST_Request $request)
+	{
+		$base_url       = $this->config->base_url();
+		$api_key        = $this->config->api_key();
+		$site_key       = $this->config->site_key();
+		$publish_secret = $this->config->site_secret();
+
+		if (!empty($site_key)) {
+			// Build request: prefer API key auth (manual flow); fall back to
+			// publish_secret auth (automatic flow where no api_key is stored).
+			$args = array(
+				'timeout' => 10,
+				'headers' => array('Content-Type' => 'application/json'),
+				'body'    => wp_json_encode(array(
+					'site_key'       => $site_key,
+					'publish_secret' => $publish_secret,
+				)),
+			);
+
+			if (!empty($api_key)) {
+				$args['headers']['Authorization'] = 'Bearer ' . $api_key;
+			}
+
+			$response = wp_remote_post(trailingslashit($base_url) . 'api/sites/unregister', $args);
+
+			if (is_wp_error($response)) {
+				return new WP_Error(
+					'wpsignal_disconnect_failed',
+					$response->get_error_message(),
+					array('status' => 502)
+				);
+			}
+		}
+
+		$this->config->clear_registration();
+
+		return rest_ensure_response(array('ok' => true));
 	}
 
 	/**

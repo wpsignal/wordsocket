@@ -250,6 +250,21 @@ class Config {
 	}
 
 	/**
+	 * Clear all site credentials from wp_options (disconnect).
+	 *
+	 * Removes site_key, site_secret, and jwt_secret. The api_key is kept
+	 * so the user can reconnect without re-entering it.
+	 *
+	 * @return void
+	 */
+	public function clear_registration() {
+		delete_option( 'wpsignal_site_key' );
+		delete_option( 'wpsignal_site_secret' );
+		delete_option( 'wpsignal_jwt_secret' );
+		delete_option( 'wpsignal_api_key' );
+	}
+
+	/**
 	 * Determine where site credentials come from.
 	 *
 	 * Returns 'constant' when all three credential constants are defined in

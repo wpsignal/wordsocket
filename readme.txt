@@ -29,7 +29,7 @@ WPSignal is an independent service and is not affiliated with or endorsed by the
 * Custom trigger builder: map any WordPress action hook to a realtime event
 * Public JavaScript API (`window.WPS`) for themes and plugins to share the connection
 * Extensible connection token: `wpsignal_token_channels` and `wpsignal_token_channel_prefixes` filters let other plugins add channels and namespace permissions to the JWT without modifying core
-* Admin monitor page with live event log, publish form, and token inspector
+* Admin explorer page with live event log, publish form, and token inspector
 * Short-lived JWTs (5 min) with automatic refresh
 
 **How it works:**

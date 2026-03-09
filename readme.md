@@ -195,7 +195,7 @@ npm run build   # Production build -> build/
 npm run start   # Watch mode
 ```
 
-Entry points: `client.ts`, `settings/index.tsx`, `monitor.ts`, `yjs-provider-boot.ts`.
+Entry points: `client.ts`, `settings/index.tsx`, `explorer.ts`, `yjs-provider-boot.ts`.
 
 ## Encryption
 

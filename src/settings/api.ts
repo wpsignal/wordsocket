@@ -37,3 +37,10 @@ export function connect( api_key: string ): Promise< ConnectResponse > {
 		data: { api_key },
 	} );
 }
+
+export function disconnect(): Promise< { ok: boolean } > {
+	return apiFetch( {
+		path: '/wpsignal/v1/disconnect',
+		method: 'POST',
+	} );
+}

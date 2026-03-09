@@ -1,19 +1,9 @@
 <?php
 /**
- * WPSignal\Monitor_Page: interactive admin demo page.
+ * WPSignal\Explorer_Page: interactive admin demo page.
  *
- * Renders a full-page admin view at WordSocket > Monitor with five panels
- * for testing and inspecting all plugin features:
- *
- *   1. Connection Status: configured badge, site_key, "Test Connection" button
- *   2. Registered Triggers: table of all triggers (event, hook, channel, condition)
- *   3. Live Event Log: WebSocket connect/disconnect, channel subscribe, scrolling log
- *   4. Publish Test Event: form (channel, event name, JSON data) via REST proxy
- *   5. Token Inspector: mint button, decoded JWT claims, expiry countdown
- *
- * The page enqueues `kitchen-sink.js` which handles all client-side interactivity.
- * Publishing goes through the PHP REST endpoint (POST /wpsignal/v1/publish)
- * so the HMAC site secret never reaches the browser.
+ * Renders a full-page admin view at WordSocket > Explorer with a panel for
+ * testing and plugin core features.
  *
  * @package WordSocket
  */
@@ -24,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class Monitor_Page {
+class Explorer_Page {
 
 	/** @var Config Configuration accessor. */
 	private $config;
@@ -66,26 +56,26 @@ class Monitor_Page {
 	}
 
 	/**
-	 * Enqueue the monitor.js script and localize configuration.
+	 * Enqueue the explorer.js script and localize configuration.
 	 *
 	 * Passes baseUrl, siteKey, REST URLs, nonce, and configured status
-	 * to the JavaScript via `wpSignalMonitor`.
+	 * to the JavaScript via `wpSignalExplorer`.
 	 *
 	 * @return void
 	 */
 	private function enqueue_assets() {
-		$asset_file = DIR . 'build/monitor.asset.php';
+		$asset_file = DIR . 'build/explorer.asset.php';
 		$asset      = file_exists( $asset_file ) ? require $asset_file : array( 'dependencies' => array(), 'version' => VERSION );
 
 		wp_enqueue_script(
-			'wpsignal-monitor',
-			URL . 'build/monitor.js',
+			'wpsignal-explorer',
+			URL . 'build/explorer.js',
 			$asset['dependencies'],
 			$asset['version'],
 			true
 		);
 
-		wp_localize_script( 'wpsignal-monitor', 'wpSignalMonitor', array(
+		wp_localize_script( 'wpsignal-explorer', 'wpSignalExplorer', array(
 			'baseUrl'    => esc_url( $this->config->base_url() ),
 			'siteKey'    => $this->config->site_key(),
 			'restUrl'    => rest_url( 'wpsignal/v1/' ),
@@ -196,7 +186,7 @@ class Monitor_Page {
 	 * Render Panel 3: Live Event Log.
 	 *
 	 * Provides channel input, connect/disconnect buttons, and a scrolling
-	 * monospace event log. All interactivity handled by monitor.js.
+	 * monospace event log. All interactivity handled by explorer.js.
 	 *
 	 * @return void
 	 */
@@ -234,7 +224,7 @@ class Monitor_Page {
 	 *
 	 * Form with channel, event name, and JSON data fields. Publishes via
 	 * the REST proxy (POST /wpsignal/v1/publish) so the site secret stays
-	 * server-side. Handled by monitor.js.
+	 * server-side. Handled by explorer.js.
 	 *
 	 * @return void
 	 */
@@ -272,7 +262,7 @@ class Monitor_Page {
 	 * Render Panel 5: Token Inspector.
 	 *
 	 * "Mint Token" button, raw token display, decoded JWT claims, and
-	 * live expiry countdown. Handled by monitor.js.
+	 * live expiry countdown. Handled by explorer.js.
 	 *
 	 * @return void
 	 */

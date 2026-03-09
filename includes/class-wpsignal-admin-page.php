@@ -4,7 +4,7 @@
  *
  * Registers a top-level "WordSocket" admin menu with two subpages:
  *   - Settings: React SPA with Connection and Triggers tabs.
- *   - Monitor : interactive debug/test page (delegated to Monitor_Page).
+ *   - Explorer: interactive debug/test page (delegated to Explorer_Page).
  *
  * @package WordSocket
  */
@@ -20,15 +20,15 @@ class Admin_Page {
 	/** @var Config Configuration accessor. */
 	private $config;
 
-	/** @var Monitor_Page Monitor subpage handler. */
-	private $monitor;
+	/** @var Explorer_Page Explorer subpage handler. */
+	private $explorer;
 
 	/**
 	 * @param Config $config Configuration accessor.
 	 */
 	public function __construct( Config $config ) {
 		$this->config  = $config;
-		$this->monitor = new Monitor_Page( $config );
+		$this->explorer = new Explorer_Page( $config );
 	}
 
 	/**
@@ -48,7 +48,7 @@ class Admin_Page {
 	 * Creates:
 	 *   - WordSocket (top-level, dashicons-rss)
 	 *     - Settings (React app: Connection + Triggers tabs)
-	 *     - Monitor  (renamed from Monitor)
+	 *     - Explorer (renamed from Explorer)
 	 *
 	 * @return void
 	 */
@@ -74,11 +74,11 @@ class Admin_Page {
 
 		add_submenu_page(
 			'wordsocket',
-			__( 'WordSocket Monitor', 'wordsocket' ),
-			__( 'Monitor', 'wordsocket' ),
+			__( 'WordSocket Explorer', 'wordsocket' ),
+			__( 'Explorer', 'wordsocket' ),
 			'manage_options',
-			'wordsocket-monitor',
-			array( $this->monitor, 'render_page' )
+			'wordsocket-explorer',
+			array( $this->explorer, 'render_page' )
 		);
 	}
 
