@@ -156,6 +156,25 @@ class WPS {
 		if ( is_admin() ) {
 			$this->admin_instance->init();
 		}
+
+		// Register the "WordSocket" block category so example/third-party blocks
+		// can use "wordsocket" as their category without registering it themselves.
+		add_filter( 'block_categories_all', array( $this, 'register_block_category' ) );
+	}
+
+	/**
+	 * Prepend the "WordSocket" block category to the editor category list.
+	 *
+	 * @param array $categories Existing block categories.
+	 * @return array
+	 */
+	public function register_block_category( $categories ) {
+		\array_unshift( $categories, [
+			'slug'  => 'wordsocket',
+			'title' => 'WordSocket',
+			'icon'  => null,
+		] );
+		return $categories;
 	}
 
 	/**
