@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-03-09T02:53:59+00:00\n"
+"POT-Creation-Date: 2026-03-12T23:33:19+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wordsocket\n"
@@ -175,31 +175,31 @@ msgid "Decoded Claims"
 msgstr ""
 
 #: includes/class-wpsignal-publisher.php:71
-#: includes/class-wpsignal-token.php:152
+#: includes/class-wpsignal-token.php:167
 msgid "WordSocket is not configured."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:143
+#: includes/class-wpsignal-token.php:158
 msgid "JWT secret not configured."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:265
+#: includes/class-wpsignal-token.php:280
 msgid "Channel and event are required."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:303
+#: includes/class-wpsignal-token.php:318
 msgid "API Key is empty, please include it and try again."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:311
+#: includes/class-wpsignal-token.php:326
 msgid "API Key is invalid, please include a valid API Key and try again."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:358
+#: includes/class-wpsignal-token.php:373
 msgid "Invalid response from server."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:367
+#: includes/class-wpsignal-token.php:382
 msgid "Connection settings validated!"
 msgstr ""
 

@@ -110,6 +110,21 @@ class Token
 			array(
 				'methods'             => 'POST',
 				'callback'            => array($this, 'handle_save_settings'),
+				'args'                => array(
+					'settings' => array(
+						'type' => 'object',
+						'properties' => array(
+							'yjs_provider_enabled' => array('type' => 'boolean'),
+							'is_rtc_enabled'       => array('type' => 'boolean'),
+							'wp_version' 		   => array('type' => 'number'),
+							'credential_source'    => array('type' => 'string'),
+							'api_key' 			   => array('type' => 'string'),
+							'site_key' 			   => array('type' => 'string'),
+							'is_connected' 		   => array('type' => 'boolean'),
+							'base_url' 		   	   => array('type' => 'string'),
+						),
+					),
+				),
 				'permission_callback' => function () {
 					return current_user_can('manage_options');
 				},
@@ -461,6 +476,22 @@ class Token
 			'wp_version'        => (float) wp_get_wp_version(),
 			'credential_source' => $this->config->credential_source(),
 		));
+	}
+
+	/**
+	 * Save settings.
+	 * 
+	 * @param WP_REST_Request $request The incoming REST request.
+	 * @return WP_REST_Response|WP_Error 
+	 */
+	public function handle_save_settings(WP_REST_Request $request)
+	{
+		$yjs_provider_enabled = $request->get_param('yjs_provider_enabled');
+		update_option('wpsignal_yjs_provider_enabled', $yjs_provider_enabled );
+
+		return rest_ensure_response([
+			'yjs_provider_enabled' => $yjs_provider_enabled,
+		]);
 	}
 
 	/**
