@@ -1,7 +1,6 @@
 import {
   useState,
   useEffect,
-  useRef,
   createInterpolateElement,
 } from "@wordpress/element";
 import {
@@ -56,8 +55,6 @@ export function ConnectionTab() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const wpsNotice = params.get("wps_notice");
-    console.log("siteKey", siteKey);
-    console.log("wpsNotice", wpsNotice);
     if (wpsNotice === "connected" && siteKey) {
       setNotice({
         type: "success",
@@ -362,10 +359,12 @@ export function ConnectionTab() {
               />
             ) : (
               <Notice status="warning">
-                {__(
-                  "Real-time collaboration is not enabled. Please enable it under Settings > Writing.",
+                {createInterpolateElement(__(
+                  "Real-time collaboration is not enabled. Please enable it under <a>Settings > Writing</a>.",
                   "wordsocket",
-                )}
+                ), {
+                  a: <a href="/wp-admin/options-writing.php" target="_blank" rel="noopener noreferrer" />,
+                })}
               </Notice>
             ))}
         </div>

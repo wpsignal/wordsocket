@@ -1,5 +1,6 @@
-import { Button } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
+import { Button } from "@wordpress/components";
+import { createInterpolateElement } from "@wordpress/element";
 
 export default function Automatic({ isConnecting }: { isConnecting: boolean }) {
   const handleOAuthConnect = (): void => {
@@ -12,10 +13,12 @@ export default function Automatic({ isConnecting }: { isConnecting: boolean }) {
     <>
       <h3>{__("Automatic Connection", "wordsocket")}</h3>
       <p>
-        {__(
-          "Log in to your WPSignal dashboard and authorize this site in one click.",
+        {createInterpolateElement(__(
+          "Log in to your <a>WPSignal dashboard</a> and authorize this site in one click.",
           "wordsocket",
-        )}
+        ), {
+          a: <a href="https://api.wpsignal.io/dashboard" target="_blank" rel="noopener noreferrer" />,
+        })}
       </p>
       <Button
         variant="primary"
