@@ -25,6 +25,11 @@
  *   MSG_UPDATE (0x03) + Yjs v1 update bytes
  *     > Incremental update broadcast when the local ydoc changes.
  *
+ *   MSG_AWARENESS (0x04) + y-protocols awareness bytes
+ *     > Sent when local awareness state changes (cursor, user info).
+ *       Applied with applyAwarenessUpdate so peers see collaborator badges.
+ *       Sent with null state on destroy so we are removed from collaborator list.
+ *
  * The bidirectional SYNC_STEP_1 ↔ SYNC_STEP_2 handshake ensures both tabs
  * converge to the same ydoc state (same winning Yjs nested-type instances)
  * before any further editing, which is required for observeDeep to fire on
@@ -32,18 +37,35 @@
  */
 
 import { Y } from "@wordpress/sync";
+import {
+  encodeAwarenessUpdate,
+  applyAwarenessUpdate,
+} from "y-protocols/awareness";
 import { wpsDebug } from "./utils";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+/** Structural interface for the Yjs Awareness instance passed by WordPress. */
+interface Awareness {
+  clientID: number;
+  on(event: "change", handler: AwarenessChangeHandler): void;
+  off(event: "change", handler: AwarenessChangeHandler): void;
+  setLocalState(state: Record<string, unknown> | null): void;
+}
+
+type AwarenessChangeHandler = (
+  changes: { added: number[]; updated: number[]; removed: number[] },
+  origin: unknown,
+) => void;
+
 interface ProviderCreatorOptions {
   objectType: string;
   /** null for collection-level providers (WordPress 7.0 Beta 2+). */
   objectId: string | number | null;
   ydoc: YDoc;
-  awareness: unknown;
+  awareness: Awareness;
 }
 
 interface ProviderCreatorResult {
@@ -73,6 +95,7 @@ interface YDoc {
 const MSG_SYNC_STEP_1 = 0x01;
 const MSG_SYNC_STEP_2 = 0x02;
 const MSG_UPDATE = 0x03;
+const MSG_AWARENESS = 0x04;
 
 /**
  * Minimum ms between outbound SYNC_STEP_1 sends. Prevents the server's
@@ -87,6 +110,7 @@ const SYNC_STEP_1_COOLDOWN_MS = 2000;
 class WPSignalYjsProvider implements ProviderCreatorResult {
   private readonly channel: string;
   private readonly ydoc: YDoc;
+  private readonly awareness: Awareness;
   private readonly unsubscribers: Array<() => void> = [];
   private readonly statusHandlers = new Set<StatusHandler>();
 
@@ -111,7 +135,7 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
 
   private currentStatus: SyncStatus = "connecting";
 
-  constructor({ objectType, objectId, ydoc }: ProviderCreatorOptions) {
+  constructor({ objectType, objectId, ydoc, awareness }: ProviderCreatorOptions) {
     // Use the server-localized prefix so the channel falls within the JWT's
     // allowed_channel_prefixes (e.g. `site:{site_id}:yjs:`).
     const prefix = window.wpSignalYjsConfig?.channelPrefix ?? "yjs:";
@@ -121,6 +145,7 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
     const id = objectId !== null ? String(objectId) : "collection";
     this.channel = `${prefix}${objectType}:${id}`;
     this.ydoc = ydoc;
+    this.awareness = awareness;
     this.init();
   }
 
@@ -137,6 +162,13 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
   }
 
   destroy(): void {
+    // Broadcast null awareness state so peers remove us from collaborators list.
+    this.awareness.setLocalState(null);
+    const nullUpdate = encodeAwarenessUpdate(this.awareness as any, [
+      this.awareness.clientID,
+    ]);
+    window.WPS?.publishBinary(this.channel, this.frame(MSG_AWARENESS, nullUpdate));
+
     this.unsubscribers.forEach((fn) => fn());
     this.unsubscribers.length = 0;
     window.WPS?.unsubscribe([this.channel]);
@@ -228,6 +260,23 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
     this.ydoc.on("update", onUpdate);
     this.unsubscribers.push(() => this.ydoc.off("update", onUpdate));
 
+    // Local awareness changes > broadcast to peers.
+    // origin === 'wpsignal' means we applied this update from a peer — skip to avoid loops.
+    const onAwarenessChange: AwarenessChangeHandler = (
+      { added, updated, removed },
+      origin,
+    ) => {
+      if (origin === "wpsignal") return;
+      const changed = [...added, ...updated, ...removed];
+      if (changed.length === 0 || !wps.connected) return;
+      const encoded = encodeAwarenessUpdate(this.awareness as any, changed);
+      wps.publishBinary(this.channel, this.frame(MSG_AWARENESS, encoded));
+    };
+    this.awareness.on("change", onAwarenessChange);
+    this.unsubscribers.push(() =>
+      this.awareness.off("change", onAwarenessChange),
+    );
+
     // Incoming binary frames from peers.
     const offBinary = wps.onBinaryMessage((channel, data) => {
       if (channel !== this.channel || data.length < 1) return;
@@ -295,6 +344,18 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
           );
           break;
         }
+
+        case MSG_AWARENESS: {
+          applyAwarenessUpdate(this.awareness as any, payload, "wpsignal");
+          wpsDebug(
+            "inbound awareness applied",
+            { channel, bytes: payload.length },
+            "log",
+            true,
+            "Yjs",
+          );
+          break;
+        }
       }
     });
     this.unsubscribers.push(offBinary);
@@ -313,12 +374,19 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
         this.initialized = true;
         wpsDebug(
           "connect SYNC_STEP_1 sent",
-          {
-            channel: this.channel,
-          },
+          { channel: this.channel },
           "log",
           true,
           "Yjs",
+        );
+
+        // Announce our presence to peers so collaborator badges appear.
+        const awarenessUpdate = encodeAwarenessUpdate(this.awareness as any, [
+          this.awareness.clientID,
+        ]);
+        wps.publishBinary(
+          this.channel,
+          this.frame(MSG_AWARENESS, awarenessUpdate),
         );
 
         for (const update of this.pendingUpdates.splice(0)) {

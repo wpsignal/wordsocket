@@ -7,13 +7,11 @@ export default function Manual({
   apiKey,
   setApiKey,
   handleConnect,
-  saving,
 }: {
   isConnecting: boolean;
   apiKey: string;
   setApiKey: (apiKey: string) => void;
   handleConnect: () => void;
-  saving: boolean;
 }) {
   return (
     <>
@@ -42,7 +40,7 @@ export default function Manual({
           variant="secondary"
           onClick={handleConnect}
           isBusy={isConnecting}
-          disabled={!apiKey || saving || isConnecting || apiKey.length !== 64}
+          disabled={!apiKey || isConnecting || apiKey.length !== 64}
         >
           {__("Save Settings", "wordsocket")}
         </Button>

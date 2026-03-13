@@ -11,6 +11,9 @@ export interface PostTypeOption {
 	label: string;
 }
 
+export interface SettingsPost {
+	yjs_provider_enabled: boolean;
+}
 export interface Settings {
 	// base_url: string;
 	api_key: string;

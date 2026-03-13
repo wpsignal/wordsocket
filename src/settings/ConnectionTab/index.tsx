@@ -16,7 +16,7 @@ import { Tabs } from "@wordpress/ui";
 import { __, sprintf } from "@wordpress/i18n";
 import { truncate } from "../../utils";
 import { Notice } from "../Notice";
-import { getSettings, connect, disconnect } from "../api";
+import { getSettings, connect, disconnect, saveSettings } from "../api";
 import Automatic from "./Automatic";
 import Manual from "./Manual";
 
@@ -30,7 +30,6 @@ export function ConnectionTab() {
   const [siteKey, setSiteKey] = useState("");
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const [yjsProviderEnabled, setYjsProviderEnabled] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [notice, setNotice] = useState<NoticeState | null>(null);
   const [isRTCEnabled, setIsRTCEnabled] = useState<boolean | null>(null);
@@ -77,21 +76,7 @@ export function ConnectionTab() {
     // Show a notice from the OAuth callback redirect (wps_notice URL param).
     const params = new URLSearchParams(window.location.search);
     const wpsNotice = params.get("wps_notice");
-    /* if (wpsNotice === "connected") {
-      setNotice({
-        type: "success",
-        message: siteKey ? (
-          <>
-            {" "}
-            &mdash;{" "}
-            <code>
-              {truncate(siteKey, 8, false)}...
-              {truncate(siteKey, 8, true)}
-            </code>
-          </>
-        ) : 'Fuck',
-      });
-    } else */ if (wpsNotice === "error_state") {
+    if (wpsNotice === "error_state") {
       setNotice({
         type: "error",
         message: __(
@@ -134,7 +119,6 @@ export function ConnectionTab() {
       try {
         const res = await getSettings();
         setApiKey(res.api_key);
-        console.log("res.site_key", res.site_key);
         setSiteKey(res.site_key);
         setIsConnected(res.is_connected);
         setYjsProviderEnabled(res.yjs_provider_enabled);
@@ -208,6 +192,30 @@ export function ConnectionTab() {
     }
   };
 
+  const handleYjsProviderChange = async (value: boolean): Promise<void> => {
+    setYjsProviderEnabled(value);
+    try {
+      await saveSettings({ yjs_provider_enabled: value });
+      setNotice({
+        type: "success",
+        message: __("Settings saved.", "wordsocket"),
+      });
+      setTimeout(() => {
+        setNotice(null);
+      }, 3000);
+    } catch (error: any) {
+      setNotice({
+        type: "error",
+        message:
+          error?.message ||
+          __(
+            "Failed to save Yjs provider settings. Please try again.",
+            "wordsocket",
+          ),
+      });
+    }
+  };
+
   const isConstant = credentialSource === "constant";
 
   return (
@@ -273,7 +281,6 @@ export function ConnectionTab() {
                     apiKey={apiKey}
                     setApiKey={setApiKey}
                     handleConnect={handleConnect}
-                    saving={saving}
                   />
                 </Tabs.Panel>
               </FlexBlock>
@@ -298,14 +305,14 @@ export function ConnectionTab() {
                 <Button
                   variant="primary"
                   isDestructive
-                  isBusy={disconnecting}
+                  isBusy={disconnecting || isConnecting}
                   onClick={handleDisconnect}
                 >
                   {__("Yes, disconnect", "wordsocket")}
                 </Button>
                 <Button
                   variant="tertiary"
-                  disabled={disconnecting}
+                  disabled={disconnecting || isConnecting}
                   onClick={() => setConfirmDisconnect(false)}
                 >
                   {__("Cancel", "wordsocket")}
@@ -328,24 +335,29 @@ export function ConnectionTab() {
           {!isConnecting &&
             (isRTCEnabled ? (
               <ToggleControl
-                disabled={!isRTCEnabled}
+                disabled={!isRTCEnabled || isConnecting || !isConnected}
                 label={
                   yjsProviderEnabled
                     ? __(
                         "Disable WordSocket for real-time collaboration?",
                         "wordsocket",
                       )
-                    : __(
-                        "Enable WordSocket for real-time collaboration?",
-                        "wordsocket",
-                      )
+                    : isConnected
+                      ? __(
+                          "Enable WordSocket for real-time collaboration?",
+                          "wordsocket",
+                        )
+                      : __(
+                          "You must be connected to WPSignal to enable real-time collaboration.",
+                          "wordsocket",
+                        )
                 }
-                help={__(
+                help={isConnected && __(
                   "Registers WordSocket as the Yjs sync provider in the block editor. Disable this to fall back to WordPress HTTP polling if WebSocket connections are unavailable.",
                   "wordsocket",
                 )}
                 checked={yjsProviderEnabled}
-                onChange={setYjsProviderEnabled}
+                onChange={handleYjsProviderChange}
                 __nextHasNoMarginBottom
               />
             ) : (

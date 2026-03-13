@@ -16,5 +16,6 @@ module.exports = {
 	externals: {
 		...defaultConfig.externals,
 		'@wordpress/sync': 'wp.sync',
+		'yjs': 'wp.sync.Y',
 	},
 };

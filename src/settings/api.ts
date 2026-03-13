@@ -1,5 +1,5 @@
 import apiFetch from '@wordpress/api-fetch';
-import type { Trigger, Settings, ConnectResponse } from './types';
+import type { Trigger, Settings, ConnectResponse, SettingsPost } from './types';
 
 interface TriggersResponse {
 	triggers: Trigger[];
@@ -22,11 +22,11 @@ export function getSettings(): Promise< Settings > {
 	return apiFetch( { path: '/wpsignal/v1/settings' } );
 }
 
-export function saveSettings( data: { api_key: string; yjs_provider_enabled?: boolean; wp_version?: string } ): Promise< Settings > {
+export function saveSettings( settings: SettingsPost ): Promise< SettingsPost > {
 	return apiFetch( {
 		path: '/wpsignal/v1/settings',
 		method: 'POST',
-		data,
+		data: settings,
 	} );
 }
 

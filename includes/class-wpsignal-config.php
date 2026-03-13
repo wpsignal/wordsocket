@@ -182,7 +182,7 @@ class Config {
 	 * @return bool
 	 */
 	public function yjs_provider_enabled() {
-		return get_option( 'wpsignal_yjs_provider_enabled', '1' ) !== '0';
+		return (bool) get_option( 'wpsignal_yjs_provider_enabled' );
 	}
 
 	/**
