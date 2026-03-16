@@ -70,6 +70,26 @@ Event payloads are AES-256-GCM encrypted before leaving WordPress. The WPSignal 
 
 To create an account, visit [wpsignal.io](https://wpsignal.io).
 
+== Building from source ==
+
+The JavaScript files distributed with this plugin (`build/client.js`, `build/settings.js`, `build/explorer.js`, `build/yjs-provider.js`) are compiled from TypeScript source using `@wordpress/scripts` (webpack). The full source code is publicly available:
+
+* Source repository: https://github.com/wpsignal/wordsocket
+
+To build locally:
+
+1. Clone or download the repository.
+2. Navigate to the `wp-plugin/` directory.
+3. Run `npm install` to install dependencies.
+4. Run `npm run build` to compile all scripts to `build/`.
+
+Source entry points:
+
+* `src/client.ts` compiles to `build/client.js`
+* `src/settings/index.tsx` compiles to `build/settings.js`
+* `src/explorer.ts` compiles to `build/explorer.js`
+* `src/yjs-provider-boot.ts` compiles to `build/yjs-provider.js`
+
 == Frequently Asked Questions ==
 
 = What is WPSignal? =
