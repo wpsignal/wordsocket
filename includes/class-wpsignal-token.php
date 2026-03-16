@@ -69,6 +69,9 @@ class Token
 	 */
 	public function register_routes()
 	{
+
+		$permission_callback = fn() => current_user_can('manage_options');
+
 		register_rest_route('wpsignal/v1', '/token', array(
 			'methods'             => 'POST',
 			'callback'            => array($this, 'handle_token'),
@@ -78,34 +81,26 @@ class Token
 		register_rest_route('wpsignal/v1', '/connect', array(
 			'methods'             => 'POST',
 			'callback'            => array($this, 'handle_register'),
-			'permission_callback' => function () {
-				return current_user_can('manage_options');
-			},
+			'permission_callback' => $permission_callback,
 		));
 
 		register_rest_route('wpsignal/v1', '/publish', array(
 			'methods'             => 'POST',
 			'callback'            => array($this, 'handle_publish'),
-			'permission_callback' => function () {
-				return current_user_can('manage_options');
-			},
+			'permission_callback' => $permission_callback,
 		));
 
 		register_rest_route('wpsignal/v1', '/disconnect', array(
 			'methods'             => 'POST',
 			'callback'            => array($this, 'handle_disconnect'),
-			'permission_callback' => function () {
-				return current_user_can('manage_options');
-			},
+			'permission_callback' => $permission_callback,
 		));
 
 		register_rest_route('wpsignal/v1', '/settings', array(
 			array(
 				'methods'             => 'GET',
 				'callback'            => array($this, 'handle_get_settings'),
-				'permission_callback' => function () {
-					return current_user_can('manage_options');
-				},
+				'permission_callback' => $permission_callback,
 			),
 			array(
 				'methods'             => 'POST',
@@ -125,9 +120,7 @@ class Token
 						),
 					),
 				),
-				'permission_callback' => function () {
-					return current_user_can('manage_options');
-				},
+				'permission_callback' => $permission_callback,
 			),
 		));
 	}
