@@ -35,7 +35,7 @@ die()   { printf '\033[31mError:\033[0m %s\n' "$*" >&2; exit 1; }
 # ── Version ───────────────────────────────────────────────────────────────────
 VERSION="$(node -p "require('./package.json').version")"
 PLUGIN_SLUG="wordsocket"
-ZIP_NAME="${PLUGIN_SLUG}-${VERSION}.zip"
+ZIP_NAME="${PLUGIN_SLUG}.zip"
 DIST_DIR="$PLUGIN_DIR/dist"
 STAGE_DIR="$DIST_DIR/$PLUGIN_SLUG"
 
