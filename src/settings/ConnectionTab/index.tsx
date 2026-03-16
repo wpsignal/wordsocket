@@ -15,7 +15,7 @@ import { Tabs } from "@wordpress/ui";
 import { __, sprintf } from "@wordpress/i18n";
 import { truncate } from "../../utils";
 import { Notice } from "../Notice";
-import { getSettings, connect, disconnect, saveSettings } from "../api";
+import { getSettings, connect, disconnect, saveSettings, getToken } from "../api";
 import Automatic from "./Automatic";
 import Manual from "./Manual";
 
@@ -41,6 +41,7 @@ export function ConnectionTab() {
   >("automatic");
   const [disconnecting, setDisconnecting] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const [messageCount, setMessageCount] = useState(0);
 
   const successMessage = (
     <>
@@ -136,6 +137,48 @@ export function ConnectionTab() {
     };
     fetchSettings();
   }, []);
+
+  // Live messages-received counter: opens a WebSocket when connected,
+  // subscribes to the events channel, and increments on each message frame.
+  useEffect(() => {
+    if (!isConnected) return;
+    const cfg = window.wpsignalSettings;
+    if (!cfg?.baseUrl) return;
+
+    let ws: WebSocket | null = null;
+    let count = 0;
+    let cancelled = false;
+
+    getToken()
+      .then((data) => {
+        if (cancelled) return;
+        const base = cfg.baseUrl.replace(/\/+$/, '');
+        const proto = base.startsWith('https') ? 'wss' : 'ws';
+        const host = base.replace(/^https?:\/\//, '');
+        ws = new WebSocket(`${proto}://${host}/ws?token=${encodeURIComponent(data.token)}`);
+
+        ws.addEventListener('open', () => {
+          ws!.send(JSON.stringify({ type: 'subscribe', channels: ['events'] }));
+        });
+
+        ws.addEventListener('message', (e: MessageEvent) => {
+          try {
+            const msg = JSON.parse(e.data as string);
+            if (msg.type === 'ping') {
+              ws!.send(JSON.stringify({ type: 'pong' }));
+            } else if (msg.type === 'message') {
+              setMessageCount(++count);
+            }
+          } catch {}
+        });
+      })
+      .catch(() => {}); // counter is optional; ignore errors silently
+
+    return () => {
+      cancelled = true;
+      ws?.close();
+    };
+  }, [isConnected]);
 
   const handleConnect = async (): Promise<void> => {
     setIsConnecting(true);
@@ -290,6 +333,13 @@ export function ConnectionTab() {
                 "You are connected to WPSignal. To disconnect, click the button below.",
                 "wordsocket",
               )}
+            </p>
+            <p className="wpsignal-message-counter">
+              { sprintf(
+                // translators: %s is the number of messages received since page load.
+                __( '%s messages received (this session)', 'wordsocket' ),
+                messageCount.toLocaleString()
+              ) }
             </p>
             {confirmDisconnect ? (
               <Flex align="center" gap={5} expanded={false} justify="start">

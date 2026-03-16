@@ -44,3 +44,7 @@ export function disconnect(): Promise< { ok: boolean } > {
 		method: 'POST',
 	} );
 }
+
+export function getToken(): Promise< { token: string } > {
+	return apiFetch( { path: '/wpsignal/v1/token' } );
+}
