@@ -45,7 +45,7 @@ class Explorer_Page {
 
 		?>
 		<div class="wrap">
-			<h1><?php echo get_admin_page_title(); ?></h1>
+			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
 			<?php $this->render_connection_status(); ?>
 			<?php $this->render_triggers_table( $triggers ); ?>
 			<?php $this->render_event_log(); ?>
