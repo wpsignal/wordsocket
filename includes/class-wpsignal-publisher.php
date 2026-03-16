@@ -47,6 +47,42 @@ class Publisher {
 	}
 
 	/**
+	 * Check whether the site is currently throttled by a server-side quota limit.
+	 *
+	 * The server stores a Unix timestamp in wp_options (wpsignal_limits) when it
+	 * returns 429 with a quota_exceeded error. This prevents repeated outbound
+	 * HTTP requests during a period when the server will reject them anyway.
+	 *
+	 * Not cryptographically enforced: a site admin can clear the option to retry
+	 * immediately. It is a performance/politeness measure, not a hard gate.
+	 *
+	 * @return bool True if the site is currently throttled (messages_until is in the future).
+	 */
+	private function is_message_quota_exceeded() {
+		$limits = get_option( 'wpsignal_limits', array() );
+		if ( empty( $limits['messages_until'] ) ) {
+			return false;
+		}
+		return time() < (int) $limits['messages_until'];
+	}
+
+	/**
+	 * Persist a throttle timestamp received from the server's 429 response.
+	 *
+	 * @param string $error_code Server error code (e.g. "quota_exceeded").
+	 */
+	private function store_limit( $error_code ) {
+		if ( 'quota_exceeded' !== $error_code ) {
+			return;
+		}
+		// Throttle until the end of the current calendar month (UTC).
+		$end_of_month = mktime( 23, 59, 59, (int) gmdate( 'n' ) + 1, 0, (int) gmdate( 'Y' ) );
+		$limits       = get_option( 'wpsignal_limits', array() );
+		$limits['messages_until'] = $end_of_month;
+		update_option( 'wpsignal_limits', $limits, false );
+	}
+
+	/**
 	 * Publish an event to the WPSignal server.
 	 *
 	 * Builds a JSON payload, signs it with the site secret, and POSTs it
@@ -69,6 +105,10 @@ class Publisher {
 	public function publish( $channel, $event, $data = array() ) {
 		if ( ! $this->config->is_configured() ) {
 			return new \WP_Error( 'wpsignal_not_configured', __( 'WordSocket is not configured.', 'wordsocket' ), array( 'status' => 500 ) );
+		}
+
+		if ( $this->is_message_quota_exceeded() ) {
+			return new \WP_Error( 'wpsignal_quota_exceeded', __( 'Monthly message quota reached.', 'wordsocket' ), array( 'status' => 429 ) );
 		}
 
 		// Encrypt the event name and data so the relay only ever sees ciphertext.
@@ -124,6 +164,10 @@ class Publisher {
 				: sprintf( 'HTTP %d', $code );
 			if ( $is_dev ) {
 				error_log( sprintf( '[WPSignal] Publish HTTP %d: %s', $code, $message ) );
+			}
+			// On quota 429, store the throttle timestamp to skip future requests this month.
+			if ( 429 === $code && is_array( $error_data ) && isset( $error_data['error'] ) ) {
+				$this->store_limit( $error_data['error'] );
 			}
 			return new \WP_Error( 'wpsignal_publish_error', $message );
 		}
