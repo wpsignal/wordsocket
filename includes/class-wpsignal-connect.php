@@ -91,7 +91,15 @@ class Connect
 			trailingslashit($this->config->base_url()) . 'dashboard/connect'
 		);
 
-		wp_redirect($connect_url);
+		$base_host = wp_parse_url($this->config->base_url(), PHP_URL_HOST);
+		add_filter(
+			'allowed_redirect_hosts',
+			function ($hosts) use ($base_host) {
+				$hosts[] = $base_host;
+				return $hosts;
+			}
+		);
+		wp_safe_redirect($connect_url);
 		exit;
 	}
 
@@ -129,12 +137,17 @@ class Connect
 	{
 		$settings_url = admin_url('admin.php?page=wordsocket');
 
+		// phpcs:disable WordPress.Security.NonceVerification -- CSRF protection is provided by the OAuth state
+		// parameter (a 32-byte random value stored as a transient and verified via hash_equals() below).
+		// WordPress nonces cannot be used here: the callback arrives from an external redirect and the
+		// session may not be active (this handler is also registered as nopriv).
 		$state = isset($_POST['wps_state']) ? sanitize_text_field(wp_unslash($_POST['wps_state'])) : '';
 		$code  = isset($_POST['wps_code']) ? sanitize_text_field(wp_unslash($_POST['wps_code'])) : '';
 		$error = isset($_GET['wps_error']) ? sanitize_text_field(wp_unslash($_GET['wps_error'])) : '';
+		// phpcs:enable WordPress.Security.NonceVerification
 
 		if ($error) {
-			wp_redirect(add_query_arg('wps_notice', 'cancelled', $settings_url));
+			wp_safe_redirect(add_query_arg('wps_notice', 'cancelled', $settings_url));
 			exit;
 		}
 
@@ -142,12 +155,12 @@ class Connect
 		delete_transient('wpsignal_oauth_state');
 
 		if (empty($stored_state) || empty($state) || ! hash_equals($stored_state, $state)) {
-			wp_redirect(add_query_arg('wps_notice', 'error_state', $settings_url));
+			wp_safe_redirect(add_query_arg('wps_notice', 'error_state', $settings_url));
 			exit;
 		}
 
 		if (empty($code)) {
-			wp_redirect(add_query_arg('wps_notice', 'error_code', $settings_url));
+			wp_safe_redirect(add_query_arg('wps_notice', 'error_code', $settings_url));
 			exit;
 		}
 
@@ -161,20 +174,20 @@ class Connect
 		);
 
 		if (is_wp_error($response) || 200 !== (int) wp_remote_retrieve_response_code($response)) {
-			wp_redirect(add_query_arg('wps_notice', 'error_exchange', $settings_url));
+			wp_safe_redirect(add_query_arg('wps_notice', 'error_exchange', $settings_url));
 			exit;
 		}
 
 		$data = json_decode(wp_remote_retrieve_body($response), true);
 
 		if (empty($data['site_key']) || empty($data['publish_secret']) || empty($data['jwt_secret'])) {
-			wp_redirect(add_query_arg('wps_notice', 'error_data', $settings_url));
+			wp_safe_redirect(add_query_arg('wps_notice', 'error_data', $settings_url));
 			exit;
 		}
 
 		$this->config->save_connection($data);
 
-		wp_redirect(add_query_arg('wps_notice', 'connected', $settings_url));
+		wp_safe_redirect(add_query_arg('wps_notice', 'connected', $settings_url));
 		exit;
 	}
 }

@@ -135,7 +135,7 @@ class Publisher {
 
 		$url = trailingslashit( $this->config->base_url() ) . 'publish';
 
-		$is_dev = defined( 'WP_ENVIRONMENT_TYPE' ) && WP_ENVIRONMENT_TYPE === 'development';
+		$is_dev = defined( 'WP_ENVIRONMENT_TYPE' ) && in_array( WP_ENVIRONMENT_TYPE, array( 'development', 'local', 'staging' ), true );
 
 		$response = wp_remote_post( $url, array(
 			'timeout' => 2,
@@ -150,6 +150,7 @@ class Publisher {
 
 		if ( is_wp_error( $response ) ) {
 			if ( $is_dev ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log( '[WPSignal] Publish failed: ' . $response->get_error_message() );
 			}
 			return $response;
@@ -163,6 +164,7 @@ class Publisher {
 				? $error_data['message']
 				: sprintf( 'HTTP %d', $code );
 			if ( $is_dev ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log( sprintf( '[WPSignal] Publish HTTP %d: %s', $code, $message ) );
 			}
 			// On quota 429, store the throttle timestamp to skip future requests this month.

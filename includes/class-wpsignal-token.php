@@ -73,7 +73,7 @@ class Token
 		$permission_callback = fn() => current_user_can('manage_options');
 
 		register_rest_route('wpsignal/v1', '/token', array(
-			'methods'             => 'POST',
+			'methods'             => 'GET, POST',
 			'callback'            => array($this, 'handle_token'),
 			'permission_callback' => '__return_true',
 		));
