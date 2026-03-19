@@ -188,7 +188,7 @@ class Trigger {
 	 *             return array(
 	 *                 'post_id'    => $post_id,
 	 *                 'post_type'  => $post->post_type,
-	 *     ->register();
+	 *         ->register();
 	 * ```
 	 * @return void
 	 */
@@ -211,6 +211,7 @@ class Trigger {
 	 * Get the WordPress hook name.
 	 *
 	 * @return string|null Hook name, or null if not set.
+	 * 
 	 */
 	public function get_hook() {
 		return $this->hook;
