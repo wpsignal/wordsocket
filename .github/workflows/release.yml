@@ -1,0 +1,68 @@
+name: WordSocket Plugin Release
+
+# Triggers:
+#   Tag push  : git tag v0.7.0 && git push origin v0.7.0
+#               Creates a published GitHub release with wordsocket.zip attached.
+#   Manual    : Actions > WordSocket Plugin Release > Run workflow
+#               Builds the zip and creates a draft release for inspection.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install WP-CLI
+        run: |
+          curl -sO https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          chmod +x wp-cli.phar
+          sudo mv wp-cli.phar /usr/local/bin/wp
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build release zip
+        run: bash bin/dist.sh
+
+      - name: Read version
+        id: meta
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Set release tag
+        id: tag
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            echo "name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            echo "draft=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=v${{ steps.meta.outputs.version }}" >> "$GITHUB_OUTPUT"
+            echo "draft=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.name }}
+          name: WordSocket v${{ steps.meta.outputs.version }}
+          draft: ${{ steps.tag.outputs.draft }}
+          files: dist/wordsocket.zip
+          body: |
+            Install via **Plugins > Add New > Upload Plugin** in your WordPress admin.
+
+            Download `wordsocket.zip` below.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
