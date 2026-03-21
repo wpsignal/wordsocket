@@ -15,7 +15,7 @@ import { Tabs } from "@wordpress/ui";
 import { __, sprintf } from "@wordpress/i18n";
 import { truncate } from "../../utils";
 import { Notice } from "../Notice";
-import { getSettings, connect, disconnect, saveSettings, getToken } from "../api";
+import { getSettings, connect, disconnect, saveSettings } from "../api";
 import Automatic from "./Automatic";
 import Manual from "./Manual";
 
@@ -138,46 +138,18 @@ export function ConnectionTab() {
     fetchSettings();
   }, []);
 
-  // Live messages-received counter: opens a WebSocket when connected,
-  // subscribes to the events channel, and increments on each message frame.
+  // Live messages-received counter: piggybacks on the existing window.WPS
+  // connection so no second WebSocket is opened.
   useEffect(() => {
     if (!isConnected) return;
-    const cfg = window.wpsignalSettings;
-    if (!cfg?.baseUrl) return;
+    if (!window.WPS) return;
 
-    let ws: WebSocket | null = null;
     let count = 0;
-    let cancelled = false;
+    const off = window.WPS.onMessage(() => {
+      setMessageCount(++count);
+    });
 
-    getToken()
-      .then((data) => {
-        if (cancelled) return;
-        const base = cfg.baseUrl.replace(/\/+$/, '');
-        const proto = base.startsWith('https') ? 'wss' : 'ws';
-        const host = base.replace(/^https?:\/\//, '');
-        ws = new WebSocket(`${proto}://${host}/ws?token=${encodeURIComponent(data.token)}`);
-
-        ws.addEventListener('open', () => {
-          ws!.send(JSON.stringify({ type: 'subscribe', channels: ['events'] }));
-        });
-
-        ws.addEventListener('message', (e: MessageEvent) => {
-          try {
-            const msg = JSON.parse(e.data as string);
-            if (msg.type === 'ping') {
-              ws!.send(JSON.stringify({ type: 'pong' }));
-            } else if (msg.type === 'message') {
-              setMessageCount(++count);
-            }
-          } catch {}
-        });
-      })
-      .catch(() => {}); // counter is optional; ignore errors silently
-
-    return () => {
-      cancelled = true;
-      ws?.close();
-    };
+    return off;
   }, [isConnected]);
 
   const handleConnect = async (): Promise<void> => {
