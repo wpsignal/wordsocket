@@ -23,6 +23,7 @@ export interface Settings {
 	is_rtc_enabled: boolean;
 	wp_version: number;
 	credential_source?: 'constant' | 'database';
+	is_ssl: boolean;
 }
 
 export interface ConnectResponse {

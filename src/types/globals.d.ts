@@ -1,8 +1,20 @@
 /** Localized by class-wpsignal-client.php */
 interface WpSignalConfig {
+	/** WordPress version. */
+	wpVersion: number;
+	/** Whether to use constant credentials. */
+	isConstant: boolean;
+	/** Whether to enable real-time collaboration. */
+	isRtcEnabled: boolean;
+	/** Whether to use SSL. */
+	isSsl: boolean;
+	/** Whether to enable debug mode. */
 	debug: boolean;
+	/** WordPress REST URL. */
 	restUrl: string;
+	/** WordPress REST nonce. */
 	nonce: string;
+	/** WPSignal server URL. */
 	baseUrl: string;
 	/** Server-side minted token (present on first load; absent on refresh calls). */
 	token?: string;

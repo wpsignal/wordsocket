@@ -199,6 +199,8 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 
 = 0.10.0 =
 feat: skeleton preloader for app.
+feat: disable automatic authentication for non-ssl.
+fix: disable encryption when on non-ssl.
 
 = 0.9.0 =
 Fix: non-ssl default to manual authentication

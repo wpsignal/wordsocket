@@ -112,9 +112,11 @@ class Publisher {
 		}
 
 		// Encrypt the event name and data so the relay only ever sees ciphertext.
-		// Falls back to plaintext if the key cannot be derived (e.g. site not yet registered).
+		// Skip encryption on HTTP: SubtleCrypto is unavailable in non-secure browser
+		// contexts, so encrypted messages would arrive but could never be decrypted.
+		// Falls back to plaintext if the key cannot be derived (e.g. not yet registered).
 		$plaintext = wp_json_encode( array( 'event' => $event, 'data' => $data ) );
-		$encrypted = $this->encrypt( $plaintext );
+		$encrypted = is_ssl() ? $this->encrypt( $plaintext ) : false;
 
 		if ( false !== $encrypted ) {
 			$body = wp_json_encode( array(

@@ -4,12 +4,12 @@ import {
   createInterpolateElement,
 } from "@wordpress/element";
 import {
-  TextControl,
   ToggleControl,
   Button,
   Flex,
   FlexItem,
   FlexBlock,
+  ProgressBar,
 } from "@wordpress/components";
 import { Tabs } from "@wordpress/ui";
 import { __, sprintf } from "@wordpress/i18n";
@@ -18,6 +18,8 @@ import { Notice } from "../Notice";
 import { getSettings, connect, disconnect, saveSettings } from "../api";
 import Automatic from "./Automatic";
 import Manual from "./Manual";
+
+import "./index.css";
 
 interface NoticeState {
   type: "success" | "error";
@@ -29,19 +31,13 @@ export function ConnectionTab() {
   const [siteKey, setSiteKey] = useState("");
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const [yjsProviderEnabled, setYjsProviderEnabled] = useState(true);
-  const [isConnecting, setIsConnecting] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(true);
   const [notice, setNotice] = useState<NoticeState | null>(null);
-  const [isRTCEnabled, setIsRTCEnabled] = useState<boolean | null>(null);
-  const [wpVersion, setWpVersion] = useState<number>(0);
-  const [credentialSource, setCredentialSource] = useState<
-    "constant" | "database"
-  >("database");
   const [connectionPanel, setConnectionPanel] = useState<
     "automatic" | "manual" | null
   >("automatic");
   const [disconnecting, setDisconnecting] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
-  const [messageCount, setMessageCount] = useState(0);
 
   const successMessage = (
     <>
@@ -53,6 +49,7 @@ export function ConnectionTab() {
     </>
   );
 
+  // Show a notice from the OAuth callback redirect (wps_notice URL param).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const wpsNotice = params.get("wps_notice");
@@ -70,6 +67,7 @@ export function ConnectionTab() {
     }
   }, [siteKey]);
 
+  // Show a notice from the OAuth callback redirect (wps_notice URL param).
   useEffect(() => {
     // Show a notice from the OAuth callback redirect (wps_notice URL param).
     const params = new URLSearchParams(window.location.search);
@@ -120,11 +118,6 @@ export function ConnectionTab() {
         setSiteKey(res.site_key);
         setIsConnected(res.is_connected);
         setYjsProviderEnabled(res.yjs_provider_enabled);
-        setIsRTCEnabled(Boolean(res.is_rtc_enabled));
-        setWpVersion(Number(res.wp_version));
-        if (res.credential_source) {
-          setCredentialSource(res.credential_source);
-        }
       } catch (error: any) {
         setNotice({
           type: "error",
@@ -146,7 +139,7 @@ export function ConnectionTab() {
 
     let count = 0;
     const off = window.WPS.onMessage(() => {
-      setMessageCount(++count);
+      // setMessageCount(++count);
     });
 
     return off;
@@ -190,10 +183,6 @@ export function ConnectionTab() {
     setNotice(null);
     try {
       await disconnect();
-      setApiKey("");
-      setSiteKey("");
-      setIsConnected(false);
-      setDisconnecting(false);
     } catch (error: any) {
       setNotice({
         type: "error",
@@ -201,6 +190,11 @@ export function ConnectionTab() {
           error?.message ||
           __("Disconnect failed. Please try again.", "wordsocket"),
       });
+    } finally {
+      setApiKey("");
+      setSiteKey("");
+      setIsConnected(false);
+      setDisconnecting(false);
     }
   };
 
@@ -228,10 +222,24 @@ export function ConnectionTab() {
     }
   };
 
-  const isConstant = credentialSource === "constant";
+  const {
+    isSsl = false,
+    isRtcEnabled = false,
+    wpVersion = 0,
+    isConstant = false,
+  } = window.wpSignalConfig ?? {};
+
+  const rtcLoadingComponent = (
+    <Notice status="info">
+      {__("Loading real-time collaboration settings...", "wordsocket")}
+    </Notice>
+  );
 
   return (
     <div className="wpsignal-connection-tab">
+      {(isConnecting || disconnecting) && (
+        <ProgressBar className="wpsignal-progress-bar" />
+      )}
       <div className="wpsignal-connection-status">
         {notice ? (
           <Notice status={notice.type}>{notice.message}</Notice>
@@ -263,41 +271,49 @@ export function ConnectionTab() {
             )}
           </Notice>
         ) : !isConnected ? (
-          <Tabs.Root
-            value={connectionPanel}
-            orientation="vertical"
-            className="wpsignal-connection-tabs"
-            onValueChange={(panel) => {
-              setConnectionPanel(panel);
-              console.log("Selecting tab", panel);
-            }}
-          >
-            <Flex align="start">
-              <FlexItem>
-                <Tabs.List>
-                  <Tabs.Tab value="automatic">
-                    {__("Automatic", "wordsocket")}
-                  </Tabs.Tab>
-                  <Tabs.Tab value="manual">
-                    {__("Manual", "wordsocket")}
-                  </Tabs.Tab>
-                </Tabs.List>
-              </FlexItem>
-              <FlexBlock className="wpsignal-connection-tabs-content">
-                <Tabs.Panel value="automatic">
-                  <Automatic isConnecting={isConnecting} />
-                </Tabs.Panel>
-                <Tabs.Panel value="manual">
-                  <Manual
-                    isConnecting={isConnecting}
-                    apiKey={apiKey}
-                    setApiKey={setApiKey}
-                    handleConnect={handleConnect}
-                  />
-                </Tabs.Panel>
-              </FlexBlock>
-            </Flex>
-          </Tabs.Root>
+          isSsl ? (
+            <Tabs.Root
+              value={connectionPanel}
+              orientation="vertical"
+              className="wpsignal-connection-tabs"
+              onValueChange={(panel) => setConnectionPanel(panel)}
+            >
+              <Flex align="start">
+                <FlexItem>
+                  <Tabs.List>
+                    <Tabs.Tab value="automatic">
+                      {__("Automatic", "wordsocket")}
+                    </Tabs.Tab>
+                    <Tabs.Tab value="manual">
+                      {__("Manual", "wordsocket")}
+                    </Tabs.Tab>
+                  </Tabs.List>
+                </FlexItem>
+                <FlexBlock className="wpsignal-connection-tabs-content">
+                  <Tabs.Panel value="automatic">
+                    <Automatic isConnecting={isConnecting} />
+                  </Tabs.Panel>
+                  <Tabs.Panel value="manual">
+                    <Manual
+                      title={__("Manual Connection", "wordsocket")}
+                      isConnecting={isConnecting || disconnecting}
+                      apiKey={apiKey}
+                      setApiKey={setApiKey}
+                      handleConnect={handleConnect}
+                    />
+                  </Tabs.Panel>
+                </FlexBlock>
+              </Flex>
+            </Tabs.Root>
+          ) : (
+            <Manual
+              title={__("API Key Connection", "wordsocket")}
+              apiKey={apiKey}
+              setApiKey={setApiKey}
+              handleConnect={handleConnect}
+              isConnecting={isConnecting || disconnecting}
+            />
+          )
         ) : (
           <div className="wpsignal-disconnect-actions">
             <p>
@@ -305,13 +321,6 @@ export function ConnectionTab() {
                 "You are connected to WPSignal. To disconnect, click the button below.",
                 "wordsocket",
               )}
-            </p>
-            <p className="wpsignal-message-counter">
-              { sprintf(
-                // translators: %s is the number of messages received since page load.
-                __( '%s messages received (this session)', 'wordsocket' ),
-                messageCount.toLocaleString()
-              ) }
             </p>
             {confirmDisconnect ? (
               <Flex align="center" gap={5} expanded={false} justify="start">
@@ -341,6 +350,7 @@ export function ConnectionTab() {
               <Button
                 variant="secondary"
                 isDestructive
+                isBusy={disconnecting || isConnecting}
                 onClick={() => setConfirmDisconnect(true)}
               >
                 {__("Disconnect", "wordsocket")}
@@ -352,9 +362,9 @@ export function ConnectionTab() {
       {wpVersion >= 7.0 ? (
         <div className="wpsignal-section">
           {!isConnecting &&
-            (isRTCEnabled ? (
+            (isRtcEnabled ? (
               <ToggleControl
-                disabled={!isRTCEnabled || isConnecting || !isConnected}
+                disabled={!isRtcEnabled || isConnecting || !isConnected}
                 label={
                   yjsProviderEnabled
                     ? __(
@@ -371,35 +381,53 @@ export function ConnectionTab() {
                           "wordsocket",
                         )
                 }
-                help={isConnected && __(
-                  "Registers WordSocket as the Yjs sync provider in the block editor. Disable this to fall back to WordPress HTTP polling if WebSocket connections are unavailable.",
-                  "wordsocket",
-                )}
+                help={
+                  isConnected &&
+                  __(
+                    "Registers WordSocket as the Yjs sync provider in the block editor. Disable this to fall back to WordPress HTTP polling if WebSocket connections are unavailable.",
+                    "wordsocket",
+                  )
+                }
                 checked={yjsProviderEnabled}
                 onChange={handleYjsProviderChange}
                 __nextHasNoMarginBottom
               />
             ) : (
               <Notice status="warning">
-                {createInterpolateElement(__(
-                  "Real-time collaboration is not enabled. Please enable it under <a>Settings > Writing</a>.",
-                  "wordsocket",
-                ), {
-                  a: <a href="/wp-admin/options-writing.php" target="_blank" rel="noopener noreferrer" />,
-                })}
+                {createInterpolateElement(
+                  __(
+                    "Real-time collaboration is not enabled. Please enable it under <a>Settings > Writing</a>.",
+                    "wordsocket",
+                  ),
+                  {
+                    a: (
+                      <a
+                        href="/wp-admin/options-writing.php"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      />
+                    ),
+                  },
+                )}
               </Notice>
             ))}
         </div>
       ) : (
-        <Notice status="warning">
-          {sprintf(
-            __(
-              "Real-time collaboration is not supported on WordPress %s. Please upgrade to WordPress 7.0 or later.",
-              "wordsocket",
-            ),
-            wpVersion.toString(),
+        <>
+          {wpVersion === 0 ? (
+            rtcLoadingComponent
+          ) : (
+            <Notice status="warning">
+              {sprintf(
+                __(
+                  "Real-time collaboration is not supported on WordPress %s. Please upgrade to WordPress 7.0 or later.",
+                  "wordsocket",
+                ),
+                wpVersion.toString(),
+              )}
+            </Notice>
           )}
-        </Notice>
+        </>
       )}
     </div>
   );

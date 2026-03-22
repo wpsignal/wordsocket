@@ -18,7 +18,7 @@ const TABS = [
 
 export function SettingsApp() {
 	return (
-		<TabPanel tabs={ TABS }>
+		<TabPanel className="wpsignal-settings-app" tabs={ TABS }>
 			{ ( tab ) => (
 				<div className="wpsignal-tab-content">
 					{ tab.name === 'connection' && <ConnectionTab /> }

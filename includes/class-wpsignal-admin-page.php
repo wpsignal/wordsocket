@@ -135,6 +135,13 @@ class Admin_Page {
 			$asset['version']
 		);
 
+		wp_enqueue_style(
+			'wpsignal-settings',
+			URL . 'build/settings-rtl.css',
+			array(),
+			$asset['version']
+		);
+
 		// Localize post types for the triggers dropdown.
 		$post_types = get_post_types( array( 'public' => true ), 'objects' );
 		$types_list = array();
@@ -161,7 +168,28 @@ class Admin_Page {
 
 		echo '<div class="wrap">';
 		echo '<h1>' . esc_html( get_admin_page_title() ) . '</h1>';
-		echo '<div class="card" style="max-width:100%;" id="wpsignal-settings-root"></div>';
+		echo '<div class="card" style="max-width:100%;" id="wpsignal-settings-root">';
+		$this->render_skeleton();
+		echo '</div>';
+	}
+
+	private function render_skeleton() {
+		echo '<div class="wpsignal-skeleton">';
+		echo   '<div class="wpsignal-skeleton__tabs">';
+		echo     '<div class="wpsignal-skeleton__tab wpsignal-skeleton__shimmer"></div>';
+		echo     '<div class="wpsignal-skeleton__tab wpsignal-skeleton__shimmer"></div>';
+		echo   '</div>';
+		echo   '<div class="wpsignal-skeleton__body">';
+		echo     '<div class="wpsignal-skeleton__notice wpsignal-skeleton__shimmer"></div>';
+		echo     '<div class="wpsignal-skeleton__line wpsignal-skeleton__shimmer"></div>';
+		echo     '<div class="wpsignal-skeleton__button wpsignal-skeleton__shimmer"></div>';
+		echo     '<hr class="wpsignal-skeleton__divider">';
+		echo     '<div class="wpsignal-skeleton__toggle-row">';
+		echo       '<div class="wpsignal-skeleton__toggle wpsignal-skeleton__shimmer"></div>';
+		echo       '<div class="wpsignal-skeleton__toggle-label wpsignal-skeleton__shimmer"></div>';
+		echo     '</div>';
+		echo     '<div class="wpsignal-skeleton__sub-line wpsignal-skeleton__shimmer"></div>';
+		echo   '</div>';
 		echo '</div>';
 	}
 

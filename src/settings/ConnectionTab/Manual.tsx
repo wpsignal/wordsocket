@@ -1,25 +1,39 @@
-import {Button} from "@wordpress/components";
-import { TextControl } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
+import { Button } from "@wordpress/components";
+import { TextControl } from "@wordpress/components";
+import { createInterpolateElement } from "@wordpress/element";
 
 export default function Manual({
   isConnecting,
   apiKey,
   setApiKey,
   handleConnect,
+  title,
 }: {
   isConnecting: boolean;
   apiKey: string;
   setApiKey: (apiKey: string) => void;
   handleConnect: () => void;
+  title: string;
 }) {
   return (
     <>
-      <h3>{__("Manual Connection", "wordsocket")}</h3>
+      <h3>{title}</h3>
       <p>
-        {__(
-          "Copy your API key from the WPSignal dashboard and paste it here.",
-          "wordsocket",
+        {createInterpolateElement(
+          __(
+            "Copy your API key from the <a>WPSignal dashboard</a> and paste it here.",
+            "wordsocket",
+          ),
+          {
+            a: (
+              <a
+                href="https://api.wpsignal.io/dashboard"
+                target="_blank"
+                rel="noopener noreferrer"
+              />
+            ),
+          },
         )}
       </p>
       <TextControl

@@ -45,6 +45,8 @@ class WPSignalClient implements WPSApi {
   // --- Decryption ---
   /** Cached import of the AES-256-GCM key; resolved once and reused for every message. */
   private cryptoKeyPromise: Promise<CryptoKey | null> | null = null;
+  /** True when SubtleCrypto is unavailable (HTTP context); suppresses per-message warnings. */
+  private noSubtleCrypto = false;
 
   constructor(config: WpSignalConfig) {
     this.config = config;
@@ -324,7 +326,7 @@ class WPSignalClient implements WPSApi {
                     msg.channel,
                     plain.data ?? {},
                   );
-                } else {
+                } else if (!this.noSubtleCrypto) {
                   wpsDebug(
                     "Could not decrypt message on channel",
                     msg.channel,
@@ -431,7 +433,7 @@ class WPSignalClient implements WPSApi {
           this.decryptMessage(data.p).then((plain) => {
             if (plain) {
               this.dispatchEvent(plain.event, "", plain.data ?? {});
-            } else {
+            } else if (!this.noSubtleCrypto) {
               wpsDebug("Could not decrypt SSE message", null, "error");
             }
           });
@@ -599,7 +601,15 @@ class WPSignalClient implements WPSApi {
   private getCryptoKey(): Promise<CryptoKey | null> {
     if (!this.cryptoKeyPromise) {
       const b64 = this.config.encryptionKey;
-      if (!b64 || typeof crypto === "undefined" || !crypto.subtle) {
+      if (!b64) {
+        this.cryptoKeyPromise = Promise.resolve(null);
+      } else if (typeof crypto === "undefined" || !crypto.subtle) {
+        this.noSubtleCrypto = true;
+        wpsDebug(
+          "SubtleCrypto unavailable",
+          "Encrypted messages cannot be decrypted on HTTP. Use HTTPS to enable decryption.",
+          "warn",
+        );
         this.cryptoKeyPromise = Promise.resolve(null);
       } else {
         const raw = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));

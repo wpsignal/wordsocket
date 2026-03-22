@@ -465,9 +465,7 @@ class Token
 			'site_key'          => $is_connected ? $this->config->site_key() : '',
 			'is_connected'      => $is_connected,
 			'yjs_provider_enabled' => $this->config->yjs_provider_enabled(),
-			'is_rtc_enabled'    => (bool) get_option('wp_enable_real_time_collaboration', false),
-			'wp_version'        => (float) wp_get_wp_version(),
-			'credential_source' => $this->config->credential_source(),
+			'credential_source' => $this->config->credential_source()
 		));
 	}
 
