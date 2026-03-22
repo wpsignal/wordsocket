@@ -131,6 +131,14 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 
 == Changelog ==
 
+= 0.9.0 =
+* Fix: non-ssl default to manual authentication
+
+
+= 0.8.0 =
+* Improved: Connections UI. Reduced connections from 2 to 1 on connections page.
+* Fix: option key change for RTC enabled.
+
 = 0.7.0 =
 * New: Automatic connection flow. Admins can connect via the WPSignal dashboard with a single click, without entering an API key. Uses a CSRF-protected OAuth-style code exchange.
 * New: Disconnect button in the Connection tab. Removes the site from the WPSignal server and clears all local credentials, with inline confirmation before proceeding.
@@ -183,6 +191,9 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 * Initial release.
 
 == Upgrade Notice ==
+
+= 0.9.0 =
+Fix: non-ssl default to manual authentication
 
 = 0.7.0 =
 Adds one-click automatic connection, a Disconnect button, and per-site JWT secrets. No configuration changes required for existing connections. To use the automatic flow on a new site, go to WordSocket > Settings > Connection > Automatic.

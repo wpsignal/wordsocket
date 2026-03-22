@@ -36,7 +36,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /** @var string Current plugin version. */
-const VERSION = '0.7.0';
+const VERSION = '0.9.0';
 
 /** @var string Absolute path to the plugin directory (with trailing slash). */
 const DIR = __DIR__ . '/';

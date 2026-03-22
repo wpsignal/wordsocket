@@ -2,6 +2,18 @@
 
 The official WordPress plugin for [WPSignal](https://wpsignal.io). Publish realtime events from PHP when content changes, subscribe in the browser — no polling, no infrastructure to manage.
 
+## Install:
+
+### Release:
+
+The easiest way is to download, and install, the latest version from [releases](https://github.com/wpsignal/wordsocket/releases).
+
+### WP CLI:
+
+```bash
+wp plugin install https://github.com/wpsignal/wordsocket/releases/download/v0.9.0/wordsocket.zip
+```
+
 ## Minimal example:
 
 ### Create a trigger:
@@ -15,7 +27,7 @@ WPS::trigger( 'comment.posted' )
     ->register();
 ```
 
-## Listen and act on trigger when it fires:
+### Listen and act on trigger when it fires:
 
 ```ts
 type Comment = {
@@ -31,7 +43,7 @@ document.addEventListener( 'wpsignal:comment.posted', (e: CustomEvent<Comment>) 
 
 Full documentation, API reference, and guides are at **[wpsignal.io/docs](https://wpsignal.io/docs/getting-started/)**.
 
-## Building from source
+### Building from source
 
 ```bash
 npm install
@@ -42,6 +54,9 @@ Source files are in `src/`. Compiled output lands in `build/`.
 
 ## Changelog
 
+**0.9.0** - Fix: non-ssl default to manual authentication.
+
+**0.8.0** - Fixes for, WordPress v7 beta 6, changes to option key for rtc.
 **0.7.0** — Automatic one-click connection, disconnect button, per-site JWT secrets.
 **0.6.0** — Yjs fixes for WP 7 beta 5.
 **0.5.0** — JWT channel filters, SSE subscribe/unsubscribe support.
