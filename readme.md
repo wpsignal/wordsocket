@@ -11,7 +11,7 @@ The easiest way is to download, and install, the latest version from [releases](
 ### WP CLI:
 
 ```bash
-wp plugin install https://github.com/wpsignal/wordsocket/releases/download/v0.11.0/wordsocket.zip
+wp plugin install https://github.com/wpsignal/wordsocket/releases/download/v0.12.0/wordsocket.zip
 ```
 
 ## Minimal example:
