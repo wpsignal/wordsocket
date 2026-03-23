@@ -11,7 +11,7 @@ The easiest way is to download, and install, the latest version from [releases](
 ### WP CLI:
 
 ```bash
-wp plugin install https://github.com/wpsignal/wordsocket/releases/download/v0.10.0/wordsocket.zip
+wp plugin install https://github.com/wpsignal/wordsocket/releases/download/v0.11.0/wordsocket.zip
 ```
 
 ## Minimal example:
@@ -53,6 +53,8 @@ npm run build
 Source files are in `src/`. Compiled output lands in `build/`.
 
 ## Changelog
+
+**0.11.0** - feat: skeleton preloader for app.feat: disable automatic authentication for non-ssl.fix: disable encryption when on non-ssl..
 
 **0.10.0**:
 feat: skeleton preloader for app.
