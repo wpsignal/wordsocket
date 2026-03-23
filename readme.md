@@ -54,14 +54,7 @@ Source files are in `src/`. Compiled output lands in `build/`.
 
 ## Changelog
 
-**0.12.0** - feat: skeleton preloader for app.feat: disable automatic authentication for non-ssl.fix: disable encryption when on non-ssl..
-
-**0.11.0** - feat: skeleton preloader for app.feat: disable automatic authentication for non-ssl.fix: disable encryption when on non-ssl..
-
-**0.10.0**:
-feat: skeleton preloader for app.
-feat: disable automatic authentication for non-ssl.
-fix: disable encryption when on non-ssl.
+**0.12.0** - feat: skeleton preloader for app.feat: disable automatic authentication for non-ssl.fix: disable encryption when on non-ssl.
 
 **0.9.0** - Fix: non-ssl default to manual authentication.
 
