@@ -84,8 +84,11 @@
         opacity: 0;
         animation: wps-fade-in 0.3s ease-in-out;
     }
-    
 }
+.wpsignal-progress-bar {
+    width: 100%;
+}
+
 @keyframes wps-fade-in {
     from {
         opacity: 0;

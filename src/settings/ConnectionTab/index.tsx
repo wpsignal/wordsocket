@@ -4,12 +4,12 @@ import {
   createInterpolateElement,
 } from "@wordpress/element";
 import {
-  ToggleControl,
-  Button,
   Flex,
+  Button,
   FlexItem,
   FlexBlock,
   ProgressBar,
+  ToggleControl,
 } from "@wordpress/components";
 import { Tabs } from "@wordpress/ui";
 import { __, sprintf } from "@wordpress/i18n";
