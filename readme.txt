@@ -3,7 +3,7 @@ Contributors: wpsignal
 Tags: realtime, websocket, push, events, collaboration
 Requires at least: 6.2
 Tested up to: 7.0
-Stable tag: 0.12.0
+Stable tag: 0.13.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -131,20 +131,15 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 
 == Changelog ==
 
+= 0.13.0 =
+* Exclude BETA.md from plugin build
+
+
 = 0.12.0 =
 * feat: skeleton preloader for app.feat: disable automatic authentication for non-ssl.fix: disable encryption when on non-ssl.
 
-= 0.11.0 =
-* feat: skeleton preloader for app.feat: disable automatic authentication for non-ssl.fix: disable encryption when on non-ssl.
-
-= 0.10.0 =
-* feat: skeleton preloader for app.
-* feat: disable automatic authentication option for non-ssl
-
-
 = 0.9.0 =
 * Fix: non-ssl default to manual authentication
-
 
 = 0.8.0 =
 * Improved: Connections UI. Reduced connections from 2 to 1 on connections page.
@@ -202,6 +197,9 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 * Initial release.
 
 == Upgrade Notice ==
+
+= 0.13.0 =
+Exclude BETA.md from plugin build
 
 = 0.12.0 =
 feat: skeleton preloader for app.feat: disable automatic authentication for non-ssl.fix: disable encryption when on non-ssl.
