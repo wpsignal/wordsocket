@@ -138,7 +138,6 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 = 0.13.1 =
 * Updated screenshots
 
-
 = 0.13.0 =
 * Exclude BETA.md from plugin build
 
