@@ -3,7 +3,7 @@
  * Plugin Name:       WordSocket
  * Plugin URI:        https://wpsignal.io/wordsocket
  * Description:       WordSocket is the official WordPress plugin for WPSignal (wpsignal.io).
- * Version:           0.13.0
+ * Version:           0.13.1
  * Author:            WPSignal
  * Author URI:        https://wpsignal.io
  * License:           GPL-2.0-or-later
@@ -36,7 +36,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /** @var string Current plugin version. */
-const VERSION = '0.13.0';
+const VERSION = '0.13.1';
 
 /** @var string Absolute path to the plugin directory (with trailing slash). */
 const DIR = __DIR__ . '/';

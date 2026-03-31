@@ -11,7 +11,7 @@ The easiest way is to download, and install, the latest version from [releases](
 ### WP CLI:
 
 ```bash
-wp plugin install https://github.com/wpsignal/wordsocket/releases/download/v0.13.0/wordsocket.zip
+wp plugin install https://github.com/wpsignal/wordsocket/releases/download/v0.13.1/wordsocket.zip
 ```
 
 ## Minimal example:
@@ -53,6 +53,8 @@ npm run build
 Source files are in `src/`. Compiled output lands in `build/`.
 
 ## Changelog
+
+**0.13.1** - Updated screenshots.
 
 **0.13.0** - Exclude BETA.md from plugin build.
 
