@@ -126,14 +126,17 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 
 == Screenshots ==
 
-1. Settings page: Automatic/Manual connection tabs, disconnect button, real-time collaboration toggle, and custom trigger management.
-2. Explorer page: live event log, publish form, and token inspector.
+1. Settings page (Connection tab): Automatic connection mode with a "Connect with WPSignal" button, and a toggle to register WordSocket as the Yjs sync provider for real-time collaboration.
+2. WPSignal dashboard authorization screen: one-click OAuth-style prompt to authorize a WordPress site and link it to your WPSignal account.
+3. Settings page (connected): active connection confirmed with site key, Disconnect button, and real-time collaboration toggle enabled.
+4. Settings page (Triggers tab): no-code trigger builder for Post Type and Option events, with channel and event name fields and a "Triggers saved" confirmation.
+5. Explorer page (top): connection status panel showing server URL, site key, and live health check result, plus the Registered Triggers table listing all active hooks, priorities, and channels.
+6. Explorer page (bottom): Live Event Log showing a live WebSocket connection and an incoming encrypted event, alongside the Publish Test Event form with channel, event name, and JSON data fields.
 
 == Changelog ==
 
 = 0.13.0 =
 * Exclude BETA.md from plugin build
-
 
 = 0.12.0 =
 * feat: skeleton preloader for app.feat: disable automatic authentication for non-ssl.fix: disable encryption when on non-ssl.

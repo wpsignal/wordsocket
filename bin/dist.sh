@@ -7,10 +7,10 @@
 #   dist/svn-assets/            Icons, banners, screenshots for SVN assets/
 #
 # SVN asset naming (WordPress.org convention):
-#   icon-128x128.png            from wpsignal-128x128.png  (or icon-128x128.png)
-#   icon-256x256.png            from wpsignal-256x256.png  (or icon-256x256.png)
-#   banner-772x250.jpg          from wpsignal-772x250.jpg  (or banner-772x250.jpg)
-#   banner-1544x500.jpg         from wpsignal-1544x500.jpg (or banner-1544x500.jpg)
+#   icon-128x128.png            from wordsocket-128x128.png  (or icon-128x128.png)
+#   icon-256x256.png            from wordsocket-256x256.png  (or icon-256x256.png)
+#   banner-772x250.jpg          from wordsocket-772x250.jpg  (or banner-772x250.jpg)
+#   banner-1544x500.jpg         from wordsocket-1544x500.jpg (or banner-1544x500.jpg)
 #   screenshot-1.png            unchanged
 #   screenshot-2.png            unchanged
 #
@@ -112,18 +112,20 @@ else
   # Map: source filename → WordPress.org canonical name (bash 3.2 compatible)
   # Format: "src_filename:dest_filename"
   ASSET_PAIRS=(
-    "wpsignal-128x128.png:icon-128x128.png"
-    "icon-128x128.png:icon-128x128.png"
-    "wpsignal-256x256.png:icon-256x256.png"
-    "icon-256x256.png:icon-256x256.png"
-    "wpsignal-772x250.jpg:banner-772x250.jpg"
-    "banner-772x250.jpg:banner-772x250.jpg"
-    "wpsignal-1544x500.jpg:banner-1544x500.jpg"
-    "banner-1544x500.jpg:banner-1544x500.jpg"
+    "wordsocket-128x128.gif:icon-128x128.gif"
+    "icon-128x128.gif:icon-128x128.gif"
+    "wordsocket-256x256.gif:icon-256x256.gif"
+    "icon-256x256.gif:icon-256x256.gif"
+    "wordsocket-772x250.png:banner-772x250.png"
+    "banner-772x250.png:banner-772x250.png"
+    "wordsocket-1544x500.png:banner-1544x500.png"
+    "banner-1544x500.png:banner-1544x500.png"
     "screenshot-1.png:screenshot-1.png"
     "screenshot-2.png:screenshot-2.png"
     "screenshot-3.png:screenshot-3.png"
     "screenshot-4.png:screenshot-4.png"
+    "screenshot-5.png:screenshot-5.png"
+    "screenshot-6.png:screenshot-6.png"
   )
 
   COPIED=0

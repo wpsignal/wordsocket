@@ -6,7 +6,8 @@
     "build": "wp-scripts build",
     "start": "wp-scripts start",
     "make-pot": "wp i18n make-pot . languages/wordsocket.pot --slug=wordsocket --domain=wordsocket --skip-js",
-    "dist": "bash bin/dist.sh"
+    "dist": "bash bin/dist.sh",
+    "svn": "bash bin/svn.sh"
   },
   "devDependencies": {
     "@wordpress/scripts": "^30.0.0"
