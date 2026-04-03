@@ -65,8 +65,9 @@ ok "Prerequisites met (zip exists, SVN dir found, tag is new)"
 echo ""
 bold "Syncing trunk"
 
-info "Clearing trunk/"
-rm -rf "$SVN_DIR/trunk"
+info "Clearing trunk/ contents"
+# Delete contents but keep the directory — SVN tracks the directory itself
+find "$SVN_DIR/trunk" -mindepth 1 -delete
 mkdir -p "$SVN_DIR/trunk"
 
 info "Unzipping dist/${PLUGIN_SLUG}.zip into trunk/"
@@ -101,23 +102,16 @@ echo ""
 bold "Staging SVN changes"
 cd "$SVN_DIR"
 
-# Add untracked files
-NEW_FILES="$(svn status | grep '^?' | awk '{print $2}')"
-if [[ -n "$NEW_FILES" ]]; then
-  echo "$NEW_FILES" | xargs svn add
-  ok "New files added"
-else
-  info "No new files to add"
-fi
+# Add all new/unversioned files recursively
+svn add --force trunk/ assets/ --no-ignore 2>/dev/null || true
+ok "New files staged"
 
-# Remove files deleted from disk
-DELETED_FILES="$(svn status | grep '^!' | awk '{print $2}')"
-if [[ -n "$DELETED_FILES" ]]; then
-  echo "$DELETED_FILES" | xargs svn delete
-  ok "Deleted files removed"
-else
-  info "No deleted files to remove"
-fi
+# Remove files that have been deleted from disk
+# Use || true so grep exit-1 (no matches) doesn't kill the script
+while IFS= read -r f; do
+  [[ -n "$f" ]] && svn delete "$f"
+done < <(svn status | grep '^!' | awk '{print $2}' || true)
+ok "Deleted files removed"
 
 # ── 5. Commit ─────────────────────────────────────────────────────────────────
 echo ""
