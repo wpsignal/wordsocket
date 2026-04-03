@@ -22,7 +22,7 @@ WPSignal is an independent service and is not affiliated with or endorsed by the
 **Features:**
 
 * One-click automatic connection via the WPSignal dashboard (no API key required)
-* Manual connection via API key for self-hosted or advanced setups
+* Manual connection via API key for advanced setups
 * Disconnect button with inline confirmation, removes the site from the server immediately
 * WebSocket-first with automatic SSE fallback
 * Per-site JWT signing secrets: each site's connection tokens are cryptographically isolated
@@ -46,7 +46,7 @@ WPSignal is an independent service and is not affiliated with or endorsed by the
 
 = Third-Party Service =
 
-This plugin connects to the **WPSignal service** at [api.wpsignal.io](https://api.wpsignal.io) for the following operations:
+This plugin connects to the **WPSignal service** at api.wpsignal.io for the following operations:
 
 * **Site registration**: when you connect in the admin (via the automatic one-click flow or by entering an API key manually), the plugin registers your site with the server and receives credentials.
 * **Event publishing**: when a trigger fires (e.g. a post is saved), the plugin sends an encrypted, HMAC-signed HTTP request to the server.
@@ -98,7 +98,7 @@ WPSignal is a realtime event delivery service for WordPress. It pushes events fr
 
 = Do I need a wpsignal.io account? =
 
-Yes. The plugin requires a WPSignal server to relay events. You can use the hosted service at wpsignal.io (free account available) or run your own server.
+Yes. The plugin requires a WPSignal account to relay events. Create a free account at wpsignal.io.
 
 = What data is sent to the WPSignal server? =
 
@@ -107,10 +107,6 @@ During registration: your site URL and name. During normal operation: AES-256-GC
 = Are my event payloads private? =
 
 Event payloads are encrypted with AES-256-GCM before leaving WordPress. The encryption key is derived from your WordPress salts and site key using HKDF-SHA256, and is never sent to the WPSignal server. This means the relay cannot read your message content. Note: all logged-in users on the same site share the same derived key. Per-user message privacy is out of scope for the current version.
-
-= Can I use this with a self-hosted server? =
-
-Yes. Enter your server URL in **WordSocket > Settings** instead of the default `api.wpsignal.io`.
 
 = Does this work for logged-out visitors? =
 
