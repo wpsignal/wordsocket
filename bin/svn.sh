@@ -118,7 +118,7 @@ echo ""
 bold "Committing to WordPress.org SVN"
 info "This may take a moment..."
 
-svn commit "${SVN_USER_FLAG[@]}" -m "Release version $VERSION"
+svn commit ${SVN_USER_FLAG[@]+"${SVN_USER_FLAG[@]}"} -m "Release version $VERSION"
 
 echo ""
 bold "Done"

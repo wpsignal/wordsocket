@@ -2,14 +2,6 @@
 /**
  * WPSignal namespace autoloader.
  *
- * Registers an SPL autoloader that maps WPSignal\ namespace classes to file
- * paths using the WordPress naming convention:
- *
- *   Class                       → File
- *   WPSignal\WPS                → class-wps.php
- *   WPSignal\Config             → class-wpsignal-config.php
- *   WPSignal\Trigger_Registry   → class-wpsignal-trigger-registry.php
- *
  * All class files live in the `includes/` directory. Only classes in the
  * WPSignal namespace are handled: all others are ignored so this autoloader
  * can coexist with Composer or other autoloaders.
