@@ -5,22 +5,34 @@
  * Renders a full-page admin view at WordSocket > Explorer with a panel for
  * testing and plugin core features.
  *
+ * @TODO: delete, this will be replaced by wordpress/element app in the future.
+ *
  * @package WordSocket
  */
 
- namespace WPSignal;
+namespace WPSignal;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Interactive admin demo page.
+ */
 class Explorer_Page {
 
-	/** @var Config Configuration accessor. */
+	/**
+	 * Configuration accessor.
+	 *
+	 * @var Config
+	 */
 	private $config;
 
 	/**
+	 * Constructor.
+	 *
 	 * @param Config $config Configuration accessor.
+	 * @return void
 	 */
 	public function __construct( Config $config ) {
 		$this->config = $config;
@@ -30,7 +42,6 @@ class Explorer_Page {
 	 * Render the Explorer admin page.
 	 *
 	 * Called as the callback for the "Explorer" submenu page.
-	 * Requires `manage_options` capability.
 	 *
 	 * @return void
 	 */
@@ -41,7 +52,9 @@ class Explorer_Page {
 
 		$this->enqueue_assets();
 
-		$triggers = WPS::instance()->trigger_registry()->all();
+		$triggers = WPS::instance()
+			->trigger_registry()
+			->all();
 
 		?>
 		<div class="wrap">
@@ -65,7 +78,10 @@ class Explorer_Page {
 	 */
 	private function enqueue_assets() {
 		$asset_file = DIR . 'build/explorer.asset.php';
-		$asset      = file_exists( $asset_file ) ? require $asset_file : array( 'dependencies' => array(), 'version' => VERSION );
+		$asset      = file_exists( $asset_file ) ? require $asset_file : array(
+			'dependencies' => array(),
+			'version'      => VERSION,
+		);
 
 		wp_enqueue_script(
 			'wpsignal-explorer',
@@ -75,15 +91,19 @@ class Explorer_Page {
 			true
 		);
 
-		wp_localize_script( 'wpsignal-explorer', 'wpSignalExplorer', array(
-			'baseUrl'    => esc_url( $this->config->base_url() ),
-			'siteKey'    => $this->config->site_key(),
-			'restUrl'    => rest_url( 'wpsignal/v1/' ),
-			'tokenUrl'   => rest_url( 'wpsignal/v1/token' ),
-			'publishUrl' => rest_url( 'wpsignal/v1/publish' ),
-			'nonce'      => wp_create_nonce( 'wp_rest' ),
-			'configured' => $this->config->is_configured(),
-		) );
+		wp_localize_script(
+			'wpsignal-explorer',
+			'wpSignalExplorer',
+			array(
+				'baseUrl'    => esc_url( $this->config->base_url() ),
+				'siteKey'    => $this->config->site_key(),
+				'restUrl'    => rest_url( 'wpsignal/v1/' ),
+				'tokenUrl'   => rest_url( 'wpsignal/v1/token' ),
+				'publishUrl' => rest_url( 'wpsignal/v1/publish' ),
+				'nonce'      => wp_create_nonce( 'wp_rest' ),
+				'configured' => $this->config->is_configured(),
+			)
+		);
 	}
 
 	/**

@@ -17,9 +17,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Triggers REST API.
+ */
 class Triggers_REST {
 
-	/** @var string wp_options key for saved trigger configs. */
+	/**
+	 * The `wp_options` key for saved trigger configs.
+	 *
+	 * @var string
+	 */
 	const OPTION_KEY = 'wpsignal_custom_triggers';
 
 	/**
@@ -30,31 +37,34 @@ class Triggers_REST {
 	 * @return void
 	 */
 	public function register_routes() {
-		register_rest_route( 'wpsignal/v1', '/triggers', array(
+		register_rest_route(
+			'wpsignal/v1',
+			'/triggers',
 			array(
-				'methods'             => 'GET',
-				'callback'            => array( $this, 'get_triggers' ),
-				'permission_callback' => function () {
-					return current_user_can( 'manage_options' );
-				},
-			),
-			array(
-				'methods'             => 'POST',
-				'callback'            => array( $this, 'save_triggers' ),
-				'permission_callback' => function () {
-					return current_user_can( 'manage_options' );
-				},
-			),
-		) );
+				array(
+					'methods'             => 'GET',
+					'callback'            => array( $this, 'get_triggers' ),
+					'permission_callback' => function () {
+						return current_user_can( 'manage_options' );
+					},
+				),
+				array(
+					'methods'             => 'POST',
+					'callback'            => array( $this, 'save_triggers' ),
+					'permission_callback' => function () {
+						return current_user_can( 'manage_options' );
+					},
+				),
+			)
+		);
 	}
 
 	/**
 	 * Return saved trigger configs.
 	 *
-	 * @param WP_REST_Request $request The incoming request.
 	 * @return WP_REST_Response
 	 */
-	public function get_triggers( WP_REST_Request $request ) {
+	public function get_triggers() {
 		$triggers = get_option( self::OPTION_KEY, array() );
 
 		return rest_ensure_response( array( 'triggers' => $triggers ) );
@@ -111,9 +121,11 @@ class Triggers_REST {
 
 		update_option( self::OPTION_KEY, $sanitized );
 
-		return rest_ensure_response( array(
-			'triggers' => $sanitized,
-			'message'  => __( 'Triggers saved.', 'wordsocket' ),
-		) );
+		return rest_ensure_response(
+			array(
+				'triggers' => $sanitized,
+				'message'  => __( 'Triggers saved.', 'wordsocket' ),
+			)
+		);
 	}
 }

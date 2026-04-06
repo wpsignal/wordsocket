@@ -25,25 +25,43 @@
  * @package WordSocket
  */
 
- namespace WPSignal;
+namespace WPSignal;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Trigger registry.
+ */
 class Trigger_Registry {
 
-	/** @var Publisher Event publisher for dispatching events. */
+	/**
+	 * Event publisher for dispatching events.
+	 *
+	 * @var Publisher
+	 */
 	private $publisher;
 
-	/** @var Trigger[] All registered triggers. */
+	/**
+	 * All registered triggers.
+	 *
+	 * @var Trigger[]
+	 */
 	private $triggers = array();
 
-	/** @var string[] Post types with custom triggers: excluded from the built-in default. */
+	/**
+	 * Post types with custom triggers: excluded from the built-in default.
+	 *
+	 * @var string[]
+	 */
 	private $excluded_default_post_types = array();
 
 	/**
+	 * Constructor.
+	 *
 	 * @param Publisher $publisher Event publisher instance.
+	 * @return void
 	 */
 	public function __construct( Publisher $publisher ) {
 		$this->publisher = $publisher;
@@ -51,11 +69,6 @@ class Trigger_Registry {
 
 	/**
 	 * Add a trigger and wire its WordPress action hook.
-	 *
-	 * When the trigger's hook fires, this evaluates the condition callback
-	 * (if any), builds the data payload, and publishes the event. If the
-	 * trigger has no hook set (e.g. for manual-only triggers), it is stored
-	 * but no action is wired.
 	 *
 	 * @param Trigger $trigger A configured trigger builder instance.
 	 * @return void
@@ -123,29 +136,33 @@ class Trigger_Registry {
 		$trigger
 			->on( 'save_post', 20, 3 )
 			->channel( 'events' )
-			->data( function ( $post_id, $post, $update ) {
-				return array(
-					'post_id'    => $post_id,
-					'post_type'  => $post->post_type,
-					'post_title' => $post->post_title,
-					'permalink'  => get_permalink( $post_id ),
-					'excerpt'    => get_the_excerpt( $post ),
-					'updated'    => $update,
-				);
-			} )
-			->when( function ( $post_id, $post ) use ( $registry ) {
-				if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
-					return false;
+			->data(
+				function ( $post_id, $post, $update ) {
+					return array(
+						'post_id'    => $post_id,
+						'post_type'  => $post->post_type,
+						'post_title' => $post->post_title,
+						'permalink'  => get_permalink( $post_id ),
+						'excerpt'    => get_the_excerpt( $post ),
+						'updated'    => $update,
+					);
 				}
-				if ( wp_is_post_revision( $post_id ) ) {
-					return false;
+			)
+			->when(
+				function ( $post_id, $post ) use ( $registry ) {
+					if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+							return false;
+					}
+					if ( wp_is_post_revision( $post_id ) ) {
+						return false;
+					}
+					// Skip post types handled by a custom trigger.
+					if ( in_array( $post->post_type, $registry->get_excluded_default_post_types(), true ) ) {
+						return false;
+					}
+					return 'publish' === $post->post_status;
 				}
-				// Skip post types handled by a custom trigger.
-				if ( in_array( $post->post_type, $registry->get_excluded_default_post_types(), true ) ) {
-					return false;
-				}
-				return 'publish' === $post->post_status;
-			} );
+			);
 
 		$this->add( $trigger );
 	}

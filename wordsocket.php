@@ -41,16 +41,14 @@ const VERSION = '0.13.2';
 /** @var string Absolute path to the plugin directory (with trailing slash). */
 const DIR = __DIR__ . '/';
 
+/** @var string Encryption key version. */
+const ENCRYPTION_KEY_VERSION = 'wpsignal-v1';
+
 /** @var string URL to the plugin directory (with trailing slash). */
 define( 'WPSignal\URL', plugin_dir_url( __FILE__ ) );
 
 // Autoloader for WPSignal\ namespace classes.
 require_once DIR . 'includes/autoload.php';
-
-// Backward-compatibility function wrappers.
-require_once DIR . 'includes/publish.php';
-require_once DIR . 'includes/rest.php';
-require_once DIR . 'includes/admin.php';
 
 // Boot the plugin.
 WPS::instance()->boot();

@@ -5,42 +5,39 @@
  * Sends events to the WPSignal server via HTTP POST with HMAC-SHA256
  * authentication. The signature scheme matches the server's verification:
  *
- *   signature = HMAC-SHA256( json_body + "." + timestamp_ms, site_secret )
+ * signature = HMAC-SHA256( json_body + "." + timestamp_ms, site_secret )
  *
  * Headers sent:
- *   - X-WP-Signal-Key : site key (public identifier)
- *   - X-WP-Signal-Ts  : millisecond timestamp
- *   - X-WP-Signal-Sign: hex-encoded HMAC signature
- *
- * Usage via the static facade:
- *
- *     WPS::publish( 'events', 'post.updated', [ 'post_id' => 42 ] );
- *
- * Usage via the instance:
- *
- *     $publisher = WPS::instance()->publisher();
- *     $result    = $publisher->publish( 'events', 'custom.event', $data );
- *
- *     if ( is_wp_error( $result ) ) {
- *         // Handle error.
- *     }
+ * - X-WP-Signal-Key : site key (public identifier)
+ * - X-WP-Signal-Ts  : millisecond timestamp
+ * - X-WP-Signal-Sign: hex-encoded HMAC signature
  *
  * @package WordSocket
  */
 
- namespace WPSignal;
+namespace WPSignal;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * HMAC-signed event publishing.
+ */
 class Publisher {
 
-	/** @var Config */
+	/**
+	 * Configuration accessor.
+	 *
+	 * @var Config
+	 */
 	private $config;
 
 	/**
+	 * Constructor.
+	 *
 	 * @param Config $config Configuration accessor.
+	 * @return void
 	 */
 	public function __construct( Config $config ) {
 		$this->config = $config;
@@ -49,12 +46,8 @@ class Publisher {
 	/**
 	 * Check whether the site is currently throttled by a server-side quota limit.
 	 *
-	 * The server stores a Unix timestamp in wp_options (wpsignal_limits) when it
-	 * returns 429 with a quota_exceeded error. This prevents repeated outbound
-	 * HTTP requests during a period when the server will reject them anyway.
-	 *
-	 * Not cryptographically enforced: a site admin can clear the option to retry
-	 * immediately. It is a performance/politeness measure, not a hard gate.
+	 * Not enforced: the option can be cleared to retry immediately.
+	 * It is a performance measure, not a hard gate.
 	 *
 	 * @return bool True if the site is currently throttled (messages_until is in the future).
 	 */
@@ -76,18 +69,14 @@ class Publisher {
 			return;
 		}
 		// Throttle until the end of the current calendar month (UTC).
-		$end_of_month = mktime( 23, 59, 59, (int) gmdate( 'n' ) + 1, 0, (int) gmdate( 'Y' ) );
-		$limits       = get_option( 'wpsignal_limits', array() );
+		$end_of_month             = mktime( 23, 59, 59, (int) gmdate( 'n' ) + 1, 0, (int) gmdate( 'Y' ) );
+		$limits                   = get_option( 'wpsignal_limits', array() );
 		$limits['messages_until'] = $end_of_month;
 		update_option( 'wpsignal_limits', $limits, false );
 	}
 
 	/**
 	 * Publish an event to the WPSignal server.
-	 *
-	 * Builds a JSON payload, signs it with the site secret, and POSTs it
-	 * to {base_url}/publish. The server normalizes the channel name and
-	 * fans out the event to all subscribed connections.
 	 *
 	 * @usage: publish an event:
 	 * ```php
@@ -111,25 +100,37 @@ class Publisher {
 			return new \WP_Error( 'wpsignal_quota_exceeded', __( 'Monthly message quota reached.', 'wordsocket' ), array( 'status' => 429 ) );
 		}
 
-		// Encrypt the event name and data so the relay only ever sees ciphertext.
-		// Skip encryption on HTTP: SubtleCrypto is unavailable in non-secure browser
-		// contexts, so encrypted messages would arrive but could never be decrypted.
-		// Falls back to plaintext if the key cannot be derived (e.g. not yet registered).
-		$plaintext = wp_json_encode( array( 'event' => $event, 'data' => $data ) );
+		/**
+		 * Encrypt the event name and data so the relay only ever sees ciphertext.
+		 * Skip encryption on HTTP: SubtleCrypto is not available in non-secure browsers.
+		 */
+		$plaintext = wp_json_encode(
+			array(
+				'event' => $event,
+				'data'  => $data,
+			)
+		);
 		$encrypted = is_ssl() ? $this->encrypt( $plaintext ) : false;
 
 		if ( false !== $encrypted ) {
-			$body = wp_json_encode( array(
-				'channel' => $channel,
-				'event'   => 'encrypted',
-				'data'    => array( 'v' => 1, 'p' => $encrypted ),
-			) );
+			$body = wp_json_encode(
+				array(
+					'channel' => $channel,
+					'event'   => 'encrypted',
+					'data'    => array(
+						'v' => 1,
+						'p' => $encrypted,
+					),
+				)
+			);
 		} else {
-			$body = wp_json_encode( array(
-				'channel' => $channel,
-				'event'   => $event,
-				'data'    => $data,
-			) );
+			$body = wp_json_encode(
+				array(
+					'channel' => $channel,
+					'event'   => $event,
+					'data'    => $data,
+				)
+			);
 		}
 
 		$timestamp_ms = (string) round( microtime( true ) * 1000 );
@@ -139,16 +140,19 @@ class Publisher {
 
 		$is_dev = defined( 'WP_ENVIRONMENT_TYPE' ) && in_array( WP_ENVIRONMENT_TYPE, array( 'development', 'local', 'staging' ), true );
 
-		$response = wp_remote_post( $url, array(
-			'timeout' => 2,
-			'headers' => array(
-				'Content-Type'     => 'application/json',
-				'X-WP-Signal-Key'  => $this->config->site_key(),
-				'X-WP-Signal-Ts'   => $timestamp_ms,
-				'X-WP-Signal-Sign' => $signature,
-			),
-			'body' => $body,
-		) );
+		$response = wp_remote_post(
+			$url,
+			array(
+				'timeout' => 2,
+				'headers' => array(
+					'Content-Type'     => 'application/json',
+					'X-WP-Signal-Key'  => $this->config->site_key(),
+					'X-WP-Signal-Ts'   => $timestamp_ms,
+					'X-WP-Signal-Sign' => $signature,
+				),
+				'body'    => $body,
+			)
+		);
 
 		if ( is_wp_error( $response ) ) {
 			if ( $is_dev ) {
@@ -169,7 +173,8 @@ class Publisher {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log( sprintf( '[WPSignal] Publish HTTP %d: %s', $code, $message ) );
 			}
-			// On quota 429, store the throttle timestamp to skip future requests this month.
+			// On quota 429, store the throttle timestamp to skip future requests for the current month.
+			// @TODO: this is not fool proof, eventually users usage start & end will be different.
 			if ( 429 === $code && is_array( $error_data ) && isset( $error_data['error'] ) ) {
 				$this->store_limit( $error_data['error'] );
 			}
@@ -192,12 +197,6 @@ class Publisher {
 
 	/**
 	 * Encrypt a plaintext string using AES-256-GCM.
-	 *
-	 * Encoded format: base64( IV[12] || ciphertext[N] || tag[16] )
-	 *
-	 * The IV is randomly generated per message. The client (client.ts) decodes
-	 * this format with SubtleCrypto, slicing the first 12 bytes as IV and
-	 * treating the remainder as ciphertext+tag (which SubtleCrypto expects).
 	 *
 	 * @param string $plaintext Data to encrypt.
 	 * @return string|false Base64-encoded payload, or false if key is unavailable

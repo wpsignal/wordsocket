@@ -50,33 +50,64 @@
  * @package WordSocket
  */
 
- namespace WPSignal;
+namespace WPSignal;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Trigger builder.
+ */
 class Trigger {
 
-	/** @var string Event name (e.g. "post.updated"). Sent as the event field in the publish payload. */
+	/**
+	 * Event name (e.g. "post.updated"). Sent as the event field in the publish payload.
+	 *
+	 * @var string
+	 */
 	private $event;
 
-	/** @var string WordPress action hook name (e.g. "save_post"). */
+	/**
+	 * WordPress action hook name (e.g. "save_post").
+	 *
+	 * @var string
+	 */
 	private $hook;
 
-	/** @var int Hook priority. Default 10. */
+	/**
+	 * Hook priority. Default 10.
+	 *
+	 * @var int
+	 */
 	private $priority = 10;
 
-	/** @var int Number of arguments the hook callback accepts. Default 1. */
+	/**
+	 * Number of arguments the hook callback accepts. Default 1.
+	 *
+	 * @var int
+	 */
 	private $accepted_args = 1;
 
-	/** @var string Channel name to publish on. Default "events". */
+	/**
+	 * Channel name to publish on. Default "events".
+	 *
+	 * @var string
+	 */
 	private $channel_name = 'events';
 
-	/** @var callable|null Callback that builds the event data payload. */
+	/**
+	 * Callback that builds the event data payload.
+	 *
+	 * @var callable|null
+	 */
 	private $data_callback;
 
-	/** @var callable|null Callback that returns false to skip publishing. */
+	/**
+	 * Callback that returns false to skip publishing.
+	 *
+	 * @var callable|null
+	 */
 	private $when_callback;
 
 	/**
@@ -193,10 +224,10 @@ class Trigger {
 	 * @return void
 	 */
 	public function register() {
-		WPS::instance()->trigger_registry()->add( $this );
+		WPS::instance()
+			->trigger_registry()
+			->add( $this );
 	}
-
-	// -- Accessors (used by Trigger_Registry) ----------------------
 
 	/**
 	 * Get the event name.
@@ -211,7 +242,6 @@ class Trigger {
 	 * Get the WordPress hook name.
 	 *
 	 * @return string|null Hook name, or null if not set.
-	 * 
 	 */
 	public function get_hook() {
 		return $this->hook;
@@ -256,8 +286,6 @@ class Trigger {
 	/**
 	 * Evaluate the condition callback against the hook arguments.
 	 *
-	 * Returns true if no condition is set (trigger always fires).
-	 *
 	 * @param array $args Hook arguments passed by WordPress.
 	 * @return bool True if the trigger should fire, false to skip.
 	 */
@@ -270,8 +298,6 @@ class Trigger {
 
 	/**
 	 * Build the event data payload from the hook arguments.
-	 *
-	 * Returns an empty array if no data callback is set.
 	 *
 	 * @param array $args Hook arguments passed by WordPress.
 	 * @return array Data payload to include in the published event.

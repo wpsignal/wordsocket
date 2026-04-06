@@ -2,32 +2,42 @@
 /**
  * WPSignal\Admin_Page - WordPress admin settings page and menu registration.
  *
- * Registers a top-level "WordSocket" admin menu with two subpages:
- *   - Settings: React SPA with Connection and Triggers tabs.
- *   - Explorer: interactive debug/test page (delegated to Explorer_Page).
- *
  * @package WordSocket
  */
 
- namespace WPSignal;
+namespace WPSignal;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Admin page for the WordSocket plugin.
+ */
 class Admin_Page {
 
-	/** @var Config Configuration accessor. */
+	/**
+	 * Configuration accessor.
+	 *
+	 * @var Config
+	 */
 	private $config;
 
-	/** @var Explorer_Page Explorer subpage handler. */
+	/**
+	 * Explorer subpage handler.
+	 *
+	 * @var Explorer_Page
+	 */
 	private $explorer;
 
 	/**
+	 * Constructor.
+	 *
 	 * @param Config $config Configuration accessor.
+	 * @return void
 	 */
 	public function __construct( Config $config ) {
-		$this->config  = $config;
+		$this->config   = $config;
 		$this->explorer = new Explorer_Page( $config );
 	}
 
@@ -44,11 +54,6 @@ class Admin_Page {
 
 	/**
 	 * Register the top-level WordSocket menu and subpages.
-	 *
-	 * Creates:
-	 *   - WordSocket (top-level, custom SVG icon)
-	 *     - Settings (React app: Connection tab + Triggers tab)
-	 *     - Explorer (interactive publish/subscribe debug page)
 	 *
 	 * @return void
 	 */
@@ -83,10 +88,8 @@ class Admin_Page {
 	}
 
 	/**
-	 * Menu icon for the top-level WordSocket item.
-	 *
-	 * Returns the URL to the plugin SVG icon. Alternatively you can return a
-	 * data URI: 'data:image/svg+xml;base64,' . base64_encode( $svg_markup )
+	 * Menu icon for the top-level WordSocket item. Fill using `#f3f1f1` this is the font color used for
+	 * default dashicons.
 	 *
 	 * @return string
 	 */
@@ -98,18 +101,6 @@ class Admin_Page {
 	/**
 	 * Render the Settings page: mounts the React settings app.
 	 *
-	 * Enqueues build/settings.js + build/settings.css and localizes the
-	 * following configuration data as `window.wpsignalSettings`:
-	 *
-	 *   connectUrl    : REST URL for manual API key registration (POST /wpsignal/v1/connect).
-	 *   oauthStartUrl : Nonce-protected admin-post URL to start the automatic connect flow.
-	 *   restUrl       : Base REST URL for the wpsignal/v1 namespace.
-	 *   nonce         : wp_rest nonce for authenticated REST requests.
-	 *   postTypes     : Array of public post type objects (value, label) for trigger dropdowns.
-	 *   baseUrl       : WPSignal server base URL.
-	 *   apiKey        : Stored API key (manual flow only; empty for automatic connections).
-	 *   siteKey       : Stored site key (set after either connection flow completes).
-	 *
 	 * @return void
 	 */
 	public function render_settings_page() {
@@ -118,7 +109,10 @@ class Admin_Page {
 		}
 
 		$asset_file = DIR . 'build/settings.asset.php';
-		$asset      = file_exists( $asset_file ) ? require $asset_file : array( 'dependencies' => array(), 'version' => VERSION );
+		$asset      = file_exists( $asset_file ) ? require $asset_file : array(
+			'dependencies' => array(),
+			'version'      => VERSION,
+		);
 
 		wp_enqueue_script(
 			'wpsignal-settings',
@@ -152,19 +146,23 @@ class Admin_Page {
 			);
 		}
 
-		wp_localize_script( 'wpsignal-settings', 'wpsignalSettings', array(
-			'connectUrl'    => rest_url( 'wpsignal/v1/connect' ),
-			'oauthStartUrl' => wp_nonce_url(
-				admin_url( 'admin-post.php?action=wpsignal_oauth_start' ),
-				'wpsignal_oauth_start'
-			),
-			'restUrl'       => rest_url( 'wpsignal/v1/' ),
-			'nonce'         => wp_create_nonce( 'wp_rest' ),
-			'postTypes'     => $types_list,
-			'baseUrl'       => $this->config->base_url(),
-			'apiKey'        => $this->config->api_key(),
-			'siteKey'       => $this->config->site_key(),
-		) );
+		wp_localize_script(
+			'wpsignal-settings',
+			'wpsignalSettings',
+			array(
+				'connectUrl'    => rest_url( 'wpsignal/v1/connect' ),
+				'oauthStartUrl' => wp_nonce_url(
+					admin_url( 'admin-post.php?action=wpsignal_oauth_start' ),
+					'wpsignal_oauth_start'
+				),
+				'restUrl'       => rest_url( 'wpsignal/v1/' ),
+				'nonce'         => wp_create_nonce( 'wp_rest' ),
+				'postTypes'     => $types_list,
+				'baseUrl'       => $this->config->base_url(),
+				'apiKey'        => $this->config->api_key(),
+				'siteKey'       => $this->config->site_key(),
+			)
+		);
 
 		echo '<div class="wrap">';
 		echo '<h1>' . esc_html( get_admin_page_title() ) . '</h1>';
@@ -173,24 +171,30 @@ class Admin_Page {
 		echo '</div>';
 	}
 
+	/**
+	 * Server-side skeleton for the settings page.
+	 *
+	 * This is used to show a loading state while the React app is loading.
+	 *
+	 * @return void
+	 */
 	private function render_skeleton() {
 		echo '<div class="wpsignal-skeleton">';
-		echo   '<div class="wpsignal-skeleton__tabs">';
-		echo     '<div class="wpsignal-skeleton__tab wpsignal-skeleton__shimmer"></div>';
-		echo     '<div class="wpsignal-skeleton__tab wpsignal-skeleton__shimmer"></div>';
-		echo   '</div>';
-		echo   '<div class="wpsignal-skeleton__body">';
-		echo     '<div class="wpsignal-skeleton__notice wpsignal-skeleton__shimmer"></div>';
-		echo     '<div class="wpsignal-skeleton__line wpsignal-skeleton__shimmer"></div>';
-		echo     '<div class="wpsignal-skeleton__button wpsignal-skeleton__shimmer"></div>';
-		echo     '<hr class="wpsignal-skeleton__divider">';
-		echo     '<div class="wpsignal-skeleton__toggle-row">';
-		echo       '<div class="wpsignal-skeleton__toggle wpsignal-skeleton__shimmer"></div>';
-		echo       '<div class="wpsignal-skeleton__toggle-label wpsignal-skeleton__shimmer"></div>';
-		echo     '</div>';
-		echo     '<div class="wpsignal-skeleton__sub-line wpsignal-skeleton__shimmer"></div>';
-		echo   '</div>';
+		echo '<div class="wpsignal-skeleton__tabs">';
+		echo '<div class="wpsignal-skeleton__tab wpsignal-skeleton__shimmer"></div>';
+		echo '<div class="wpsignal-skeleton__tab wpsignal-skeleton__shimmer"></div>';
+		echo '</div>';
+		echo '<div class="wpsignal-skeleton__body">';
+		echo '<div class="wpsignal-skeleton__notice wpsignal-skeleton__shimmer"></div>';
+		echo '<div class="wpsignal-skeleton__line wpsignal-skeleton__shimmer"></div>';
+		echo '<div class="wpsignal-skeleton__button wpsignal-skeleton__shimmer"></div>';
+		echo '<hr class="wpsignal-skeleton__divider">';
+		echo '<div class="wpsignal-skeleton__toggle-row">';
+		echo '<div class="wpsignal-skeleton__toggle wpsignal-skeleton__shimmer"></div>';
+		echo '<div class="wpsignal-skeleton__toggle-label wpsignal-skeleton__shimmer"></div>';
+		echo '</div>';
+		echo '<div class="wpsignal-skeleton__sub-line wpsignal-skeleton__shimmer"></div>';
+		echo '</div>';
 		echo '</div>';
 	}
-
 }

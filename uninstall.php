@@ -1,6 +1,6 @@
 <?php
 /**
- * WordSocket uninstall handler.
+ * WordSocket uninstall action callback.
  *
  * Fired when the plugin is deleted via the WordPress admin.
  * Removes all plugin options from the database.
