@@ -41,7 +41,7 @@ document.addEventListener( 'wpsignal:comment.posted', (e: CustomEvent<Comment>) 
 
 ## Documentation
 
-Full documentation, API reference, and guides are at **[wpsignal.io/docs](https://wpsignal.io/docs/getting-started/)**.
+Full documentation, API reference, and guides are at <a href="https://wpsignal.io/docs" target="_blank">wpsignal.io/docs</a>.
 
 ### Building from source
 
