@@ -1,0 +1,21 @@
+{
+    "name": "wpsignal/wordsocket",
+    "description": "Official WordPress plugin for WPSignal.",
+    "type": "composer-plugin",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "WPSignal",
+            "email": "info@wpsignal.io"
+        }
+    ],
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    },
+    "require-dev": {
+        "wp-coding-standards/wpcs": "^3.0",
+        "phpcompatibility/phpcompatibility-wp": "^2.1"
+    }
+}

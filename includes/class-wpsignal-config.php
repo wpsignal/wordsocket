@@ -2,58 +2,51 @@
 /**
  * WPSignal\Config: centralizes all wp_options access.
  *
- * Provides typed accessors for every WordSocket option stored in the WordPress
- * database. This keeps option key strings in one place and makes it easy to
- * mock configuration in tests.
- *
- * Options managed:
- *   - wpsignal_base_url   : WPSignal server URL (e.g. "https://api.wpsignal.io")
- *   - wpsignal_site_key   : Site identifier (16 random bytes, hex)
- *   - wpsignal_site_secret: HMAC publish secret (32 random bytes, hex)
- *   - wpsignal_api_key    : Dashboard API key for site registration
- *   - wpsignal_jwt_secret : Shared secret for minting connection JWTs
- *
- * Usage:
- *
- *     $config = WPSignal::instance()->config();
- *
- *     if ( $config->is_configured() ) {
- *         $url = $config->base_url();
- *         $key = $config->site_key();
- *     }
- *
  * @package WordSocket
  */
 
- namespace WPSignal;
+namespace WPSignal;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Configuration accessor.
+ */
 class Config {
 
 	/**
 	 * Get the WPSignal server base URL.
 	 *
-	 * @return string Server URL or empty string if not set.
+	 * @return string Server URL.
+	 * @TODO: move to separate URL class.
 	 */
 	public function base_url() {
 		return defined( '\\WPSignal\\BASE_URL' ) ? BASE_URL : 'https://api.wpsignal.io';
 	}
 
 	/**
-	 * Define in wp-config.php to point the plugin at a self-hosted WPSignal server.
+	 * Get the server connect URL.
 	 *
-	 * When defined, overrides the default `https://api.wpsignal.io` endpoint for
-	 * all publish, registration, and token requests.
-	 *
-	 * @const WPSignal\BASE_URL
-	 * @usage: self-hosted server:
-	 * ```php
-	 *     define( 'WPSignal\BASE_URL', 'https://signal.example.com' );
-	 * ```
+	 * @return string Connect URL.
+	 * @TODO: move to separate URL class.
 	 */
+	public function connect_url() {
+		$path = apply_filters( 'wpsignal_connect_path', 'dashboard/connect' );
+		return trailingslashit( $this->base_url() ) . $path;
+	}
+
+	/**
+	 * Get the server exchange URL.
+	 *
+	 * @return string Exchange URL.
+	 * @TODO: move to separate URL class.
+	 */
+	public function exchange_url() {
+		$path = apply_filters( 'wpsignal_exchange_path', 'api/connect/exchange' );
+		return trailingslashit( $this->base_url() ) . $path;
+	}
 
 	/**
 	 * Get the site key (public site identifier).
@@ -115,34 +108,14 @@ class Config {
 	}
 
 	/**
-	 * Legacy override: define in wp-config.php to supply the JWT signing secret.
-	 *
-	 * Superseded by the secret returned during site registration (stored in
-	 * wp_options as `wpsignal_jwt_secret`). Only needed for sites that were
-	 * configured before the auto-registration flow existed.
-	 *
-	 * @const WPSIGNAL_JWT_SECRET
-	 * @usage: legacy JWT secret:
-	 * ```php
-	 *     define( 'WPSIGNAL_JWT_SECRET', 'your-64-char-hex-secret' );
-	 * ```
-	 */
-
-	/**
 	 * Derive the AES-256-GCM encryption key from WordPress salts and the site key.
 	 *
 	 * Uses HKDF-SHA256 to produce a 32-byte key. The seed defaults to
-	 * AUTH_KEY . SECURE_AUTH_KEY and is filterable via `wpsignal_encryption_seed`
+	 * AUTH_KEY . SECURE_AUTH_KEY salts and is filterable via `wpsignal_encryption_seed`
 	 * so plugin or theme developers can supply custom key material without
 	 * modifying core. The site key is used as the HKDF salt to scope the
 	 * derived key to this specific site registration.
 	 *
-	 * @usage: supply a custom seed:
-	 * ```php
-	 *     add_filter( 'wpsignal_encryption_seed', function ( $default ) {
-	 *         return 'my-application-specific-secret';
-	 *     } );
-	 * ```
 	 * @return string Raw 32-byte key, or empty string if site key is missing
 	 *                or WP salt constants are not defined.
 	 */
@@ -157,7 +130,7 @@ class Config {
 		/**
 		 * Filters the seed used to derive the AES-256-GCM encryption key.
 		 *
-		 * The default seed is `AUTH_KEY . SECURE_AUTH_KEY`. Override this to
+		 * The default seed is `AUTH_KEY . SECURE_AUTH_KEY` from WordPress salts. Override this to
 		 * supply your own key material without modifying WordPress salts.
 		 *
 		 * @param string $seed The default seed string.
@@ -169,7 +142,7 @@ class Config {
 		 * ```
 		 */
 		$seed = apply_filters( 'wpsignal_encryption_seed', AUTH_KEY . SECURE_AUTH_KEY );
-		return hash_hkdf( 'sha256', $seed, 32, 'wpsignal-v1', $site_key );
+		return hash_hkdf( 'sha256', $seed, 32, ENCRYPTION_KEY_VERSION, $site_key );
 	}
 
 	/**
@@ -214,8 +187,9 @@ class Config {
 	 * response array from the server.
 	 *
 	 * @param array $data {
-	 *     Registration response from the WPSignal server.
+	 *     Data from the manual connect flow.
 	 *
+	 *     @type string $api_key        The API key.
 	 *     @type string $site_key       The assigned site key.
 	 *     @type string $publish_secret The HMAC publish secret.
 	 *     @type string $jwt_secret     The shared JWT signing secret.
@@ -234,9 +208,11 @@ class Config {
 	 *
 	 * Unlike save_registration(), this does not touch the api_key option
 	 * because the automatic flow authenticates via session JWT rather than
-	 * an API key that the user pastes.
+	 * an API key that the user pastes manually.
 	 *
 	 * @param array $data {
+	 *     Data from the automatic connect flow.
+	 *
 	 *     @type string $site_key       The assigned site key.
 	 *     @type string $publish_secret The HMAC publish secret.
 	 *     @type string $jwt_secret     The shared JWT signing secret.
@@ -265,7 +241,7 @@ class Config {
 	}
 
 	/**
-	 * Determine where site credentials come from.
+	 * Determine where site credentials come from. Used
 	 *
 	 * Returns 'constant' when all three credential constants are defined in
 	 * wp-config.php, 'database' otherwise. Used by the settings UI to show a

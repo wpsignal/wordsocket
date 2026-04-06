@@ -37,36 +37,83 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * WPSignal\WPS - main singleton facade.
+ *
+ * Central entry point for the plugin. Provides static convenience methods for
+ * the two most common operations (registering triggers and publishing events)
+ * and wires all internal components during boot().
+ */
 class WPS {
 
-	/** @var WPS|null Singleton instance. */
+	/**
+	 * WPS Singleton instance.
+	 *
+	 * @var WPS|null
+	 */
 	private static $instance;
 
-	/** @var Config Configuration accessor. */
+	/**
+	 * Configuration accessor.
+	 *
+	 * @var Config
+	 */
 	private $config_instance;
 
-	/** @var Publisher Event publisher. */
+	/**
+	 * Event publisher.
+	 *
+	 * @var Publisher
+	 */
 	private $publisher_instance;
 
-	/** @var Token JWT minting and REST route handler. */
+	/**
+	 * JWT minting and REST route handler.
+	 *
+	 * @var Token
+	 */
 	private $token_instance;
 
-	/** @var Trigger_Registry Trigger storage and hook wiring. */
+	/**
+	 * Trigger storage and hook wiring.
+	 *
+	 * @var Trigger_Registry
+	 */
 	private $trigger_registry_instance;
 
-	/** @var Client Frontend script enqueue handler. */
+	/**
+	 * Frontend script enqueue handler.
+	 *
+	 * @var Client
+	 */
 	private $client_instance;
 
-	/** @var Admin_Page Admin pages and settings. */
+	/**
+	 * Admin pages and settings.
+	 *
+	 * @var Admin_Page
+	 */
 	private $admin_instance;
 
-	/** @var Connect Browser-based OAuth connect flow handler. */
+	/**
+	 * Browser-based OAuth connect flow handler.
+	 *
+	 * @var Connect
+	 */
 	private $connect_instance;
 
-	/** @var Triggers_REST REST endpoint for trigger management. */
+	/**
+	 * REST endpoint for trigger management.
+	 *
+	 * @var Triggers_REST
+	 */
 	private $triggers_rest;
 
-	/** @var Custom_Triggers Hydrates saved trigger configs into the registry. */
+	/**
+	 * Hydrates saved trigger configs into the registry.
+	 *
+	 * @var Custom_Triggers
+	 */
 	private $custom_triggers;
 
 	/**
@@ -88,21 +135,15 @@ class WPS {
 		return self::$instance;
 	}
 
-	/** Private constructor: use WPS::instance() instead. */
+	/**
+	 * Private constructor: use WPS::instance() instead.
+	 *
+	 * @return void
+	 */
 	private function __construct() {}
 
 	/**
 	 * Boot the plugin: instantiate and wire all components.
-	 *
-	 * Called once from wpsignal.php during plugin load. Performs the following:
-	 *   1. Instantiate Config, Publisher, Token, TriggerRegistry, Client, Admin, Connect
-	 *   2. Initialize the browser-based connect flow (admin-post hooks)
-	 *   3. Register built-in triggers (save_post -> post.updated)
-	 *   4. Hydrate custom triggers saved via the admin UI
-	 *   5. Fire 'wpsignal_loaded' action for third-party trigger registration
-	 *   6. Hook REST route registration to rest_api_init (Token + Triggers_REST)
-	 *   7. Initialize frontend client (wp_enqueue_scripts)
-	 *   8. Initialize admin pages (if is_admin)
 	 *
 	 * @return void
 	 */
@@ -124,10 +165,11 @@ class WPS {
 		$this->custom_triggers->register_saved();
 
 		/**
-		 * Fires when WPSignal is fully loaded and ready for trigger registration.
+		 * Fires when WPSignal is fully loaded and ready for trigger registration. NB: this can only be called
+		 * by plugins since this runs on `plugins_loaded` hook. Themes will need to use `init` hook instead.
 		 *
 		 * Third-party plugins should hook here to register custom triggers:
-		 * 
+		 *
 		 * @usage: register a custom trigger:
 		 * ```php
 		 *     add_action( 'wpsignal_loaded', function () {
@@ -169,11 +211,14 @@ class WPS {
 	 * @return array
 	 */
 	public function register_block_category( $categories ) {
-		\array_unshift( $categories, [
-			'slug'  => 'wordsocket',
-			'title' => 'WordSocket',
-			'icon'  => null,
-		] );
+		\array_unshift(
+			$categories,
+			array(
+				'slug'  => 'wordsocket',
+				'title' => 'WordSocket',
+				'icon'  => null,
+			)
+		);
 		return $categories;
 	}
 

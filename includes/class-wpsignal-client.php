@@ -2,41 +2,37 @@
 /**
  * WPSignal\Client: script enqueue for logged-in users (frontend + admin).
  *
- * Enqueues `client.js` on the frontend and admin when:
- *   1. The current user is logged in.
- *   2. The plugin is configured (base_url is set).
- *
- * The script connects to the WPSignal server via WebSocket (with SSE fallback)
- * and dispatches `wpsignal:{event}` CustomEvents on the document. Theme or
- * plugin JavaScript can listen for these events:
- *
- *     document.addEventListener( 'wpsignal:post.updated', function ( e ) {
- *         console.log( e.detail.data.post_title );
- *     } );
- *
- * Localized data (`wpSignalConfig`):
- *   - restUrl: REST endpoint for minting tokens (POST /wpsignal/v1/token)
- *   - nonce  : WordPress REST nonce for authentication
- *   - baseUrl: WPSignal server URL for WebSocket/SSE connections
- *
  * @package WordSocket
  */
 
- namespace WPSignal;
+namespace WPSignal;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Client: script enqueue for logged-in users (frontend + admin).
+ */
 class Client {
 
-	/** @var Config Configuration accessor. */
+	/**
+	 * Configuration accessor.
+	 *
+	 * @var Config
+	 */
 	private $config;
 
-	/** @var Token Token minter. */
+	/**
+	 * Token minter.
+	 *
+	 * @var Token Token minter (used to embed an initial JWT server-side).
+	 */
 	private $token;
 
 	/**
+	 * Constructor.
+	 *
 	 * @param Config $config Configuration accessor.
 	 * @param Token  $token  Token minter (used to embed an initial JWT server-side).
 	 */
@@ -73,6 +69,8 @@ class Client {
 		 * Return `false` to prevent the script from loading (e.g. on specific post types
 		 * or for guest users). Return `true` to force-load it regardless of login state.
 		 *
+		 * @TODO: Should this be configurable through the admin UI?
+		 *
 		 * @param bool $allow Default: `is_user_logged_in()`.
 		 * @usage: load for all visitors:
 		 * ```php
@@ -90,7 +88,10 @@ class Client {
 		}
 
 		$asset_file = DIR . 'build/client.asset.php';
-		$asset      = file_exists( $asset_file ) ? require $asset_file : array( 'dependencies' => array(), 'version' => VERSION );
+		$asset      = file_exists( $asset_file ) ? require $asset_file : array(
+			'dependencies' => array(),
+			'version'      => VERSION,
+		);
 
 		wp_enqueue_script(
 			'wpsignal',
@@ -100,19 +101,21 @@ class Client {
 			true
 		);
 
-		// Mint a token server-side so client.js can connect immediately without
-		// an extra REST round-trip. The REST endpoint is then only used for
-		// refresh, protected by the nonce below.
+		/*
+		 * Mint a token server-side so client.js can connect immediately without
+		 * an extra REST call. The REST endpoint is then only used for token
+		 * refresh, protected by the nonce below.
+		 */
 		$localize = array(
 			'baseUrl'      => esc_url( $base_url ),
 			'isSsl'        => is_ssl(),
 			'wpVersion'    => (float) wp_get_wp_version(),
 			'isConstant'   => $this->config->credential_source() === 'constant',
-			'isRtcEnabled' => ( defined('WP_COLLABORATION_ENABLED') && (bool) WP_COLLABORATION_ENABLED ) ||
-					 			   (bool) get_option('wp_collaboration_enabled', false),
+			'isRtcEnabled' => ( defined( 'WP_COLLABORATION_ENABLED' ) && (bool) WP_COLLABORATION_ENABLED ) ||
+									(bool) get_option( 'wp_collaboration_enabled', false ),
 			'restUrl'      => rest_url( 'wpsignal/v1/token' ),
 			'nonce'        => wp_create_nonce( 'wp_rest' ),
-			'debug'        => (defined( 'WP_ENVIRONMENT_TYPE' ) && WP_ENVIRONMENT_TYPE !== 'production'),
+			'debug'        => ( defined( 'WP_ENVIRONMENT_TYPE' ) && WP_ENVIRONMENT_TYPE !== 'production' ),
 		);
 
 		$token_data = $this->token->mint();
@@ -121,7 +124,7 @@ class Client {
 			$localize['channels'] = $token_data['channels'];
 			$localize['exp']      = $token_data['exp'];
 			/**
-			 * Forces the client to use SSE instead of WebSocket.
+			 * Forces the client to use SSE instead of WebSocket. Mainly for development purposes.
 			 *
 			 * Return `true` to disable WebSocket and fall back to Server-Sent Events.
 			 * Useful in environments where WebSocket connections are blocked.
@@ -132,20 +135,21 @@ class Client {
 			 *     add_filter( 'wpsignal_force_sse', '__return_true' );
 			 * ```
 			 */
-			$force_sse = apply_filters( 'wpsignal_force_sse', false );
+			$force_sse            = apply_filters( 'wpsignal_force_sse', false );
 			$localize['forceSSE'] = $force_sse;
 		}
 
-		// Derive the encryption key server-side and pass the base64-encoded raw
-		// bytes to the browser. client.js imports this with SubtleCrypto and uses
-		// it to decrypt incoming "encrypted" messages before dispatching events.
-		// The key is never sent to the WPSignal server: only set here by PHP.
+		/**
+		 * Derive the encryption key server-side and pass the base64-encoded raw
+		 * bytes to the browser. client.js imports this with SubtleCrypto and uses
+		 * it to decrypt incoming "encrypted" messages before dispatching events.
+		 */
 		$enc_key = $this->config->encryption_key();
 		if ( ! empty( $enc_key ) ) {
 			$localize['encryptionKey'] = base64_encode( $enc_key );
 		}
 
-		wp_add_inline_script( 'wpsignal', 'window.wpSignalConfig = ' . wp_json_encode( $localize ) . ';', 'before');
+		wp_add_inline_script( 'wpsignal', 'window.wpSignalConfig = ' . wp_json_encode( $localize ) . ';', 'before' );
 	}
 
 	/**
@@ -166,7 +170,7 @@ class Client {
 		if ( ! $this->config->is_wp_sync_available() ) {
 			return;
 		}
-		
+
 		if ( ! $this->config->yjs_provider_enabled() ) {
 			return;
 		}
@@ -184,13 +188,9 @@ class Client {
 		if ( ! file_exists( $asset_file ) ) {
 			return;
 		}
-		$asset = require $asset_file;
 
-		// @wordpress/sync ships with WP 7.0. On older installs the handle won't
-		// be registered, so we remove it from deps rather than bail entirely —
-		// this lets the script load for manual testing even without WP sync.
-		$sync_dep = wp_script_is( 'wp-sync', 'registered' ) ? array( 'wp-sync' ) : array();
-		$deps     = array_merge( $asset['dependencies'], array( 'wpsignal', 'wp-hooks' ), $sync_dep );
+		$asset = require $asset_file;
+		$deps  = array_merge( $asset['dependencies'], array( 'wpsignal', 'wp-hooks' ) );
 
 		wp_enqueue_script(
 			'wpsignal-yjs-provider',
@@ -200,12 +200,18 @@ class Client {
 			true
 		);
 
-		// Compute site_id the same way as Token::mint() so the Yjs channel
-		// prefix matches the JWT's allowed_channel_prefixes ('site:{site_id}:').
+		/**
+		 * Compute site_id the same way as Token::mint() so the Yjs channel
+		 * prefix matches the JWT's allowed_channel_prefixes ('site:{site_id}:').
+		 */
 		$site_id = hash( 'sha256', 'site:' . $site_key );
 
-		wp_localize_script( 'wpsignal-yjs-provider', 'wpSignalYjsConfig', array(
-			'channelPrefix' => 'site:' . $site_id . ':yjs:',
-		) );
+		wp_localize_script(
+			'wpsignal-yjs-provider',
+			'wpSignalYjsConfig',
+			array(
+				'channelPrefix' => 'site:' . $site_id . ':yjs:',
+			)
+		);
 	}
 }

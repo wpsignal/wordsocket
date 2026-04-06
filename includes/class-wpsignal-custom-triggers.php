@@ -2,15 +2,6 @@
 /**
  * WPSignal\Custom_Triggers: hydrates saved trigger configs into the registry.
  *
- * Reads the wpsignal_custom_triggers option (saved by the Triggers UI) and
- * creates Trigger objects with appropriate hooks, conditions, and data
- * callbacks. These are then added to the Trigger_Registry so they fire
- * like any other registered trigger.
- *
- * Two trigger types are supported:
- *   - post_type: hooks transition_post_status, fires on publish/update
- *   - option:    hooks update_option_{name}, fires on any change
- *
  * @package WordSocket
  */
 
@@ -20,13 +11,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Custom triggers: hydrates saved trigger configs into the registry.
+ */
 class Custom_Triggers {
 
-	/** @var Trigger_Registry */
+	/**
+	 * Trigger registry to add triggers to.
+	 *
+	 * @var Trigger_Registry
+	 */
 	private $registry;
 
 	/**
-	 * @param Trigger_Registry $registry The trigger registry to add triggers to.
+	 * Constructor.
+	 *
+	 * @param Trigger_Registry $registry Trigger registry to add triggers to.
+	 * @return void
 	 */
 	public function __construct( Trigger_Registry $registry ) {
 		$this->registry = $registry;
@@ -74,35 +75,39 @@ class Custom_Triggers {
 
 		// Exclude from the built-in default so we don't double-publish.
 		$this->registry->exclude_default_post_type( $post_type );
-		$channel   = ! empty( $config['channel'] ) ? $config['channel'] : 'events';
-		$event     = ! empty( $config['event'] ) ? $config['event'] : $post_type . '.updated';
+		$channel = ! empty( $config['channel'] ) ? $config['channel'] : 'events';
+		$event   = ! empty( $config['event'] ) ? $config['event'] : $post_type . '.updated';
 
 		$trigger = new Trigger( $event );
 		$trigger
 			->on( 'transition_post_status', 10, 3 )
 			->channel( $channel )
-			->data( function ( $new_status, $old_status, $post ) {
-				return array(
-					'post_id'    => $post->ID,
-					'post_type'  => $post->post_type,
-					'post_title' => $post->post_title,
-					'permalink'  => get_permalink( $post->ID ),
-					'old_status' => $old_status,
-					'new_status' => $new_status,
-				);
-			} )
-			->when( function ( $new_status, $old_status, $post ) use ( $post_type ) {
-				if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
-					return false;
+			->data(
+				function ( $new_status, $old_status, $post ) {
+					return array(
+						'post_id'    => $post->ID,
+						'post_type'  => $post->post_type,
+						'post_title' => $post->post_title,
+						'permalink'  => get_permalink( $post->ID ),
+						'old_status' => $old_status,
+						'new_status' => $new_status,
+					);
 				}
-				if ( wp_is_post_revision( $post->ID ) ) {
-					return false;
+			)
+			->when(
+				function ( $new_status, $old_status, $post ) use ( $post_type ) {
+					if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+							return false;
+					}
+					if ( wp_is_post_revision( $post->ID ) ) {
+						return false;
+					}
+					if ( $post->post_type !== $post_type ) {
+						return false;
+					}
+					return 'publish' === $new_status;
 				}
-				if ( $post->post_type !== $post_type ) {
-					return false;
-				}
-				return 'publish' === $new_status;
-			} );
+			);
 
 		$this->registry->add( $trigger );
 	}
@@ -124,13 +129,15 @@ class Custom_Triggers {
 		$trigger
 			->on( 'update_option_' . $option_name, 10, 3 )
 			->channel( $channel )
-			->data( function ( $old_value, $value, $option ) {
-				return array(
-					'option'    => $option,
-					'old_value' => $old_value,
-					'new_value' => $value,
-				);
-			} );
+			->data(
+				function ( $old_value, $value, $option ) {
+					return array(
+						'option'    => $option,
+						'old_value' => $old_value,
+						'new_value' => $value,
+					);
+				}
+			);
 
 		$this->registry->add( $trigger );
 	}
