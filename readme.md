@@ -1,17 +1,17 @@
 # WordSocket
 
-The official WordPress plugin for [WPSignal](https://wpsignal.io). Publish realtime events from PHP when content changes, subscribe in the browser — no polling, no infrastructure to manage.
+The official WordPress plugin for [WPSignal](https://wpsignal.io). WordSocket enables developers to connect their site to a secure WebSocket relay.
 
 ## Install:
 
-### Release:
+### WP.org:
 
-The easiest way is to download, and install, the latest version from [releases](https://github.com/wpsignal/wordsocket/releases).
+The easiest way is to download is <a href="https://wordpress.org/plugins/wordsocket" target="_blank">wordpress.org/plugins/wordsocket</a>.
 
 ### WP CLI:
 
 ```bash
-wp plugin install https://github.com/wpsignal/wordsocket/releases/download/v0.13.2/wordsocket.zip
+wp plugin install wordsocket --activate
 ```
 
 ## Minimal example:
@@ -41,16 +41,7 @@ document.addEventListener( 'wpsignal:comment.posted', (e: CustomEvent<Comment>) 
 
 ## Documentation
 
-Full documentation, API reference, and guides are at <a href="https://wpsignal.io/docs" target="_blank">wpsignal.io/docs</a>.
-
-### Building from source
-
-```bash
-npm install
-npm run build
-```
-
-Source files are in `src/`. Compiled output lands in `build/`.
+Full documentation, API reference, and guides are at <a href="https://wpsignal.io/docs/getting-started" target="_blank">wpsignal.io/docs/getting-started</a>.
 
 ## Changelog
 
