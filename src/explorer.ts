@@ -63,7 +63,7 @@ if (cfg) {
             published_messages: number;
           }) => {
             testStatus.style.color = "#46b450";
-            testStatus.textContent = `OK: ${data.active_connections} connections, ${data.published_messages} published`;
+            testStatus.textContent = "OK";
           },
         )
         .catch((err: Error) => {

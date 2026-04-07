@@ -48,7 +48,7 @@ export function ConnectionTab() {
             "wordsocket",
           )}
         >
-          <Icon size={16} icon="editor-help" />
+          <span><Icon size={16} icon="editor-help" /></span>
         </Tooltip>{" "}
         {__("Connection", "wordsocket")}
       </h3>

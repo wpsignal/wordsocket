@@ -97,7 +97,7 @@ export function TriggersTab() {
             "wordsocket",
           )}
         >
-          <Icon size={16} icon="editor-help" />
+          <span><Icon size={16} icon="editor-help" /></span>
         </Tooltip>{" "}
         {__("Triggers", "wordsocket")}{" "}
       </h3>

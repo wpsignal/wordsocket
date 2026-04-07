@@ -66,7 +66,7 @@ export function RtcTab() {
             "wordsocket",
           )}
         >
-          <Icon size={16} icon="editor-help" />
+          <span><Icon size={16} icon="editor-help" /></span>
         </Tooltip>{" "}
         {__("Realtime Collaboration:", "wordsocket")}
       </h3>
