@@ -1,32 +1,41 @@
+/**
+ * Types.
+ */
+
 export interface Trigger {
-	type: 'post_type' | 'option';
-	post_type: string;
-	option_name: string;
-	channel: string;
-	event: string;
+  type: "post_type" | "option";
+  post_type: string;
+  option_name: string;
+  channel: string;
+  event: string;
 }
 
 export interface PostTypeOption {
-	value: string;
-	label: string;
+  value: string;
+  label: string;
 }
 
 export interface SettingsPost {
-	yjs_provider_enabled: boolean;
+  yjs_provider_enabled: boolean;
 }
 export interface Settings {
-	// base_url: string;
-	api_key: string;
-	site_key: string;
-	is_connected: boolean;
-	yjs_provider_enabled: boolean;
-	is_rtc_enabled: boolean;
-	wp_version: number;
-	credential_source?: 'constant' | 'database';
-	is_ssl: boolean;
+  // base_url: string;
+  api_key: string;
+  site_key: string;
+  is_connected: boolean;
+  yjs_provider_enabled: boolean;
+  is_rtc_enabled: boolean;
+  wp_version: number;
+  credential_source?: "constant" | "database";
+  is_ssl: boolean;
 }
 
 export interface ConnectResponse {
-	message: string;
-	site_key: string;
+  message: string;
+  site_key: string;
+}
+
+export interface NoticeState {
+  type: "success" | "error";
+  message: string | React.ReactNode;
 }

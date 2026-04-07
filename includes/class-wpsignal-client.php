@@ -107,15 +107,15 @@ class Client {
 		 * refresh, protected by the nonce below.
 		 */
 		$localize = array(
-			'baseUrl'      => esc_url( $base_url ),
-			'isSsl'        => is_ssl(),
-			'wpVersion'    => (float) wp_get_wp_version(),
-			'isConstant'   => $this->config->credential_source() === 'constant',
-			'isRtcEnabled' => ( defined( 'WP_COLLABORATION_ENABLED' ) && (bool) WP_COLLABORATION_ENABLED ) ||
+			'baseUrl'        => esc_url( $base_url ),
+			'isSsl'          => is_ssl(),
+			'wpVersion'      => (float) wp_get_wp_version(),
+			'isConstant'     => $this->config->credential_source() === 'constant',
+			'isWpRtcEnabled' => ( defined( 'WP_COLLABORATION_ENABLED' ) && (bool) WP_COLLABORATION_ENABLED ) ||
 									(bool) get_option( 'wp_collaboration_enabled', false ),
-			'restUrl'      => rest_url( 'wpsignal/v1/token' ),
-			'nonce'        => wp_create_nonce( 'wp_rest' ),
-			'debug'        => ( defined( 'WP_ENVIRONMENT_TYPE' ) && WP_ENVIRONMENT_TYPE !== 'production' ),
+			'restUrl'        => rest_url( 'wpsignal/v1/token' ),
+			'nonce'          => wp_create_nonce( 'wp_rest' ),
+			'debug'          => ( defined( 'WP_ENVIRONMENT_TYPE' ) && WP_ENVIRONMENT_TYPE !== 'production' ),
 		);
 
 		$token_data = $this->token->mint();

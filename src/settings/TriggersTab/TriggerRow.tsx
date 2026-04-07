@@ -1,13 +1,16 @@
 import {
   SelectControl,
   TextControl,
-  Button,
   Flex,
   FlexBlock,
   FlexItem,
   Icon,
 } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
+
+/**
+ * Internal dependencies.
+ */
 import type { Trigger, PostTypeOption } from "../types";
 
 const OPTION_PRESETS = [
