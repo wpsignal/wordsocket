@@ -1,13 +1,13 @@
 /**
  * WordSocket Explorer: interactive admin demo page.
+ * 
+ * @TODO: delete, this will be replaced by wordpress/element app in the future.
  */
 
 const cfg = window.wpSignalExplorer;
 if (cfg) {
   let ws: WebSocket | null = null;
   let expiryInterval: ReturnType<typeof setInterval> | null = null;
-
-  // -- Helpers --
 
   function $(id: string): HTMLElement | null {
     return document.getElementById(id);
@@ -43,8 +43,6 @@ if (cfg) {
     });
   }
 
-  // -- 1. Test Connection --
-
   const testBtn = $("wpsignal-ks-test-connection");
   const testStatus = $("wpsignal-ks-test-status");
 
@@ -65,7 +63,7 @@ if (cfg) {
             published_messages: number;
           }) => {
             testStatus.style.color = "#46b450";
-            testStatus.textContent = `OK: ${data.active_connections} connections, ${data.published_messages} published`;
+            testStatus.textContent = "OK";
           },
         )
         .catch((err: Error) => {
@@ -74,8 +72,6 @@ if (cfg) {
         });
     });
   }
-
-  // -- 3. Live Event Log (WebSocket) --
 
   const connectBtn = $("wpsignal-ks-connect") as HTMLButtonElement | null;
   const disconnectBtn = $("wpsignal-ks-disconnect") as HTMLButtonElement | null;
@@ -193,8 +189,6 @@ if (cfg) {
 
   if (connectBtn) connectBtn.addEventListener("click", connectWs);
   if (disconnectBtn) disconnectBtn.addEventListener("click", disconnectWs);
-
-  // -- 4. Publish Test Event --
 
   const publishBtn = $("wpsignal-ks-publish");
   const pubStatus = $("wpsignal-ks-pub-status");

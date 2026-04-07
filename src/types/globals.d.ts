@@ -5,7 +5,7 @@ interface WpSignalConfig {
 	/** Whether to use constant credentials. */
 	isConstant: boolean;
 	/** Whether to enable real-time collaboration. */
-	isRtcEnabled: boolean;
+	isWpRtcEnabled: boolean;
 	/** Whether to use SSL. */
 	isSsl: boolean;
 	/** Whether to enable debug mode. */
@@ -29,6 +29,7 @@ interface WpSignalConfig {
 /** Localized by class-wpsignal-admin-page.php (Settings React app) */
 interface WpSignalSettings {
 	connectUrl: string;
+	oauthStartUrl: string;
 	restUrl: string;
 	nonce: string;
 	postTypes: Array< { value: string; label: string } >;

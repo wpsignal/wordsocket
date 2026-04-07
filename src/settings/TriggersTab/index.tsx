@@ -1,6 +1,13 @@
-import { useState, useEffect } from "@wordpress/element";
-import { Button, Flex, Notice } from "@wordpress/components";
+/**
+ * WordPress dependencies.
+ */
 import { __ } from "@wordpress/i18n";
+import { useState, useEffect } from "@wordpress/element";
+import { Button, Flex, Icon, Notice, Tooltip } from "@wordpress/components";
+
+/**
+ * Internal dependencies.
+ */
 import { TriggerRow } from "./TriggerRow";
 import { getTriggers, saveTriggers } from "../api";
 import type { Trigger, PostTypeOption } from "../types";
@@ -14,10 +21,13 @@ const EMPTY_TRIGGER: Trigger = {
 };
 
 interface NoticeState {
-  type: "success" | "error";
+  type: "success" | "error" | "warning";
   message: string;
 }
 
+/**
+ * Triggers tab.
+ */
 export function TriggersTab() {
   const [triggers, setTriggers] = useState<Trigger[]>([]);
   const [saving, setSaving] = useState(false);
@@ -30,6 +40,12 @@ export function TriggersTab() {
       .then((res) => {
         if (res.triggers?.length) {
           setTriggers(res.triggers);
+        } else {
+          setTriggers([]);
+          setNotice({
+            type: "warning",
+            message: __("No triggers found. Add a trigger to get started.", "wordsocket"),
+          });
         }
       })
       .catch(() => {
@@ -74,6 +90,17 @@ export function TriggersTab() {
 
   return (
     <div className="wpsignal-triggers-app">
+      <h3>
+        <Tooltip
+          text={__(
+            "Triggers are events that can be triggered by a specific action hook.",
+            "wordsocket",
+          )}
+        >
+          <span><Icon size={16} icon="editor-help" /></span>
+        </Tooltip>{" "}
+        {__("Triggers", "wordsocket")}{" "}
+      </h3>
       {notice && (
         <Notice
           status={notice.type}
@@ -82,15 +109,6 @@ export function TriggersTab() {
         >
           {notice.message}
         </Notice>
-      )}
-
-      {triggers.length === 0 && (
-        <p>
-          {__(
-            'No custom triggers configured. Click "Add Trigger" to create one.',
-            "wordsocket",
-          )}
-        </p>
       )}
 
       <Flex gap={5} align="flex-start" direction="column">

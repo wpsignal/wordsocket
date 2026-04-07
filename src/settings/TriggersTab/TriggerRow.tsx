@@ -1,13 +1,16 @@
 import {
   SelectControl,
   TextControl,
-  Button,
   Flex,
   FlexBlock,
   FlexItem,
   Icon,
 } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
+
+/**
+ * Internal dependencies.
+ */
 import type { Trigger, PostTypeOption } from "../types";
 
 const OPTION_PRESETS = [
@@ -72,8 +75,8 @@ export function TriggerRow({
           value={trigger.type}
           options={typeOptions}
           onChange={(val) => update("type", val)}
-          __next40pxDefaultSize
           __nextHasNoMarginBottom
+          __next40pxDefaultSize
         />
       </FlexBlock>
 
@@ -89,6 +92,7 @@ export function TriggerRow({
             ]}
             onChange={(val) => update("post_type", val)}
             __nextHasNoMarginBottom
+            __next40pxDefaultSize
           />
         )}
 
@@ -103,6 +107,7 @@ export function TriggerRow({
             ]}
             onChange={(val) => update("option_name", val || "")}
             __nextHasNoMarginBottom
+            __next40pxDefaultSize
           />
         )}
       </FlexBlock>
@@ -113,6 +118,7 @@ export function TriggerRow({
           value={trigger.channel}
           onChange={(val) => update("channel", val)}
           __nextHasNoMarginBottom
+          __next40pxDefaultSize
         />
       </FlexBlock>
 
@@ -122,6 +128,7 @@ export function TriggerRow({
           value={trigger.event}
           onChange={(val) => update("event", val)}
           __nextHasNoMarginBottom
+          __next40pxDefaultSize
         />
       </FlexBlock>
     </Flex>
