@@ -23,7 +23,7 @@ class Config {
 	 * @TODO: move to separate URL class.
 	 */
 	public function base_url() {
-		return defined( '\\WPSignal\\BASE_URL' ) ? BASE_URL : 'https://api.wpsignal.io';
+		return defined( '\\WPSignal\\BASE_URL' ) ? untrailingslashit( BASE_URL ) : 'https://api.wpsignal.io';
 	}
 
 	/**
