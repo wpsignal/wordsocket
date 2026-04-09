@@ -24,21 +24,13 @@ class Admin_Page {
 	private $config;
 
 	/**
-	 * Explorer subpage handler.
-	 *
-	 * @var Explorer_Page
-	 */
-	private $explorer;
-
-	/**
 	 * Constructor.
 	 *
 	 * @param Config $config Configuration accessor.
 	 * @return void
 	 */
 	public function __construct( Config $config ) {
-		$this->config   = $config;
-		$this->explorer = new Explorer_Page( $config );
+		$this->config = $config;
 	}
 
 	/**
@@ -77,14 +69,6 @@ class Admin_Page {
 			array( $this, 'render_settings_page' )
 		);
 
-		add_submenu_page(
-			'wordsocket',
-			__( 'WordSocket Explorer', 'wordsocket' ),
-			__( 'Explorer', 'wordsocket' ),
-			'manage_options',
-			'wordsocket-explorer',
-			array( $this->explorer, 'render_page' )
-		);
 	}
 
 	/**
@@ -122,6 +106,8 @@ class Admin_Page {
 			true
 		);
 
+		wp_set_script_translations( 'wpsignal-settings', 'wordsocket', DIR . 'languages' );
+
 		wp_enqueue_style(
 			'wpsignal-settings',
 			URL . 'build/settings.css',
@@ -130,7 +116,7 @@ class Admin_Page {
 		);
 
 		wp_enqueue_style(
-			'wpsignal-settings',
+			'wpsignal-settings-rtl',
 			URL . 'build/settings-rtl.css',
 			array(),
 			$asset['version']
@@ -145,6 +131,20 @@ class Admin_Page {
 				'label' => $pt->labels->singular_name,
 			);
 		}
+
+		$triggers = array_map(
+			function ( $trigger ) {
+				return array(
+					'event'     => $trigger->get_event(),
+					'hook'      => $trigger->get_hook(),
+					'priority'  => $trigger->get_priority(),
+					'args'      => $trigger->get_accepted_args(),
+					'channel'   => $trigger->get_channel(),
+					'condition' => $trigger->has_condition(),
+				);
+			},
+			WPS::instance()->trigger_registry()->all()
+		);
 
 		wp_localize_script(
 			'wpsignal-settings',
@@ -161,6 +161,7 @@ class Admin_Page {
 				'baseUrl'       => $this->config->base_url(),
 				'apiKey'        => $this->config->api_key(),
 				'siteKey'       => $this->config->site_key(),
+				'triggers'      => $triggers,
 			)
 		);
 
@@ -181,6 +182,8 @@ class Admin_Page {
 	private function render_skeleton() {
 		echo '<div class="wpsignal-skeleton">';
 		echo '<div class="wpsignal-skeleton__tabs">';
+		echo '<div class="wpsignal-skeleton__tab wpsignal-skeleton__shimmer"></div>';
+		echo '<div class="wpsignal-skeleton__tab wpsignal-skeleton__shimmer"></div>';
 		echo '<div class="wpsignal-skeleton__tab wpsignal-skeleton__shimmer"></div>';
 		echo '<div class="wpsignal-skeleton__tab wpsignal-skeleton__shimmer"></div>';
 		echo '</div>';

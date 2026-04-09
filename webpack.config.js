@@ -6,7 +6,6 @@ module.exports = {
 	entry: {
 		client: path.resolve( __dirname, 'src/client.ts' ),
 		settings: path.resolve( __dirname, 'src/settings/index.tsx' ),
-		explorer: path.resolve( __dirname, 'src/explorer.ts' ),
 		'yjs-provider': path.resolve( __dirname, 'src/yjs-provider-boot.ts' ),
 	},
 	output: {

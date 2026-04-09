@@ -10,6 +10,7 @@ import { TabPanel } from "@wordpress/components";
 import { RtcTab } from "./RtcTab";
 import { TriggersTab } from "./TriggersTab";
 import { ConnectionTab } from "./ConnectionTab";
+import { ExplorerTab } from "./ExplorerTab";
 import { SettingsProvider, useSettings } from "./context";
 
 /**
@@ -31,6 +32,11 @@ const TABS = [
     title: __("Triggers", "wordsocket"),
     className: "wpsignal-tab-triggers",
   },
+  {
+    name: "explorer",
+    title: __("Explorer", "wordsocket"),
+    className: "wpsignal-tab-explorer",
+  },
 ];
 
 function SettingsTabs() {
@@ -45,6 +51,7 @@ function SettingsTabs() {
           {tab.name === "connection" && <ConnectionTab />}
           {tab.name === "rtc" && <RtcTab />}
           {tab.name === "triggers" && <TriggersTab />}
+          {tab.name === "explorer" && <ExplorerTab />}
         </div>
       )}
     </TabPanel>

@@ -18,6 +18,8 @@ const CONSOLE_STYLES = {
  * @param summary - The summary to display in the console. Can be a string or an object.
  * @param type - The type of message to display in the console.
  * @param collapse - Whether to collapse the console group.
+ * @param prefix - The prefix appended to console group label.
+ * @returns void
  */
 export function wpsDebug(
   label: string,

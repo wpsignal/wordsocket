@@ -2,7 +2,11 @@
  * WordPress dependencies.
  */
 import { __ } from "@wordpress/i18n";
-import { useState, useEffect } from "@wordpress/element";
+import {
+  useState,
+  useEffect,
+  createInterpolateElement,
+} from "@wordpress/element";
 import { Button, Flex, Icon, Notice, Tooltip } from "@wordpress/components";
 
 /**
@@ -44,7 +48,10 @@ export function TriggersTab() {
           setTriggers([]);
           setNotice({
             type: "warning",
-            message: __("No triggers found. Add a trigger to get started.", "wordsocket"),
+            message: __(
+              "No triggers found. Add a trigger to get started.",
+              "wordsocket",
+            ),
           });
         }
       })
@@ -97,10 +104,43 @@ export function TriggersTab() {
             "wordsocket",
           )}
         >
-          <span><Icon size={16} icon="editor-help" /></span>
+          <span>
+            <Icon size={16} icon="editor-help" />
+          </span>
         </Tooltip>{" "}
         {__("Triggers", "wordsocket")}{" "}
       </h3>
+      <p>
+        {createInterpolateElement(
+          __(
+            "This section is intended for setting up basic predefined triggers, for more advanced use cases look into our <a>API</a> to setup triggers through code. For a complete list of WordPress core action hooks, see the <b>WordPress Action Reference</b>. To see all available action hooks with your setup, install a plugin like <c>Action Scheduler</c>.",
+            "wordsocket",
+          ),
+          {
+            a: (
+              <a
+                href="https://wpsignal.io/docs/getting-started/"
+                target="_blank"
+                rel="noopener noreferrer"
+              />
+            ),
+            b: (
+              <a
+                href="https://developer.wordpress.org/apis/hooks/action-reference/"
+                target="_blank"
+                rel="noopener noreferrer"
+              />
+            ),
+            c: (
+              <a
+                href="https://wordpress.org/plugins/wp-hooks-finder/"
+                target="_blank"
+                rel="noopener noreferrer"
+              />
+            ),
+          },
+        )}
+      </p>
       {notice && (
         <Notice
           status={notice.type}

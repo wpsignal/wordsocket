@@ -17,7 +17,6 @@ class WPSignalClient implements WPSApi {
   private readonly config: WpSignalConfig;
   private readonly baseUrl: string;
 
-  // --- Transport state ---
   private _transport: "ws" | "sse" | null = null;
   private static ssePublishWarned = false;
   private ws: WebSocket | null = null;
@@ -25,7 +24,6 @@ class WPSignalClient implements WPSApi {
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
   private _connected = false;
 
-  // --- SSE channel tracking ---
   /** Token for the current SSE connection; retained so reconnects can reuse it when channels change. */
   private sseToken: string | null = null;
   /** All channels subscribed via SSE. Persists across reconnects so token refreshes don't lose subscriptions. */
@@ -33,7 +31,6 @@ class WPSignalClient implements WPSApi {
   /** Debounce handle for SSE reconnects triggered by subscribe/unsubscribe calls. */
   private sseReconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // --- Handler registries ---
   private readonly messageHandlers = new Set<WPSMessageHandler>();
   private readonly eventHandlers = new Map<string, Set<WPSEventHandler>>();
   private readonly connectionHandlers = new Set<(c: boolean) => void>();
@@ -42,7 +39,6 @@ class WPSignalClient implements WPSApi {
   /** Channels requested while transport is null; flushed to WS on open or merged into SSE URL on connect. */
   private readonly pendingSubscriptions: string[] = [];
 
-  // --- Decryption ---
   /** Cached import of the AES-256-GCM key; resolved once and reused for every message. */
   private cryptoKeyPromise: Promise<CryptoKey | null> | null = null;
   /** True when SubtleCrypto is unavailable (HTTP context); suppresses per-message warnings. */
@@ -53,20 +49,11 @@ class WPSignalClient implements WPSApi {
     this.baseUrl = config.baseUrl.replace(/\/+$/, "");
   }
 
-  // ---------------------------------------------------------------------------
-  // Public API (WPSApi)
-  // ---------------------------------------------------------------------------
-
   /**
    * Subscribe to one or more channels.
    * On WebSocket, sends a subscribe frame immediately.
    * On SSE, adds channels to the tracked set and reconnects to pick them up.
    * Otherwise queues them until a connection opens.
-   * 
-   * @usage: subscribe to a channel:
-   * ```js
-   *     WPS.subscribe( ['events'] );
-   * ```
    */
   subscribe(channels: string[]): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
@@ -210,10 +197,6 @@ class WPSignalClient implements WPSApi {
     };
   }
 
-  // ---------------------------------------------------------------------------
-  // Lifecycle
-  // ---------------------------------------------------------------------------
-
   /** Initialise the client: obtain a token and open a transport connection. */
   start(): void {
     if (document.readyState === "loading") {
@@ -222,10 +205,6 @@ class WPSignalClient implements WPSApi {
       this.init();
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Connection management (private)
-  // ---------------------------------------------------------------------------
 
   private init(): void {
     let tokenPromise: Promise<{
@@ -471,10 +450,6 @@ class WPSignalClient implements WPSApi {
     // call (e.g. after a token refresh) restores all subscriptions automatically.
   }
 
-  // ---------------------------------------------------------------------------
-  // Utilities (private)
-  // ---------------------------------------------------------------------------
-
   private setConnected(value: boolean): void {
     this._connected = value;
     this.connectionHandlers.forEach((fn) => fn(value));
@@ -589,10 +564,6 @@ class WPSignalClient implements WPSApi {
     this.binaryHandlers.forEach((fn) => fn(channel, payload));
   }
 
-  // ---------------------------------------------------------------------------
-  // Decryption (private)
-  // ---------------------------------------------------------------------------
-
   /**
    * Import the AES-256-GCM key from `wpSignalConfig.encryptionKey` (base64).
    * The result is cached: the key is imported once and reused for every message.
@@ -650,10 +621,6 @@ class WPSignalClient implements WPSApi {
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// Bootstrap
-// ---------------------------------------------------------------------------
 
 const config = window.wpSignalConfig;
 if (config?.baseUrl && config?.restUrl) {

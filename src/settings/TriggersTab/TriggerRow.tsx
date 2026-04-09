@@ -62,7 +62,7 @@ export function TriggerRow({
   ];
 
   return (
-    <Flex gap={5} align="flex-end" justify="space-between">
+    <Flex gap={5} align="flex-end" justify="space-between" className="wpsignal-trigger-row">
       <FlexItem>
         <a style={{ cursor: "pointer" }} onClick={() => onRemove(index)}>
           <Icon icon="trash" size={40} />

@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-04-07T04:34:11+00:00\n"
+"POT-Creation-Date: 2026-04-09T00:52:27+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wordsocket\n"
@@ -98,6 +98,7 @@ msgid "No triggers registered."
 msgstr ""
 
 #: includes/class-wpsignal-explorer-page.php:179
+#: build/settings.js:1
 msgid "Event"
 msgstr ""
 
@@ -115,6 +116,7 @@ msgstr ""
 
 #: includes/class-wpsignal-explorer-page.php:183
 #: includes/class-wpsignal-explorer-page.php:258
+#: build/settings.js:1
 msgid "Channel"
 msgstr ""
 
@@ -131,10 +133,12 @@ msgid "Channels (comma-separated):"
 msgstr ""
 
 #: includes/class-wpsignal-explorer-page.php:227
+#: build/settings.js:1
 msgid "Connect"
 msgstr ""
 
 #: includes/class-wpsignal-explorer-page.php:230
+#: build/settings.js:1
 msgid "Disconnect"
 msgstr ""
 
@@ -196,6 +200,7 @@ msgid "API Key is empty, please include it and try again."
 msgstr ""
 
 #: includes/class-wpsignal-token.php:301
+#: build/settings.js:1
 msgid "API Key is invalid, please include a valid API Key and try again."
 msgstr ""
 
@@ -209,4 +214,213 @@ msgstr ""
 
 #: includes/class-wpsignal-triggers-rest.php:127
 msgid "Triggers saved."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Connected"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Connection failed: invalid or expired state. Please try again."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Connection failed: could not reach the WPSignal server. Check that your server is reachable."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Connection failed: unexpected response from server."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Connection failed. Please try again."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Connection cancelled."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Failed to load settings."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Disconnect failed. Please try again."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Loading real-time collaboration settings..."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Registers WordSocket as the Yjs sync provider in the block editor. Disable this to fall back to WordPress HTTP polling."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Realtime Collaboration:"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Disable WordSocket driven realtime collaboration?"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Enable WordSocket driven realtime collaboration?"
+msgstr ""
+
+#: build/settings.js:1
+msgid "You must be connected to WPSignal to enable WordSocket driven realtime collaboration."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Settings saved."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Failed to save Yjs provider settings. Please try again."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Real-time collaboration is not enabled. Please enable it under <a>Settings > Writing</a>."
+msgstr ""
+
+#: build/settings.js:1
+#, js-format
+msgid "Real-time collaboration is not supported on WordPress %s. Please upgrade to WordPress 7.0 or later."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Post Type"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Option"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Type"
+msgstr ""
+
+#: build/settings.js:1
+msgid "-- Select --"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Option Name"
+msgstr ""
+
+#: build/settings.js:1
+msgid "No triggers found. Add a trigger to get started."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Failed to load triggers."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Triggers are events that can be triggered by a specific action hook."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Triggers"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Add Trigger"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Failed to save triggers."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Save Triggers"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Copy your API key from the <a>WPSignal dashboard</a> and paste it here."
+msgstr ""
+
+#: build/settings.js:1
+msgid "(Not available for non-SSL connections)"
+msgstr ""
+
+#: build/settings.js:1
+msgid "API Key"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Connection failed. Make sure your Server URL and API Key are saved."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Save Settings"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Automatic Connection"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Log in to your <a>WPSignal dashboard</a> and authorize this site in one click."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Connecting..."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Connect with WPSignal"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Authorize this site to connect to WPSignal. This will allow you to receive real-time events from your site."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Connection"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Validating connection settings..."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Not connected to WPSignal. Try connecting."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Credentials are defined in <code>./wp-config.php</code>. To change them, update the <code>WPSIGNAL_SITE_KEY</code>, <code>WPSIGNAL_SITE_SECRET</code>, and <code>WPSIGNAL_JWT_SECRET</code> constants."
+msgstr ""
+
+#: build/settings.js:1
+msgid "You are connected to WPSignal. To disconnect, click the button below."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Are you sure you want to disconnect this site from WPSignal?"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Yes, disconnect"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Cancel"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Automatic"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Manual"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Manual Connection"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Realtime Collaboration"
 msgstr ""

@@ -43,10 +43,6 @@ import {
 } from "y-protocols/awareness";
 import { wpsDebug } from "./utils";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 /** Structural interface for the Yjs Awareness instance passed by WordPress. */
 interface Awareness {
   clientID: number;
@@ -88,10 +84,7 @@ interface YDoc {
   ): void;
 }
 
-// ---------------------------------------------------------------------------
-// Protocol constants
-// ---------------------------------------------------------------------------
-
+// Message type constants (1-byte prefix).
 const MSG_SYNC_STEP_1 = 0x01;
 const MSG_SYNC_STEP_2 = 0x02;
 const MSG_UPDATE = 0x03;
@@ -102,10 +95,6 @@ const MSG_AWARENESS = 0x04;
  * own-frame echo from triggering an infinite exchange loop.
  */
 const SYNC_STEP_1_COOLDOWN_MS = 2000;
-
-// ---------------------------------------------------------------------------
-// Provider
-// ---------------------------------------------------------------------------
 
 class WPSignalYjsProvider implements ProviderCreatorResult {
   private readonly channel: string;
@@ -149,10 +138,6 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
     this.init();
   }
 
-  // -------------------------------------------------------------------------
-  // Public API (ProviderCreatorResult)
-  // -------------------------------------------------------------------------
-
   on(_event: "status", handler: StatusHandler): void {
     this.statusHandlers.add(handler);
     // Replay current status immediately. WordPress registers this handler
@@ -174,10 +159,6 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
     window.WPS?.unsubscribe([this.channel]);
   }
 
-  // -------------------------------------------------------------------------
-  // Private helpers
-  // -------------------------------------------------------------------------
-
   /** Encode our state vector and broadcast a SYNC_STEP_1 to the channel. */
   private sendSyncStep1(wps: WPSApi): void {
     const sv = Y.encodeStateVector(this.ydoc);
@@ -197,10 +178,6 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
     this.currentStatus = status;
     this.statusHandlers.forEach((fn) => fn({ status }));
   }
-
-  // -------------------------------------------------------------------------
-  // Initialisation
-  // -------------------------------------------------------------------------
 
   private init(): void {
     const wps = window.WPS;
@@ -404,17 +381,9 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
         }
       } else {
         // Capture full state so we can re-sync from scratch on reconnect.
-        this.pendingUpdates.push(Y.encodeStateAsUpdate(this.ydoc));
-        wpsDebug(
-          "pending updates",
-          {
-            channel: this.channel,
-            bytes: Y.encodeStateAsUpdate(this.ydoc).length,
-          },
-          "log",
-          true,
-          "Yjs",
-        );
+        const snapshot = Y.encodeStateAsUpdate(this.ydoc);
+        this.pendingUpdates.push(snapshot);
+        wpsDebug("pending updates", { channel: this.channel, bytes: snapshot.length }, "log", true, "Yjs");
       }
     });
     this.unsubscribers.push(offConnection);
@@ -422,10 +391,6 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
     this.emitStatus(wps.connected ? "connected" : "connecting");
   }
 }
-
-// ---------------------------------------------------------------------------
-// Provider creator
-// ---------------------------------------------------------------------------
 
 /**
  * Provider creator function registered with WordPress via the `sync.providers`

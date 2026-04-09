@@ -28,14 +28,24 @@ interface WpSignalConfig {
 
 /** Localized by class-wpsignal-admin-page.php (Settings React app) */
 interface WpSignalSettings {
+	/** URL for the connection endpoint. */
 	connectUrl: string;
+	/** URL for the OAuth start endpoint. */
 	oauthStartUrl: string;
+	/** URL for the REST endpoint. */
 	restUrl: string;
+	/** wp_rest nonce for authenticated REST requests. */
 	nonce: string;
+	/** Array of public post type objects (value, label) for trigger dropdowns. */
 	postTypes: Array< { value: string; label: string } >;
+	/** WPSignal server base URL. */
 	baseUrl: string;
+	/** Stored API key (manual flow only; empty for automatic connections). */
 	apiKey: string;
+	/** Stored site key (set after either connection flow completes). */
 	siteKey: string;
+	/** Array of registered trigger instances. */
+	triggers: WpSignalTriggerRow[] | [];
 }
 
 /** Localized by class-wpsignal-client.php (enqueue_yjs_provider) */
@@ -44,15 +54,14 @@ interface WpSignalYjsConfig {
 	channelPrefix: string;
 }
 
-/** Localized by class-wpsignal-explorer-page.php */
-interface WpSignalExplorer {
-	baseUrl: string;
-	siteKey: string;
-	restUrl: string;
-	tokenUrl: string;
-	publishUrl: string;
-	nonce: string;
-	configured: boolean;
+/** Localized by class-wpsignal-admin-page.php (added to wpsignalSettings for the Explorer tab) */
+interface WpSignalTriggerRow {
+	event: string;
+	hook: string;
+	priority: number;
+	args: number;
+	channel: string;
+	condition: boolean;
 }
 
 type WPSMessageHandler = ( event: string, data: Record< string, unknown >, channel: string ) => void;

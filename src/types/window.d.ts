@@ -4,7 +4,6 @@ declare global {
   interface Window {
     wpSignalConfig?: WpSignalConfig;
     wpsignalSettings?: WpSignalSettings;
-    wpSignalExplorer?: WpSignalExplorer;
     wpSignalYjsConfig?: WpSignalYjsConfig;
     WPS?: WPSApi;
     wpsDebug?: (

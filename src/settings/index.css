@@ -66,19 +66,14 @@
 }
 
 .wpsignal-trigger-row {
-  display: flex;
+  align-items: center;
+  display: grid;
+  grid-template-columns: 40px 1fr 1fr 1fr 1fr;
   gap: 12px;
-  align-items: flex-end;
   padding: 16px;
-  margin-bottom: 12px;
   background: #fff;
   border: 1px solid #ddd;
   border-radius: 4px;
-}
-
-.wpsignal-trigger-row > * {
-  flex: 1;
-  min-width: 0;
 }
 
 .wpsignal-trigger-actions {
@@ -93,9 +88,6 @@
 
 /* Tab styles */
 .wpsignal-connection-tabs-container {
-  border-bottom: 1px solid #dcdcde;
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
 
   button {
     flex: none;
@@ -217,6 +209,10 @@
   @starting-style {
     opacity: 0;
     animation: wps-fade-in 0.3s ease-in-out;
+  }
+
+  & * {
+    box-sizing: border-box;
   }
 }
 .wpsignal-progress-bar {

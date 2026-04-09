@@ -5,7 +5,7 @@
   "scripts": {
     "build": "wp-scripts build",
     "start": "wp-scripts start",
-    "make-pot": "wp i18n make-pot . languages/wordsocket.pot --slug=wordsocket --domain=wordsocket --skip-js",
+    "make-pot": "wp i18n make-pot . languages/wordsocket.pot --slug=wordsocket --domain=wordsocket",
     "dist": "bash bin/dist.sh",
     "svn": "bash bin/svn.sh"
   },
