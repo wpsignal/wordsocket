@@ -210,17 +210,6 @@ class Trigger {
 	 * This wires the WordPress hook so the trigger fires automatically.
 	 * Must be called after configuring the builder.
 	 *
-	 * @usage: register the trigger:
-	 * ```php
-	 *     WPS::trigger( 'post.updated' )
-	 *         ->on( 'save_post', 20, 3 )
-	 *         ->channel( 'events' )
-	 *         ->data( function ( $post_id, $post, $update ) {
-	 *             return array(
-	 *                 'post_id'    => $post_id,
-	 *                 'post_type'  => $post->post_type,
-	 *         ->register();
-	 * ```
 	 * @return void
 	 */
 	public function register() {

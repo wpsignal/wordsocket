@@ -5,7 +5,7 @@
   "scripts": {
     "build": "wp-scripts build",
     "start": "wp-scripts start",
-    "make-pot": "wp i18n make-pot . languages/wordsocket.pot --slug=wordsocket --domain=wordsocket --skip-js",
+    "make-pot": "wp i18n make-pot . languages/wordsocket.pot --slug=wordsocket --domain=wordsocket",
     "dist": "bash bin/dist.sh",
     "svn": "bash bin/svn.sh"
   },
@@ -16,7 +16,7 @@
     "@wordpress/api-fetch": "^7.0.0",
     "@wordpress/components": "^28.0.0",
     "@wordpress/i18n": "^5.0.0",
-    "@wordpress/ui": "^0.8.0",
+    "@wordpress/ui": "^0.10.0",
     "y-protocols": "^1.0.7"
   }
 }

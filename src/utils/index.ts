@@ -18,6 +18,8 @@ const CONSOLE_STYLES = {
  * @param summary - The summary to display in the console. Can be a string or an object.
  * @param type - The type of message to display in the console.
  * @param collapse - Whether to collapse the console group.
+ * @param prefix - The prefix appended to console group label.
+ * @returns void
  */
 export function wpsDebug(
   label: string,
@@ -56,17 +58,4 @@ function getStackTrace() {
   // remove the first 2 lines from the trace string (this function and the caller)
   const trace = "Stack trace:\n" + stack.split("\n").slice(2).join("\n") + "\n";
   return trace;
-}
-
-/**
- * Truncate a string to a maximum length.
- *
- * @param text      - The text to truncate.
- * @param maxLength - The maximum length of the text.
- * @param start     - Whether to truncate the start or end of the text.
- * @returns The truncated text.
- */
-export function truncate(text: string, maxLength: number, start: boolean = true) {
-  if (text.length <= maxLength) return text;
-  return start ? text.slice(0, maxLength) : text.slice(-maxLength);
 }

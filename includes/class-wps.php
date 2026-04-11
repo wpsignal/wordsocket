@@ -38,11 +38,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * WPSignal\WPS - main singleton facade.
- *
- * Central entry point for the plugin. Provides static convenience methods for
- * the two most common operations (registering triggers and publishing events)
- * and wires all internal components during boot().
+ * WPS - main singleton object.
  */
 class WPS {
 
@@ -119,13 +115,6 @@ class WPS {
 	/**
 	 * Get the singleton instance.
 	 *
-	 * Creates the instance on first call. Subsequent calls return the same
-	 * object. This is the recommended way to access internal components:
-	 *
-	 * @usage: get the configuration accessor:
-	 * ```php
-	 *     $config = WPSignal::instance()->config();
-	 * ```
 	 * @return WPS
 	 */
 	public static function instance() {
@@ -148,6 +137,9 @@ class WPS {
 	 * @return void
 	 */
 	public function boot() {
+		// Load the plugin textdomain for translations.	
+		add_action( 'init', array( $this, 'load_textdomain' ) );
+
 		$this->config_instance           = new Config();
 		$this->publisher_instance        = new Publisher( $this->config_instance );
 		$this->token_instance            = new Token( $this->config_instance, $this->publisher_instance );
@@ -202,6 +194,15 @@ class WPS {
 		// Register the "WordSocket" block category so example/third-party blocks
 		// can use "wordsocket" as their category without registering it themselves.
 		add_filter( 'block_categories_all', array( $this, 'register_block_category' ) );
+	}
+
+	/**
+	 * Load the plugin textdomain for translations.
+	 *
+	 * @return void
+	 */
+	public function load_textdomain() {
+		load_plugin_textdomain( 'wordsocket', false, plugin_basename( DIR ) . 'languages' );
 	}
 
 	/**

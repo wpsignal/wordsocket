@@ -89,3 +89,14 @@ export function disconnect(): Promise< { ok: boolean } > {
 export function getToken(): Promise< { token: string } > {
 	return apiFetch( { path: '/wpsignal/v1/token' } );
 }
+
+/**
+ * Publish a test event via the server-side proxy (keeps site secret out of the browser).
+ */
+export function publishEvent( channel: string, event: string, data: unknown ): Promise< { ok: boolean } > {
+	return apiFetch( {
+		path: '/wpsignal/v1/publish',
+		method: 'POST',
+		data: { channel, event, data },
+	} );
+}
