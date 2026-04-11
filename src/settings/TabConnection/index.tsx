@@ -1,7 +1,11 @@
 /**
  * WordPress dependencies.
  */
-import { useState, createInterpolateElement } from "@wordpress/element";
+import {
+  useState,
+  createInterpolateElement,
+  useEffect,
+} from "@wordpress/element";
 import {
   Flex,
   Button,
@@ -24,63 +28,117 @@ import { useSettings } from "../context";
 
 const { isSsl = false, isConstant = false } = window.wpSignalConfig ?? {};
 
-export function ConnectionTab() {
+export function TabConnection({ title }: { title: string }) {
   // Context
   const {
     siteKey,
     isConnected,
     fetchStatus,
     noticeMessage,
-    handleDisconnect,
     connectionType,
+    handleDisconnect,
     setSetting,
     successMessage,
   } = useSettings();
+
+  // Show a notice from the OAuth callback redirect (wps_notice URL param).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const wpsNotice = params.get("wps_notice");
+    if (wpsNotice === "connected" && siteKey) {
+      setSetting("noticeMessage", {
+        type: "success",
+        message: successMessage(siteKey),
+      });
+    }
+  }, [siteKey]);
+
+  // Notification messages handling
+  useEffect(() => {
+    // OAuth callback redirect (wps_notice URL param).
+    const params = new URLSearchParams(window.location.search);
+    const wpsNotice = params.get("wps_notice");
+    if (wpsNotice === "error_state") {
+      setSetting("noticeMessage", {
+        type: "error",
+        message: __(
+          "Connection failed: invalid or expired state. Please try again.",
+          "wordsocket",
+        ),
+      });
+    } else if (wpsNotice === "error_exchange") {
+      setSetting("noticeMessage", {
+        type: "error",
+        message: __(
+          "Connection failed: could not reach the WPSignal server. Check that your server is reachable.",
+          "wordsocket",
+        ),
+      });
+    } else if (wpsNotice === "error_data") {
+      setSetting("noticeMessage", {
+        type: "error",
+        message: __(
+          "Connection failed: unexpected response from server.",
+          "wordsocket",
+        ),
+      });
+    } else if (wpsNotice === "error" || wpsNotice?.startsWith("error_")) {
+      setSetting("noticeMessage", {
+        type: "error",
+        message: __("Connection failed. Please try again.", "wordsocket"),
+      });
+    } else if (wpsNotice === "cancelled") {
+      setSetting("noticeMessage", {
+        type: "error",
+        message: __("Connection cancelled.", "wordsocket"),
+      });
+    }
+  }, []);
 
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
   return (
     <div className="wpsignal-connection-tab">
-      <h3>
+      <h2>
         <Tooltip
           text={__(
             "Authorize this site to connect to WPSignal. This will allow you to receive real-time events from your site.",
             "wordsocket",
           )}
         >
-          <span><Icon size={16} icon="editor-help" /></span>
+          <span>
+            <Icon size={16} icon="editor-help" />
+          </span>
         </Tooltip>{" "}
-        {__("Connection", "wordsocket")}
-      </h3>
+        {title}
+      </h2>
       <div className="wpsignal-connection-status">
+        {["connecting", "disconnecting"].includes(fetchStatus) && (
+          <ProgressBar className="wpsignal-progress-bar" />
+        )}
         {noticeMessage ? (
-          <Notice status={noticeMessage.type}>{noticeMessage.message}</Notice>
+          <Notice status={noticeMessage.type} isDismissible={false}>{noticeMessage.message}</Notice>
         ) : (
           <>
             {fetchStatus === "connecting" && (
-              <Notice status="info">
+              <Notice status="info" isDismissible={false}>
                 {__("Validating connection settings...", "wordsocket")}
               </Notice>
             )}
             {isConnected && (
               <Notice status="success">{successMessage(siteKey)}</Notice>
             )}
-            {!noticeMessage &&
-              !isConnected &&
-              ["idle", "disconnected"].includes(fetchStatus) && (
-                <Notice status="error">
-                  {__(
-                    "Not connected to WPSignal. Try connecting.",
-                    "wordsocket",
-                  )}
-                </Notice>
-              )}
+            {!isConnected && ["idle", "disconnected"].includes(fetchStatus) && (
+              <Notice status="error">
+                {__("Not connected to WPSignal. Try connecting.", "wordsocket")}
+              </Notice>
+            )}
           </>
         )}
       </div>
       <div className="wpsignal-connection-tabs-container">
         {isConstant ? (
-          <Notice status="info">
+          <Notice status="info" isDismissible={false}>
             {createInterpolateElement(
               __(
                 "Credentials are defined in <code>./wp-config.php</code>. To change them, update the <code>WPSIGNAL_SITE_KEY</code>, <code>WPSIGNAL_SITE_SECRET</code>, and <code>WPSIGNAL_JWT_SECRET</code> constants.",

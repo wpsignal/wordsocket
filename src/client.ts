@@ -479,7 +479,7 @@ class WPSignalClient implements WPSApi {
     channel: string,
     data: Record<string, unknown>,
   ): void {
-    wpsDebug(eventName, data);
+    wpsDebug(`${eventName}:${channel}`, data);
     document.dispatchEvent(
       new CustomEvent(`wpsignal:${eventName}`, {
         detail: { channel, data },

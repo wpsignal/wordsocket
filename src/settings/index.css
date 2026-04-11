@@ -205,6 +205,22 @@
   border-radius: 3px;
 }
 
+.wpsignal-cards {
+  display: grid;
+  grid-template-columns: 50% 50%;
+  gap: 16px;
+}
+
+.wpsignal-card {
+  padding: 1rem;
+}
+
+@media (max-width: 1024px) {
+  .wpsignal-sections {
+    grid-template-columns: 1fr;
+  }
+}
+
 .wpsignal-settings-app {
   @starting-style {
     opacity: 0;
@@ -213,6 +229,12 @@
 
   & * {
     box-sizing: border-box;
+  }
+
+  h2 {
+    padding-bottom: 0.725em;
+    margin-bottom: 1rem;
+    border-bottom: 1px dashed #dcdcde;
   }
 }
 .wpsignal-progress-bar {

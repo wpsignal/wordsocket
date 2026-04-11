@@ -1,5 +1,5 @@
 import { createRoot } from '@wordpress/element';
-import { SettingsApp } from './SettingsApp';
+import { SettingsApp } from './AppSettings';
 import './index.css';
 
 const root = document.getElementById( 'wpsignal-settings-root' );

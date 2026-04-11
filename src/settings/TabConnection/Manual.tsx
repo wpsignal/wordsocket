@@ -55,9 +55,11 @@ export default function Manual({ title = null }: { title?: string | null }) {
     <>
       {title && <h3>{title}</h3>}
       <p>
+      {!isSsl &&
+          __("To use automatic OAuth, you'll need to enable SSL for this site.", "wordsocket")}{" "}
         {createInterpolateElement(
           __(
-            "Copy your API key from the <a>WPSignal dashboard</a> and paste it here.",
+            "Alternatively, copy your API key from the <a>WPSignal dashboard</a> and paste it here.",
             "wordsocket",
           ),
           {
@@ -69,9 +71,7 @@ export default function Manual({ title = null }: { title?: string | null }) {
               />
             ),
           },
-        )}{" "}
-        {!isSsl &&
-          ` ${__("(Not available for non-SSL connections)", "wordsocket")}`}
+        )}       
       </p>
       <TextControl
         className={`wpsignal-connection-input${

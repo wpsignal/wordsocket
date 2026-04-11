@@ -7,10 +7,10 @@ import { TabPanel } from "@wordpress/components";
 /**
  * Internal dependencies.
  */
-import { RtcTab } from "./RtcTab";
-import { TriggersTab } from "./TriggersTab";
-import { ConnectionTab } from "./ConnectionTab";
-import { ExplorerTab } from "./ExplorerTab";
+import { TabSettings } from "./TabSettings";
+import { TabTriggers } from "./TabTriggers";
+import { TabConnection } from "./TabConnection";
+import { TabExplorer } from "./TabExplorer";
 import { SettingsProvider, useSettings } from "./context";
 
 /**
@@ -23,9 +23,9 @@ const TABS = [
     className: "wpsignal-tab-connection",
   },
   {
-    name: "rtc",
-    title: __("Realtime Collaboration", "wordsocket"),
-    className: "wpsignal-tab-rtc",
+    name: "settings",
+    title: __("Settings", "wordsocket"),
+    className: "wpsignal-tab-settings",
   },
   {
     name: "triggers",
@@ -39,7 +39,7 @@ const TABS = [
   },
 ];
 
-function SettingsTabs() {
+function TabsSettings() {
   const { isConnected } = useSettings();
   const allowedTabs = isConnected
     ? TABS
@@ -48,10 +48,10 @@ function SettingsTabs() {
     <TabPanel className="wpsignal-settings-app" tabs={allowedTabs}>
       {(tab) => (
         <div className="wpsignal-tab-content">
-          {tab.name === "connection" && <ConnectionTab />}
-          {tab.name === "rtc" && <RtcTab />}
-          {tab.name === "triggers" && <TriggersTab />}
-          {tab.name === "explorer" && <ExplorerTab />}
+          {tab.name === "connection" && <TabConnection title={tab.title} />}
+          {tab.name === "settings" && <TabSettings title={tab.title} />}
+          {tab.name === "triggers" && <TabTriggers title={tab.title} />}
+          {tab.name === "explorer" && <TabExplorer title={tab.title} />}
         </div>
       )}
     </TabPanel>
@@ -64,7 +64,7 @@ function SettingsTabs() {
 export function SettingsApp() {
   return (
     <SettingsProvider>
-      <SettingsTabs />
+      <TabsSettings />
     </SettingsProvider>
   );
 }

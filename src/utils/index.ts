@@ -59,16 +59,3 @@ function getStackTrace() {
   const trace = "Stack trace:\n" + stack.split("\n").slice(2).join("\n") + "\n";
   return trace;
 }
-
-/**
- * Truncate a string to a maximum length.
- *
- * @param text      - The text to truncate.
- * @param maxLength - The maximum length of the text.
- * @param start     - Whether to truncate the start or end of the text.
- * @returns The truncated text.
- */
-export function truncate(text: string, maxLength: number, start: boolean = true) {
-  if (text.length <= maxLength) return text;
-  return start ? text.slice(0, maxLength) : text.slice(-maxLength);
-}
