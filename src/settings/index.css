@@ -88,7 +88,6 @@
 
 /* Tab styles */
 .wpsignal-connection-tabs-container {
-
   button {
     flex: none;
   }
@@ -207,17 +206,17 @@
 
 .wpsignal-cards {
   display: grid;
-  grid-template-columns: 50% 50%;
-  gap: 16px;
+  grid-template-columns: calc(50% - 0.5rem) calc(50% - 0.5rem);
+  gap: 1rem;
 }
 
 .wpsignal-card {
   padding: 1rem;
 }
 
-@media (max-width: 1024px) {
-  .wpsignal-sections {
-    grid-template-columns: 1fr;
+@media (max-width: 782px) {
+  .wpsignal-card {
+    grid-column: span 2;
   }
 }
 
@@ -237,9 +236,63 @@
     border-bottom: 1px dashed #dcdcde;
   }
 }
+
+.wpsignal-logo {
+  color: #888;
+
+  & svg {
+    width: 24px;
+    height: auto;
+  }
+
+  &:hover {
+    color: #000;
+  }
+}
+
+.wpsignal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wpsignal-meta-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  & a {
+    display: flex;
+    align-items: center;
+  }
+}
+
 .wpsignal-progress-bar {
   width: 100%;
 }
+
+.wpsignal-footer {
+  font-size: 0.8rem;
+  color: #666;
+  text-align: right;
+  margin-top: 1rem;
+}
+
+/* Explorer tab */
+.wpsignal-explorer-output {
+  max-height: 300px;
+  overflow-y: auto;
+  background: #1d2327;
+  padding: 10px;
+  font-family: monospace;
+  font-size: 13px;
+  border-radius: 4px;
+
+  & span {
+    display: block;
+  }
+}
+
 
 @keyframes wps-fade-in {
   from {

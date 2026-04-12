@@ -20,7 +20,6 @@ class Config {
 	 * Get the WPSignal server base URL.
 	 *
 	 * @return string Server URL.
-	 * @TODO: move to separate URL class.
 	 */
 	public function base_url() {
 		return defined( '\\WPSignal\\BASE_URL' ) ? untrailingslashit( BASE_URL ) : 'https://api.wpsignal.io';
@@ -30,7 +29,6 @@ class Config {
 	 * Get the server connect URL.
 	 *
 	 * @return string Connect URL.
-	 * @TODO: move to separate URL class.
 	 */
 	public function connect_url() {
 		$path = apply_filters( 'wpsignal_connect_path', 'dashboard/connect' );
@@ -41,7 +39,6 @@ class Config {
 	 * Get the server exchange URL.
 	 *
 	 * @return string Exchange URL.
-	 * @TODO: move to separate URL class.
 	 */
 	public function exchange_url() {
 		$path = apply_filters( 'wpsignal_exchange_path', 'api/connect/exchange' );

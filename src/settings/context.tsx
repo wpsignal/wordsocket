@@ -80,12 +80,7 @@ const DEFAULT_STATE: SettingsState = {
   successMessage,
 };
 
-/**
- * Successful 'Connected' message.
- *
- * @param siteKey - The site key.
- * @returns The success message.
- */
+/** Connected notice shown in the settings header after a successful connect. */
 function successMessage(siteKey: string): React.ReactNode {
   return (
     <>
@@ -104,11 +99,7 @@ function successMessage(siteKey: string): React.ReactNode {
  */
 const SettingsContext = createContext<SettingsState>(DEFAULT_STATE);
 
-/**
- * Settings provider.
- *
- * @TODO: add tab state to avoid unnecessary requests between tab changes.
- */
+// TODO: add tab state to avoid unnecessary requests between tab changes.
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [tabsCache, setTabsCache] = useState<TabsCached>({
     connection: null,
@@ -140,12 +131,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     fetchSettings();
   }, []);
 
-  /**
-   * Set a setting.
-   *
-   * @param key - The key of the setting to set.
-   * @param value - The value of the setting to set.
-   */
   function setSetting(
     key: keyof SettingsState,
     value: SettingsState[keyof SettingsState],
@@ -188,11 +173,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/**
- * Use settings.
- *
- * @returns The settings.
- */
 export function useSettings() {
   const ctx = useContext(SettingsContext);
   if (!ctx) {

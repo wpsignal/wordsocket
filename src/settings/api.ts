@@ -16,19 +16,10 @@ interface TriggersResponse {
 	message?: string;
 }
 
-/**
- * Get Triggers.
- * @returns Triggers response.
- */
 export function getTriggers(): Promise< TriggersResponse > {
 	return apiFetch( { path: '/wpsignal/v1/triggers' } );
 }
 
-/**
- * Save Triggers.
- * @param triggers - Triggers to save.
- * @returns Triggers response.
- */
 export function saveTriggers( triggers: Trigger[] ): Promise< TriggersResponse > {
 	return apiFetch( {
 		path: '/wpsignal/v1/triggers',
@@ -37,19 +28,10 @@ export function saveTriggers( triggers: Trigger[] ): Promise< TriggersResponse >
 	} );
 }
 
-/**
- * Get Settings.
- * @returns Settings response.
- */
 export function getSettings(): Promise< Settings > {
 	return apiFetch( { path: '/wpsignal/v1/settings' } );
 }
 
-/**
- * Save Settings.
- * @param settings - Settings to save.
- * @returns Settings response.
- */
 export function saveSettings( settings: SettingsPost ): Promise< SettingsPost > {
 	return apiFetch( {
 		path: '/wpsignal/v1/settings',
@@ -58,11 +40,6 @@ export function saveSettings( settings: SettingsPost ): Promise< SettingsPost > 
 	} );
 }
 
-/**
- * Connect with API Key.
- * @param api_key - API Key to connect with.
- * @returns Connect response.
- */
 export function connectWithApiKey( api_key: string ): Promise< ConnectResponse > {
 	return apiFetch( {
 		path: '/wpsignal/v1/connect',
@@ -71,10 +48,6 @@ export function connectWithApiKey( api_key: string ): Promise< ConnectResponse >
 	} );
 }
 
-/**
- * Disconnect.
- * @returns Disconnect response.
- */
 export function disconnect(): Promise< { ok: boolean } > {
 	return apiFetch( {
 		path: '/wpsignal/v1/disconnect',
@@ -82,10 +55,7 @@ export function disconnect(): Promise< { ok: boolean } > {
 	} );
 }
 
-/**
- * Get a short-lived connection JWT for the current user.
- * @returns JWT response.
- */
+/** Get a short-lived connection JWT for the current user. */
 export function getToken(): Promise< { token: string } > {
 	return apiFetch( { path: '/wpsignal/v1/token' } );
 }

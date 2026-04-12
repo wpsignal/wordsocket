@@ -9,15 +9,15 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-04-09T00:52:27+00:00\n"
+"POT-Creation-Date: 2026-04-12T05:12:46+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wordsocket\n"
 
 #. Plugin Name of the plugin
 #: wordsocket.php
-#: includes/class-wpsignal-admin-page.php:62
-#: includes/class-wpsignal-admin-page.php:63
+#: includes/class-wpsignal-admin-page.php:54
+#: includes/class-wpsignal-admin-page.php:55
 msgid "WordSocket"
 msgstr ""
 
@@ -41,141 +41,41 @@ msgstr ""
 msgid "https://wpsignal.io"
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:73
+#: includes/class-wpsignal-admin-page.php:65
 msgid "WordSocket Settings"
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:74
+#: includes/class-wpsignal-admin-page.php:66
+#: build/settings.js:1
 msgid "Settings"
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:82
-msgid "WordSocket Explorer"
+#: includes/class-wpsignal-admin-page.php:166
+msgid "(opens in a new tab)"
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:83
-msgid "Explorer"
+#: includes/class-wpsignal-admin-page.php:167
+msgid "External links"
+msgstr ""
+
+#: includes/class-wpsignal-admin-page.php:168
+msgid "Dashboard"
+msgstr ""
+
+#: includes/class-wpsignal-admin-page.php:170
+msgid "Documentation"
+msgstr ""
+
+#: includes/class-wpsignal-admin-page.php:172
+msgid "Support"
+msgstr ""
+
+#: includes/class-wpsignal-admin-page.php:174
+msgid "WPSignal home (opens in a new tab)"
 msgstr ""
 
 #: includes/class-wpsignal-connect.php:63
 msgid "Permission denied."
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:123
-msgid "Connection Status"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:128
-msgid "Configured"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:131
-msgid "Not Configured"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:132
-msgid "Go to Settings to connect."
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:139
-msgid "Server URL"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:143
-msgid "Site Key"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:150
-msgid "Test Connection"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:171
-msgid "Registered Triggers"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:174
-msgid "No triggers registered."
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:179
-#: build/settings.js:1
-msgid "Event"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:180
-msgid "Hook"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:181
-msgid "Priority"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:182
-msgid "Args"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:183
-#: includes/class-wpsignal-explorer-page.php:258
-#: build/settings.js:1
-msgid "Channel"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:184
-msgid "Condition"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:216
-msgid "Live Event Log"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:220
-msgid "Channels (comma-separated):"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:227
-#: build/settings.js:1
-msgid "Connect"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:230
-#: build/settings.js:1
-msgid "Disconnect"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:236
-msgid "Waiting for connection..."
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:254
-msgid "Publish Test Event"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:262
-msgid "Event Name"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:266
-msgid "JSON Data"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:273
-msgid "Publish Event"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:292
-msgid "Token Inspector"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:296
-msgid "Mint Token"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:301
-msgid "Raw Token"
-msgstr ""
-
-#: includes/class-wpsignal-explorer-page.php:304
-msgid "Decoded Claims"
 msgstr ""
 
 #: includes/class-wpsignal-publisher.php:96
@@ -221,26 +121,6 @@ msgid "Connected"
 msgstr ""
 
 #: build/settings.js:1
-msgid "Connection failed: invalid or expired state. Please try again."
-msgstr ""
-
-#: build/settings.js:1
-msgid "Connection failed: could not reach the WPSignal server. Check that your server is reachable."
-msgstr ""
-
-#: build/settings.js:1
-msgid "Connection failed: unexpected response from server."
-msgstr ""
-
-#: build/settings.js:1
-msgid "Connection failed. Please try again."
-msgstr ""
-
-#: build/settings.js:1
-msgid "Connection cancelled."
-msgstr ""
-
-#: build/settings.js:1
 msgid "Failed to load settings."
 msgstr ""
 
@@ -253,11 +133,11 @@ msgid "Loading real-time collaboration settings..."
 msgstr ""
 
 #: build/settings.js:1
-msgid "Registers WordSocket as the Yjs sync provider in the block editor. Disable this to fall back to WordPress HTTP polling."
+msgid "Realtime Collaboration"
 msgstr ""
 
 #: build/settings.js:1
-msgid "Realtime Collaboration:"
+msgid "Registers WordSocket as the Yjs sync provider in the block editor. Disable this to fall back to WordPress HTTP polling."
 msgstr ""
 
 #: build/settings.js:1
@@ -310,6 +190,14 @@ msgid "Option Name"
 msgstr ""
 
 #: build/settings.js:1
+msgid "Channel"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Event"
+msgstr ""
+
+#: build/settings.js:1
 msgid "No triggers found. Add a trigger to get started."
 msgstr ""
 
@@ -322,7 +210,7 @@ msgid "Triggers are events that can be triggered by a specific action hook."
 msgstr ""
 
 #: build/settings.js:1
-msgid "Triggers"
+msgid "This section is intended for setting up basic predefined triggers, for more advanced use cases look into our <a>API</a> to setup triggers through code. For a complete list of WordPress core action hooks, see the <b>WordPress Action Reference</b>. To see all available action hooks with your setup, install a plugin like <c>WP Hooks Finder</c>."
 msgstr ""
 
 #: build/settings.js:1
@@ -338,11 +226,11 @@ msgid "Save Triggers"
 msgstr ""
 
 #: build/settings.js:1
-msgid "Copy your API key from the <a>WPSignal dashboard</a> and paste it here."
+msgid "To use automatic OAuth, you'll need to enable SSL for this site."
 msgstr ""
 
 #: build/settings.js:1
-msgid "(Not available for non-SSL connections)"
+msgid "Alternatively, copy your API key from the <a>WPSignal dashboard</a> and paste it here."
 msgstr ""
 
 #: build/settings.js:1
@@ -374,11 +262,27 @@ msgid "Connect with WPSignal"
 msgstr ""
 
 #: build/settings.js:1
-msgid "Authorize this site to connect to WPSignal. This will allow you to receive real-time events from your site."
+msgid "Connection failed: invalid or expired state. Please try again."
 msgstr ""
 
 #: build/settings.js:1
-msgid "Connection"
+msgid "Connection failed: could not reach the WPSignal server. Check that your server is reachable."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Connection failed: unexpected response from server."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Connection failed. Please try again."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Connection cancelled."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Authorize this site to connect to WPSignal. This will allow you to receive real-time events from your site."
 msgstr ""
 
 #: build/settings.js:1
@@ -410,6 +314,10 @@ msgid "Cancel"
 msgstr ""
 
 #: build/settings.js:1
+msgid "Disconnect"
+msgstr ""
+
+#: build/settings.js:1
 msgid "Automatic"
 msgstr ""
 
@@ -422,5 +330,145 @@ msgid "Manual Connection"
 msgstr ""
 
 #: build/settings.js:1
-msgid "Realtime Collaboration"
+msgid "Registered Triggers"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Hook"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Priority"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Args"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Condition"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Waiting for connection..."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Event Log"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Not connected"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Channels (comma-separated):"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Fetching token..."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Subscribing to:"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Subscribed to:"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Unsubscribed from:"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Error:"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Parse error:"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Disconnected"
+msgstr ""
+
+#: build/settings.js:1
+msgid "WebSocket error"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Connect"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Publish Test Event"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Event Name"
+msgstr ""
+
+#: build/settings.js:1
+msgid "JSON Data"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Invalid JSON:"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Publishing..."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Published!"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Failed:"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Publish Event"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Expires in:"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Expired"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Token Inspector"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Raw Token"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Decoded Claims"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Mint Token"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Explorer is a tool for testing and debugging WPSignal events."
+msgstr ""
+
+#: build/settings.js:1
+msgid "View registered triggers and publish test events to see realtime event handling in action."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Triggers"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Explorer"
 msgstr ""

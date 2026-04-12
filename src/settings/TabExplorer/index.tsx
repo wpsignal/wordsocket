@@ -31,12 +31,7 @@ interface LogEntry {
   color: string;
 }
 
-/**
- * PanelTriggers is a collapsible card with the registered triggers table.
- * This table combines triggers created in UI and triggers created in PHP.
- *
- * @TODO: Sync triggers between triggers tab and triggers table.
- */
+// TODO: sync triggers between triggers tab and triggers table.
 function PanelTriggers() {
   const triggers = settings.triggers;
   if (!triggers.length) return null;
@@ -107,7 +102,7 @@ function PanelTriggers() {
   );
 }
 
-// @TODO: Unused, but demos how to test the connection status.
+// Unused — kept as a reference for manual connection status testing.
 function PanelConnection() {
   const { isConnected, siteKey } = useSettings();
   const [testText, setTestText] = useState("");
@@ -173,17 +168,10 @@ function PanelConnection() {
   );
 }
 
-/**
- * PanelEventLog is a collapsible card with the event log.
- * This log is used to display the events that are published to the server.
- *
- * @TODO: Add a way to clear the log.
- */
+// TODO: add a way to clear the log.
 function PanelEventLog({
-  isConnected,
   setIsConnected,
 }: {
-  isConnected: boolean;
   setIsConnected: (isConnected: boolean) => void;
 }) {
   const [channels, setChannels] = useState("events");
@@ -333,7 +321,19 @@ function PanelEventLog({
           value={channels}
           onChange={(value: string) => setChannels(value)}
           disabled={isWsConnected}
+          __next40pxDefaultSize
+          __nextHasNoMarginBottom
         />
+        <p
+          ref={logRef}
+          className="wpsignal-explorer-output"
+        >
+          {log.map((entry, i) => (
+            <span key={i} style={{ color: entry.color }}>
+              {entry.text}
+            </span>
+          ))}
+        </p>
         <p>
           <Button
             variant="primary"
@@ -350,33 +350,11 @@ function PanelEventLog({
             {__("Disconnect", "wordsocket")}
           </Button>
         </p>
-        <div
-          ref={logRef}
-          style={{
-            maxHeight: 300,
-            overflowY: "auto",
-            background: "#1d2327",
-            padding: 10,
-            fontFamily: "monospace",
-            fontSize: 13,
-            borderRadius: 4,
-          }}
-        >
-          {log.map((entry, i) => (
-            <div key={i} style={{ color: entry.color }}>
-              {entry.text}
-            </div>
-          ))}
-        </div>
       </Card.Content>
     </Card.Root>
   );
 }
 
-/**
- * PanelPublish is a collapsible card with the publish test event form.
- * This form is used to publish test events to the server.
- */
 function PanelPublish({ isConnected }: { isConnected: boolean }) {
   const [channel, setChannel] = useState("events");
   const [event, setEvent] = useState("test.event");
@@ -478,10 +456,6 @@ function PanelPublish({ isConnected }: { isConnected: boolean }) {
   );
 }
 
-/**
- * PanelToken is a collapsible card with the token inspector.
- * This inspector is used to inspect the token, and claims, that is used to authenticate the client.
- */
 function PanelToken() {
   const [tokenData, setTokenData] = useState<{
     raw: string;
@@ -575,10 +549,6 @@ function PanelToken() {
   );
 }
 
-/**
- * TabExplorer is the main component for the Explorer tab.
- * This tab is used to test and debug the WordSocket plugin.
- */
 export function TabExplorer({ title }: { title: string }) {
   const [isConnected, setIsConnected] = useState(false);
   return (
@@ -604,10 +574,7 @@ export function TabExplorer({ title }: { title: string }) {
       </p>
       <div className="wpsignal-cards">
         <PanelTriggers />
-        <PanelEventLog
-          isConnected={isConnected}
-          setIsConnected={setIsConnected}
-        />
+        <PanelEventLog setIsConnected={setIsConnected} />
         <PanelPublish isConnected={isConnected} />
         <PanelToken />
       </div>

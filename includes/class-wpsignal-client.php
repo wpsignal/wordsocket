@@ -69,13 +69,7 @@ class Client {
 		 * Return `false` to prevent the script from loading (e.g. on specific post types
 		 * or for guest users). Return `true` to force-load it regardless of login state.
 		 *
-		 * @TODO: Should this be configurable through the admin UI?
-		 *
 		 * @param bool $allow Default: `is_user_logged_in()`.
-		 * @usage: load for all visitors:
-		 * ```php
-		 *     add_filter( 'wpsignal_allow_client', '__return_true' );
-		 * ```
 		 */
 		$allow_client = apply_filters( 'wpsignal_allow_client', is_user_logged_in() );
 		if ( ! $allow_client ) {
@@ -124,16 +118,12 @@ class Client {
 			$localize['channels'] = $token_data['channels'];
 			$localize['exp']      = $token_data['exp'];
 			/**
-			 * Forces the client to use SSE instead of WebSocket. Mainly for development purposes.
+			 * Forces the client to use SSE instead of WebSocket.
 			 *
 			 * Return `true` to disable WebSocket and fall back to Server-Sent Events.
 			 * Useful in environments where WebSocket connections are blocked.
 			 *
 			 * @param bool $force Default: `false`.
-			 * @usage: force SSE transport:
-			 * ```php
-			 *     add_filter( 'wpsignal_force_sse', '__return_true' );
-			 * ```
 			 */
 			$force_sse            = apply_filters( 'wpsignal_force_sse', false );
 			$localize['forceSSE'] = $force_sse;

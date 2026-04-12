@@ -174,7 +174,7 @@ class Publisher {
 				error_log( sprintf( '[WPSignal] Publish HTTP %d: %s', $code, $message ) );
 			}
 			// On quota 429, store the throttle timestamp to skip future requests for the current month.
-			// @TODO: this is not fool proof, eventually users usage start & end will be different.
+			// Throttle is best-effort; billing period boundaries may differ between client and server.
 			if ( 429 === $code && is_array( $error_data ) && isset( $error_data['error'] ) ) {
 				$this->store_limit( $error_data['error'] );
 			}
