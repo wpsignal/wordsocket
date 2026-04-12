@@ -3,7 +3,7 @@ Contributors: wpsignal
 Tags: realtime, websocket, push, events, collaboration
 Requires at least: 6.2
 Tested up to: 7.0
-Stable tag: 0.13.2
+Stable tag: 0.14.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -131,6 +131,10 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 
 == Changelog ==
 
+= 0.14.0 =
+* Revamp admin ui, moved explorer to settings app
+
+
 = 0.13.2 =
 * remove self-hosted text
 
@@ -203,6 +207,9 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 * Initial release.
 
 == Upgrade Notice ==
+
+= 0.14.0 =
+Revamp admin ui, moved explorer to settings app
 
 = 0.13.2 =
 remove self-hosted text

@@ -45,6 +45,8 @@ Full documentation, API reference, and guides are at <a href="https://wpsignal.i
 
 ## Changelog
 
+**0.14.0** - Revamp admin ui, moved explorer to settings app.
+
 Full changelog can be viewed in [CHANGELOG.md](https://github.com/wpsignal/wordsocket/blob/main/CHANGELOG.md)
 
 ## License

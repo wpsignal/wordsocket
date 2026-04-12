@@ -1,6 +1,6 @@
 {
   "name": "wpsignal",
-  "version": "0.13.2",
+  "version": "0.14.0",
   "private": true,
   "scripts": {
     "build": "wp-scripts build",
