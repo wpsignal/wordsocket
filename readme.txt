@@ -122,12 +122,13 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 
 == Screenshots ==
 
-1. Settings page (Connection tab): Automatic connection mode with a "Connect with WPSignal" button, and a toggle to register WordSocket as the Yjs sync provider for real-time collaboration.
-2. WPSignal dashboard authorization screen: one-click OAuth-style prompt to authorize a WordPress site and link it to your WPSignal account.
-3. Settings page (connected): active connection confirmed with site key, Disconnect button, and real-time collaboration toggle enabled.
-4. Settings page (Triggers tab): no-code trigger builder for Post Type and Option events, with channel and event name fields and a "Triggers saved" confirmation.
-5. Explorer page (top): connection status panel showing server URL, site key, and live health check result, plus the Registered Triggers table listing all active hooks, priorities, and channels.
-6. Explorer page (bottom): Live Event Log showing a live WebSocket connection and an incoming encrypted event, alongside the Publish Test Event form with channel, event name, and JSON data fields.
+1. Connect tab (Automatic): one-click connection flow — log in to your WPSignal dashboard and authorize the site with a single button.
+2. Connect tab (Manual): paste your API key directly for setups where the automatic flow is unavailable.
+3. Connect tab (Automatic): post authentication and green banner is displayed with the words "Connected".
+4. Settings tab: toggle to register WordSocket as the Yjs sync provider for real-time collaborative editing in the block editor.
+5. Triggers tab: no-code trigger builder — map WordPress action hooks to realtime events with channel and event name fields.
+6. Explorer tab (disconnected): Event Log, Publish Test Event form, and Token Inspector panels ready to connect.
+7. Explorer tab (connected): live Event Log showing an active WebSocket connection and an incoming encrypted event, with a test event published successfully.
 
 == Changelog ==
 

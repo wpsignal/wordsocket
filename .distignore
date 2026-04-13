@@ -17,3 +17,4 @@ BETA.md
 composer.json
 composer.lock
 phpcs.xml
+vendor

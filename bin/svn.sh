@@ -54,8 +54,11 @@ info "Checking prerequisites"
 [[ -d "$SVN_DIR" ]]  || die "SVN directory not found: $SVN_DIR"
 command -v svn &>/dev/null || die "svn is not installed. Run: brew install subversion"
 
-# Warn if tag already exists
-if [[ -d "$SVN_DIR/tags/$VERSION" ]]; then
+info "Updating SVN checkout"
+(cd "$SVN_DIR" && svn update)
+
+# Check remote for existing tag (local checkout may be stale)
+if svn list "https://plugins.svn.wordpress.org/wordsocket/tags/$VERSION" &>/dev/null; then
   die "Tag $VERSION already exists in SVN. Bump the version before releasing."
 fi
 
@@ -74,6 +77,8 @@ info "Unzipping dist/${PLUGIN_SLUG}.zip into trunk/"
 unzip -q "$ZIP" -d /tmp/wps-svn-stage
 cp -r /tmp/wps-svn-stage/"$PLUGIN_SLUG"/. "$SVN_DIR/trunk/"
 rm -rf /tmp/wps-svn-stage
+# Belt-and-suspenders: strip anything that should never reach wp.org
+rm -rf "$SVN_DIR/trunk/vendor"
 ok "trunk/ updated"
 
 # ── 2. Sync SVN assets ────────────────────────────────────────────────────────
@@ -89,15 +94,7 @@ else
   warn "Icons and banners will not be updated."
 fi
 
-# ── 3. Create version tag ─────────────────────────────────────────────────────
-echo ""
-bold "Tagging release"
-
-info "svn cp trunk/ tags/$VERSION/"
-(cd "$SVN_DIR" && svn cp trunk "tags/$VERSION")
-ok "Tag created: tags/$VERSION"
-
-# ── 4. Stage new and deleted files ────────────────────────────────────────────
+# ── 3. Stage new and deleted files ────────────────────────────────────────────
 echo ""
 bold "Staging SVN changes"
 cd "$SVN_DIR"
@@ -112,6 +109,14 @@ while IFS= read -r f; do
   [[ -n "$f" ]] && svn delete "$f"
 done < <(svn status | grep '^!' | awk '{print $2}' || true)
 ok "Deleted files removed"
+
+# ── 4. Create version tag (after staging so the tag reflects the full state) ──
+echo ""
+bold "Tagging release"
+
+info "svn cp trunk/ tags/$VERSION/"
+(cd "$SVN_DIR" && svn cp trunk "tags/$VERSION")
+ok "Tag created: tags/$VERSION"
 
 # ── 5. Commit ─────────────────────────────────────────────────────────────────
 echo ""

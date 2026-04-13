@@ -1,3 +1,5 @@
+**0.14.0** - Revamp admin ui, moved explorer to settings app.
+
 **0.13.2** - remove self-hosted text.
 
 **0.13.1** - Updated screenshots.

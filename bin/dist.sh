@@ -114,7 +114,9 @@ else
   ASSET_PAIRS=(
     "wordsocket-128x128.gif:icon-128x128.gif"
     "icon-128x128.gif:icon-128x128.gif"
+    "wordsocket-128x128.png:icon-128x128.png"
     "wordsocket-256x256.gif:icon-256x256.gif"
+    "wordsocket-256x256.png:icon-256x256.png"
     "icon-256x256.gif:icon-256x256.gif"
     "wordsocket-772x250.png:banner-772x250.png"
     "wordsocket-772x250.jpg:banner-772x250.jpg"
