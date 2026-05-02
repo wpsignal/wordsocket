@@ -12,6 +12,52 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Define in wp-config.php to point the plugin at a self-hosted WPSignal server.
+ *
+ * When defined, overrides the default https://api.wpsignal.io endpoint for
+ * all publish, registration, and token requests.
+ *
+ * @const WPSignal\BASE_URL
+ * @usage: self-hosted server:
+ * ```php
+ *     define( 'WPSignal\\BASE_URL', 'https://signal.example.com' );
+ * ```
+ */
+
+/**
+ * Define in wp-config.php to hard-code the site key.
+ *
+ * Overrides the value stored in wp_options by the auto-registration flow.
+ * Useful for environments where the database is ephemeral (e.g. CI, staging
+ * clones) or when credentials are managed via environment variables.
+ *
+ * @const WPSIGNAL_SITE_KEY
+ * @usage: hard-coded site key:
+ * ```php
+ *     const WPSIGNAL_SITE_KEY = 'your-32-char-hex-site-key';
+ *
+ *     // or using define:
+ *     define( 'WPSIGNAL_SITE_KEY', 'your-32-char-hex-site-key' );
+ * ```
+ */
+
+/**
+ * Define in wp-config.php to hard-code the publish secret.
+ *
+ * Overrides the value stored in wp_options. Always pair with WPSIGNAL_SITE_KEY.
+ * Never expose this value to browsers.
+ *
+ * @const WPSIGNAL_SITE_SECRET
+ * @usage: hard-coded publish secret:
+ * ```php
+ *     const WPSIGNAL_SITE_SECRET = 'your-64-char-hex-secret';
+ *
+ *     // or using define:
+ *     define( 'WPSIGNAL_SITE_SECRET', 'your-64-char-hex-secret' );
+ * ```
+ */
+
+/**
  * Configuration accessor.
  */
 class Config {

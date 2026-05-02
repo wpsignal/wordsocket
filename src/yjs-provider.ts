@@ -59,6 +59,14 @@ import type { Awareness } from "y-protocols/awareness";
  */
 import { wpsDebug } from "./utils";
 
+function debug(
+  title: string,
+  data: any = null,
+  type: "log" | "error" | "warn" = "log",
+) {
+  wpsDebug(title, data, type, true, "Yjs");
+}
+
 // Message type constants (1-byte prefix).
 const MSG_SYNC_STEP_1 = 0x01;
 const MSG_SYNC_STEP_2 = 0x02;
@@ -93,13 +101,6 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
   private applyingRemote = false;
 
   /**
-   * True after the first ydoc update event fires (applyPersistedCrdtDoc init).
-   * Ensures SYNC_STEP_1 is sent exactly once via the onUpdate path when the
-   * connection was already open before the doc was initialised.
-   */
-  private initialized = false;
-
-  /**
    * Timestamp (ms) of the most recent SYNC_STEP_1 we sent. Rate-limits
    * reciprocal SYNC_STEP_1 replies to break server-echo loops.
    */
@@ -118,6 +119,7 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
     this.channel = `${prefix}${objectType}:${id}`;
     this.ydoc = ydoc;
     this.awareness = awareness;
+    debug("provider created", { channel: this.channel });
     this.init();
   }
 
@@ -168,46 +170,23 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
   private init(): void {
     const wps = window.WPS;
     if (!wps) {
-      wpsDebug(
+      debug(
         "window.WPS is not available.",
         "real-time collaboration is disabled.",
         "error",
-        true,
-        "Yjs",
       );
       return;
     }
-
-    wps.subscribe([this.channel]);
 
     const onUpdate = (update: Uint8Array, origin: unknown) => {
       if (this.applyingRemote || origin === this) return;
 
       if (wps.connected) {
-        if (!this.initialized) {
-          this.initialized = true;
-          this.sendSyncStep1(wps);
-          wpsDebug(
-            "SYNC_STEP_1 sent",
-            {
-              channel: this.channel,
-            },
-            "log",
-            true,
-            "Yjs",
-          );
-        }
         wps.publishBinary(this.channel, this.frame(MSG_UPDATE, update));
-        wpsDebug(
-          "outbound update",
-          {
-            channel: this.channel,
-            bytes: update.length,
-          },
-          "log",
-          true,
-          "Yjs",
-        );
+        debug("outbound update", {
+          channel: this.channel,
+          bytes: update.length,
+        });
       } else {
         this.pendingUpdates.push(update);
       }
@@ -248,17 +227,11 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
           // Reply with what the peer is missing from our doc.
           const missing = Y.encodeStateAsUpdate(this.ydoc, payload);
           wps.publishBinary(this.channel, this.frame(MSG_SYNC_STEP_2, missing));
-          wpsDebug(
-            "SYNC_STEP_1 received > SYNC_STEP_2 sent",
-            {
-              channel,
-              theirSvBytes: payload.length,
-              diffBytes: missing.length,
-            },
-            "log",
-            true,
-            "Yjs",
-          );
+          debug("SYNC_STEP_1 received > SYNC_STEP_2 sent", {
+            channel,
+            theirSvBytes: payload.length,
+            diffBytes: missing.length,
+          });
 
           /**
            * Send our own SYNC_STEP_1 so the peer can reply with what WE
@@ -271,50 +244,48 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
            */
           if (Date.now() - this.lastSyncStep1SentAt > SYNC_STEP_1_COOLDOWN_MS) {
             this.sendSyncStep1(wps);
-            wpsDebug(
-              "reciprocal SYNC_STEP_1 sent",
-              {
-                channel,
-              },
-              "log",
-              true,
-              "Yjs",
-            );
+            debug("reciprocal SYNC_STEP_1 sent", {
+              channel,
+            });
           }
           break;
         }
 
         case MSG_SYNC_STEP_2:
         case MSG_UPDATE: {
+          const svBefore = Y.encodeStateVector(this.ydoc);
           this.applyingRemote = true;
           try {
-            Y.applyUpdate(this.ydoc, payload);
-          } finally {
-            this.applyingRemote = false;
-          }
-          wpsDebug(
-            "inbound update applied",
-            {
+            Y.applyUpdate(this.ydoc, payload, "wpsignal");
+          } catch (err) {
+            debug("applyUpdate failed", {
               channel,
               type: msgType === MSG_SYNC_STEP_2 ? "SYNC_STEP_2" : "UPDATE",
               bytes: payload.length,
-            },
-            "log",
-            true,
-            "Yjs",
-          );
+              err,
+            });
+          } finally {
+            this.applyingRemote = false;
+          }
+          const svAfter = Y.encodeStateVector(this.ydoc);
+          const noop =
+            svBefore.length === svAfter.length &&
+            svBefore.every((b, i) => b === svAfter[i]);
+          debug("inbound update applied", {
+            channel,
+            type: msgType === MSG_SYNC_STEP_2 ? "SYNC_STEP_2" : "UPDATE",
+            bytes: payload.length,
+            ydocChanged: !noop,
+          });
           break;
         }
 
         case MSG_AWARENESS: {
           applyAwarenessUpdate(this.awareness, payload, "wpsignal");
-          wpsDebug(
-            "inbound awareness applied",
-            { channel, bytes: payload.length },
-            "log",
-            true,
-            "Yjs",
-          );
+          debug("inbound awareness applied", {
+            channel,
+            bytes: payload.length,
+          });
           break;
         }
       }
@@ -327,21 +298,11 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
 
       if (connected) {
         /**
-         * Always send SYNC_STEP_1 on connect or reconnect.
-         *
-         * applyPersistedCrdtDoc runs synchronously inside loadEntity()
-         * before any async event can fire, so the ydoc is always
-         * initialised by the time we reach here.
+         * Re-subscribe before sending SYNC_STEP_1.
          */
+        wps.subscribe([this.channel]);
         this.sendSyncStep1(wps);
-        this.initialized = true;
-        wpsDebug(
-          "connect SYNC_STEP_1 sent",
-          { channel: this.channel },
-          "log",
-          true,
-          "Yjs",
-        );
+        debug("connect SYNC_STEP_1 sent", { channel: this.channel });
 
         // Announce our presence to peers so collaborator badges appear.
         const awarenessUpdate = encodeAwarenessUpdate(this.awareness, [
@@ -354,31 +315,35 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
 
         for (const update of this.pendingUpdates.splice(0)) {
           wps.publishBinary(this.channel, this.frame(MSG_UPDATE, update));
-          wpsDebug(
-            "outbound update",
-            {
-              channel: this.channel,
-              bytes: update.length,
-            },
-            "log",
-            true,
-            "Yjs",
-          );
+          debug("outbound update", {
+            channel: this.channel,
+            bytes: update.length,
+          });
         }
       } else {
         // Capture full state so we can re-sync from scratch on reconnect.
         const snapshot = Y.encodeStateAsUpdate(this.ydoc);
         this.pendingUpdates.push(snapshot);
-        wpsDebug(
-          "pending updates",
-          { channel: this.channel, bytes: snapshot.length },
-          "log",
-          true,
-          "Yjs",
-        );
+        debug("pending updates", {
+          channel: this.channel,
+          bytes: snapshot.length,
+        });
       }
     });
     this.unsubscribers.push(offConnection);
+
+    if (wps.connected) {
+      wps.subscribe([this.channel]);
+      this.sendSyncStep1(wps);
+      debug("connect SYNC_STEP_1 sent", { channel: this.channel });
+      const awarenessUpdate = encodeAwarenessUpdate(this.awareness, [
+        this.awareness.clientID,
+      ]);
+      wps.publishBinary(
+        this.channel,
+        this.frame(MSG_AWARENESS, awarenessUpdate),
+      );
+    }
 
     this.emitStatus(wps.connected ? "connected" : "connecting");
   }
@@ -402,12 +367,10 @@ export async function wpsignalProviderCreator(
   options: ProviderCreatorOptions,
 ): Promise<ProviderCreatorResult> {
   if (window.WPS?.transport === "sse") {
-    wpsDebug(
+    debug(
       "WebSocket unavailable",
       "real-time collaboration is disabled. Reload the page to retry the WebSocket connection",
       "error",
-      true,
-      "Yjs",
     );
     return {
       destroy() {},
