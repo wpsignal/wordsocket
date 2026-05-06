@@ -166,6 +166,13 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
     this.statusHandlers.forEach((fn) => fn({ status }));
   }
 
+  /** Returns true if at least one remote peer is present in awareness. */
+  private hasPeers(): boolean {
+    return [...this.awareness.getStates().keys()].some(
+      (id) => id !== this.awareness.clientID,
+    );
+  }
+
   /** Subscribe to the channel and wire up ydoc, awareness, and connection listeners. */
   private init(): void {
     const wps = window.WPS;
@@ -180,6 +187,7 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
 
     const onUpdate = (update: Uint8Array, origin: unknown) => {
       if (this.applyingRemote || origin === this) return;
+      if (!this.hasPeers()) return;
 
       if (wps.connected) {
         wps.publishBinary(this.channel, this.frame(MSG_UPDATE, update));
@@ -202,7 +210,7 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
         return;
       }
       const changed = [...added, ...updated, ...removed];
-      if (changed.length === 0 || !wps.connected) {
+      if (changed.length === 0 || !wps.connected || !this.hasPeers()) {
         return;
       }
       const encoded = encodeAwarenessUpdate(this.awareness, changed);
@@ -281,7 +289,14 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
         }
 
         case MSG_AWARENESS: {
+          const hadPeers = this.hasPeers();
           applyAwarenessUpdate(this.awareness, payload, "wpsignal");
+          if (!hadPeers && this.hasPeers()) {
+            const localUpdate = encodeAwarenessUpdate(this.awareness, [
+              this.awareness.clientID,
+            ]);
+            wps.publishBinary(this.channel, this.frame(MSG_AWARENESS, localUpdate));
+          }
           debug("inbound awareness applied", {
             channel,
             bytes: payload.length,

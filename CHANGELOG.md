@@ -1,3 +1,5 @@
+**0.15.0** - Fixed: real-time sync on remote server — channel subscribed after SYNC_STEP_1 sent.
+
 **0.14.0** - Revamp admin ui, moved explorer to settings app.
 
 **0.13.2** - remove self-hosted text.
