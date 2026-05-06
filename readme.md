@@ -45,7 +45,7 @@ Full documentation, API reference, and guides are at <a href="https://wpsignal.i
 
 ## Changelog
 
-**0.15.0** - Fixed: real-time sync on remote server — channel subscribed after SYNC_STEP_1 sent.
+**0.15.1** - Fixed: skip Yjs update and awareness messages when no peers are connected.
 
 Full changelog can be viewed in [CHANGELOG.md](https://github.com/wpsignal/wordsocket/blob/main/CHANGELOG.md)
 
