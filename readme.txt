@@ -1,6 +1,6 @@
 === WordSocket ===
 Contributors: wpsignal
-Tags: realtime, websocket, push, events, collaboration
+Tags: realtime, websocket, collaboration, events, woocommerce
 Requires at least: 6.2
 Tested up to: 7.0
 Stable tag: 0.15.1
@@ -8,7 +8,7 @@ Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-WordSocket is the official WordPress plugin for WPSignal (wpsignal.io), a third-party WebSocket/SSE delivery service.
+WebSocket relay for WordPress. Realtime events plus a Yjs sync provider for WordPress 7.0 collaborative editing. No polling, no custom server.
 
 == Description ==
 
@@ -72,7 +72,7 @@ To create an account, visit [wpsignal.io](https://wpsignal.io).
 
 == Open Source ==
 
-https://github.com/wpsignal/wordsocket
+[https://github.com/wpsignal/wordsocket](https://github.com/wpsignal/wordsocket)
 
 == Frequently Asked Questions ==
 
