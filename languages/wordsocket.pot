@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: WordSocket 0.15.1\n"
+"Project-Id-Version: WordSocket 0.16.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wordsocket\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-05-06T16:53:54+00:00\n"
+"POT-Creation-Date: 2026-05-19T15:13:50+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wordsocket\n"
@@ -28,7 +28,7 @@ msgstr ""
 
 #. Description of the plugin
 #: wordsocket.php
-msgid "WordSocket is the official WordPress plugin for WPSignal (wpsignal.io)."
+msgid "WordSocket is the official WordPress plugin for <a href=\"https://wpsignal.io\">wpsignal.io</a>."
 msgstr ""
 
 #. Author of the plugin
@@ -71,6 +71,10 @@ msgid "Support"
 msgstr ""
 
 #: includes/class-wpsignal-admin-page.php:174
+msgid "Feedback"
+msgstr ""
+
+#: includes/class-wpsignal-admin-page.php:176
 msgid "WPSignal home (opens in a new tab)"
 msgstr ""
 
@@ -137,36 +141,7 @@ msgid "Realtime Collaboration"
 msgstr ""
 
 #: build/settings.js:1
-msgid "Registers WordSocket as the Yjs sync provider in the block editor. Disable this to fall back to WordPress HTTP polling."
-msgstr ""
-
-#: build/settings.js:1
-msgid "Disable WordSocket driven realtime collaboration?"
-msgstr ""
-
-#: build/settings.js:1
-msgid "Enable WordSocket driven realtime collaboration?"
-msgstr ""
-
-#: build/settings.js:1
-msgid "You must be connected to WPSignal to enable WordSocket driven realtime collaboration."
-msgstr ""
-
-#: build/settings.js:1
-msgid "Settings saved."
-msgstr ""
-
-#: build/settings.js:1
-msgid "Failed to save Yjs provider settings. Please try again."
-msgstr ""
-
-#: build/settings.js:1
-msgid "Real-time collaboration is not enabled. Please enable it under <a>Settings > Writing</a>."
-msgstr ""
-
-#: build/settings.js:1
-#, js-format
-msgid "Real-time collaboration is not supported on WordPress %s. Please upgrade to WordPress 7.0 or later."
+msgid "The inclusion of real-time collaboration in WordPress 7.0 has been delayed and is not yet available."
 msgstr ""
 
 #: build/settings.js:1
