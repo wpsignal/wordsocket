@@ -171,6 +171,8 @@ class Admin_Page {
 		echo '<span aria-hidden="true"> / </span>';
 		echo '<a href="https://wordpress.org/support/plugin/wordsocket/" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Support', 'wordsocket' ) . $new_tab_hint . '</a>';
 		echo '<span aria-hidden="true"> / </span>';
+		echo '<a href="https://docs.google.com/forms/d/e/1FAIpQLSeebdF0SjbhnCm6UhlVeXv5CtCA_NJgSf4nyb3rxOFIU32xYw/viewform?usp=publish-editor" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Feedback', 'wordsocket' ) . $new_tab_hint . '</a>';
+		echo '<span aria-hidden="true"> / </span>';
 		echo '<a class="wpsignal-logo" href="https://wpsignal.io/?utm_source=wordpress&utm_medium=plugin&utm_campaign=settings-page" target="_blank" rel="noopener noreferrer" aria-label="' . esc_attr__( 'WPSignal home (opens in a new tab)', 'wordsocket' ) . '">';
 		echo '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 443.21 252" aria-hidden="true" focusable="false">';
 		echo '<g>';

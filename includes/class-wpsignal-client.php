@@ -182,13 +182,14 @@ class Client {
 		$asset = require $asset_file;
 		$deps  = array_merge( $asset['dependencies'], array( 'wpsignal', 'wp-hooks' ) );
 
-		wp_enqueue_script(
-			'wpsignal-yjs-provider',
-			URL . 'build/yjs-provider.js',
-			$deps,
-			$asset['version'],
-			true
-		);
+		// @TODO: Uncomment this when real-time collaboration is available.
+		// wp_enqueue_script(
+		// 	'wpsignal-yjs-provider',
+		// 	URL . 'build/yjs-provider.js',
+		// 	$deps,
+		// 	$asset['version'],
+		// 	true
+		// );
 
 		/**
 		 * Compute site_id the same way as Token::mint() so the Yjs channel

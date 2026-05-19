@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       WordSocket
  * Plugin URI:        https://wpsignal.io/wordsocket
- * Description:       WordSocket is the official WordPress plugin for WPSignal (wpsignal.io).
+ * Description:       WordSocket is the official WordPress plugin for <a href="https://wpsignal.io">wpsignal.io</a>.
  * Version:           0.15.1
  * Author:            WPSignal
  * Author URI:        https://wpsignal.io

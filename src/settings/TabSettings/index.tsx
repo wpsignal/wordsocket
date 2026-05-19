@@ -61,7 +61,10 @@ export function TabSettings({ title }: { title: string }) {
     <div className="wpsignal-rtc-tab">
       <h2>{title}</h2>
       <h4>{__("Realtime Collaboration", "wordsocket")}</h4>
-      {wpVersion >= 7.0 ? (
+      <Notice status="warning" isDismissible={false}>
+        {__("The inclusion of real-time collaboration in WordPress 7.0 has been delayed and is not yet available.", "wordsocket")}
+      </Notice>
+      {/* {wpVersion >= 7.0 ? (
         isWpRtcEnabled ? (
           <ToggleControl
             disabled={
@@ -128,7 +131,7 @@ export function TabSettings({ title }: { title: string }) {
             </Notice>
           )}
         </>
-      )}
+      )} */}
     </div>
   );
 }
