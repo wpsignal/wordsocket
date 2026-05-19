@@ -3,7 +3,7 @@ Contributors: wpsignal
 Tags: realtime, websocket, collaboration, events, woocommerce
 Requires at least: 6.2
 Tested up to: 7.0
-Stable tag: 0.15.1
+Stable tag: 0.16.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -116,6 +116,10 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 
 == Changelog ==
 
+= 0.16.0 =
+* Remove rtc functionality and added feedback form
+
+
 = 0.15.1 =
 * Fixed: skip Yjs update and awareness messages when no peers are connected
 
@@ -200,6 +204,9 @@ Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plug
 * Initial release.
 
 == Upgrade Notice ==
+
+= 0.16.0 =
+Remove rtc functionality and added feedback form
 
 = 0.15.1 =
 Fixed: skip Yjs update and awareness messages when no peers are connected

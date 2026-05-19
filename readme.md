@@ -45,6 +45,8 @@ Full documentation, API reference, and guides are at <a href="https://wpsignal.i
 
 ## Changelog
 
+**0.16.0** - Remove rtc functionality and added feedback form.
+
 **0.15.1** - Fixed: skip Yjs update and awareness messages when no peers are connected.
 
 Full changelog can be viewed in [CHANGELOG.md](https://github.com/wpsignal/wordsocket/blob/main/CHANGELOG.md)
