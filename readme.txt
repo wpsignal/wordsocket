@@ -15,7 +15,7 @@ WebSocket relay for WordPress. Realtime events plus a Yjs sync provider for Word
 WordSocket sends realtime events from your WordPress site to connected browsers.
 When content changes: a post is published, a comment is approved, an option is updated: the plugin pushes the event to subscribers instantly via WebSocket (with SSE fallback).
 
-On WordPress 7.0+, WordSocket also registers as a WebSocket-based Yjs sync provider for real-time collaborative editing in the block editor, replacing the default HTTP polling transport with a low-latency WebSocket connection.
+On WordPress 7.0+, WordSocket also registers as a WebSocket-based Yjs sync provider for realtime collaborative editing in the block editor, replacing the default HTTP polling transport with a low-latency WebSocket connection.
 
 WPSignal is an independent service and is not affiliated with or endorsed by the WordPress project.
 
@@ -27,7 +27,6 @@ WPSignal is an independent service and is not affiliated with or endorsed by the
 * WebSocket-first with automatic SSE fallback
 * Per-site JWT signing secrets: each site's connection tokens are cryptographically isolated
 * AES-256-GCM encrypted event payloads: the WPSignal relay receives ciphertext only and never has access to plaintext message content
-* Real-time collaborative editing in the block editor (WordPress 7.0+, via Yjs sync provider)
 * Admin toggle to disable the collaboration provider and fall back to WordPress HTTP polling
 * Built-in triggers for post updates and custom post types
 * Custom trigger builder: map any WordPress action hook to a realtime event
@@ -100,19 +99,16 @@ The built-in client script loads for logged-in users by default. You can enqueue
 
 The client falls back to SSE for receiving events. `window.WPS.subscribe()` and `window.WPS.unsubscribe()` work on SSE connections: channel changes are tracked and applied immediately via a lightweight SSE reconnect (50 ms debounce). For collaborative editing, the plugin detects the fallback and emits a "not synced" status so WordPress can surface the appropriate indicator. You can also disable the collaboration provider entirely from **WordSocket > Settings > Connection** to restore WordPress HTTP polling for all editors.
 
-= Does collaborative editing require WordPress 7.0? =
-
-Yes. The Yjs sync provider integration requires WordPress 7.0 or later. The plugin detects the WordPress version and only registers the provider when `@wordpress/sync` is available.
-
 == Screenshots ==
+
+https://www.youtube.com/watch?v=yS1roK49HEQ
 
 1. Connect tab (Automatic): one-click connection flow — log in to your WPSignal dashboard and authorize the site with a single button.
 2. Connect tab (Manual): paste your API key directly for setups where the automatic flow is unavailable.
 3. Connect tab (Automatic): post authentication and green banner is displayed with the words "Connected".
-4. Settings tab: toggle to register WordSocket as the Yjs sync provider for real-time collaborative editing in the block editor.
-5. Triggers tab: no-code trigger builder — map WordPress action hooks to realtime events with channel and event name fields.
-6. Explorer tab (disconnected): Event Log, Publish Test Event form, and Token Inspector panels ready to connect.
-7. Explorer tab (connected): live Event Log showing an active WebSocket connection and an incoming encrypted event, with a test event published successfully.
+4. Triggers tab: no-code trigger builder — map WordPress action hooks to realtime events with channel and event name fields.
+5. Explorer tab (disconnected): Event Log, Publish Test Event form, and Token Inspector panels ready to connect.
+6. Explorer tab (connected): live Event Log showing an active WebSocket connection and an incoming encrypted event, with a test event published successfully.
 
 == Changelog ==
 
