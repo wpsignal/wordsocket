@@ -57,6 +57,8 @@ Event payloads are AES-256-GCM encrypted before leaving WordPress. The WPSignal 
 * [Terms of Service](https://wpsignal.io/terms)
 * [Privacy Policy](https://wpsignal.io/privacy)
 
+https://www.youtube.com/watch?v=yS1roK49HEQ
+
 == Installation ==
 
 1. Upload the `wordsocket` folder to `/wp-content/plugins/`, or install directly from the WordPress plugin directory.
@@ -100,8 +102,6 @@ The built-in client script loads for logged-in users by default. You can enqueue
 The client falls back to SSE for receiving events. `window.WPS.subscribe()` and `window.WPS.unsubscribe()` work on SSE connections: channel changes are tracked and applied immediately via a lightweight SSE reconnect (50 ms debounce). For collaborative editing, the plugin detects the fallback and emits a "not synced" status so WordPress can surface the appropriate indicator. You can also disable the collaboration provider entirely from **WordSocket > Settings > Connection** to restore WordPress HTTP polling for all editors.
 
 == Screenshots ==
-
-https://www.youtube.com/watch?v=yS1roK49HEQ
 
 1. Connect tab (Automatic): one-click connection flow — log in to your WPSignal dashboard and authorize the site with a single button.
 2. Connect tab (Manual): paste your API key directly for setups where the automatic flow is unavailable.

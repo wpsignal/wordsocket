@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-06-04T14:38:43+00:00\n"
+"POT-Creation-Date: 2026-06-04T14:58:54+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wordsocket\n"
@@ -50,31 +50,31 @@ msgstr ""
 msgid "Settings"
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:166
+#: includes/class-wpsignal-admin-page.php:172
 msgid "(opens in a new tab)"
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:167
+#: includes/class-wpsignal-admin-page.php:173
 msgid "External links"
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:168
+#: includes/class-wpsignal-admin-page.php:174
 msgid "Dashboard"
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:170
+#: includes/class-wpsignal-admin-page.php:176
 msgid "Documentation"
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:172
+#: includes/class-wpsignal-admin-page.php:178
 msgid "Support"
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:174
+#: includes/class-wpsignal-admin-page.php:180
 msgid "Feedback"
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:176
+#: includes/class-wpsignal-admin-page.php:182
 msgid "WPSignal home (opens in a new tab)"
 msgstr ""
 
