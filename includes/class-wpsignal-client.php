@@ -57,7 +57,8 @@ class Client {
 	/**
 	 * Conditionally enqueue the client script.
 	 *
-	 * Only enqueues when the user is logged in and the plugin is configured.
+	 * Only enqueues when the user is logged in and the site is fully connected
+	 * (base_url, site_key, and site_secret all set).
 	 * The script is loaded in the footer with no dependencies.
 	 *
 	 * @return void
@@ -76,10 +77,11 @@ class Client {
 			return;
 		}
 
-		$base_url = $this->config->base_url();
-		if ( empty( $base_url ) ) {
+		if ( ! $this->config->is_configured() ) {
 			return;
 		}
+
+		$base_url = $this->config->base_url();
 
 		$asset_file = DIR . 'build/client.asset.php';
 		$asset      = file_exists( $asset_file ) ? require $asset_file : array(

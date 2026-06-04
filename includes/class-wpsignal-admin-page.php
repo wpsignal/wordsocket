@@ -160,6 +160,12 @@ class Admin_Page {
 			)
 		);
 
+		wp_add_inline_script(
+			'wpsignal-settings',
+			'window.wpSignalConfig = window.wpSignalConfig || ' . wp_json_encode( array( 'isSsl' => is_ssl() ) ) . ';',
+			'before'
+		);
+
 		echo '<div class="wrap">';
 		echo '<header class="wpsignal-header">';
 		echo '<h1>' . esc_html( get_admin_page_title() ) . '</h1>';

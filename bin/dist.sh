@@ -131,11 +131,17 @@ else
     "banner-1544x500.png:banner-1544x500.png"
     "banner-1544x500.jpg:banner-1544x500.jpg"
     "screenshot-1.png:screenshot-1.png"
+    "screenshot-1.jpg:screenshot-1.jpg"
     "screenshot-2.png:screenshot-2.png"
+    "screenshot-2.jpg:screenshot-2.jpg"
     "screenshot-3.png:screenshot-3.png"
+    "screenshot-3.jpg:screenshot-3.jpg"
     "screenshot-4.png:screenshot-4.png"
+    "screenshot-4.jpg:screenshot-4.jpg"
     "screenshot-5.png:screenshot-5.png"
+    "screenshot-5.jpg:screenshot-5.jpg"
     "screenshot-6.png:screenshot-6.png"
+    "screenshot-6.jpg:screenshot-6.jpg"
   )
 
   COPIED=0
