@@ -50,7 +50,6 @@ This plugin connects to the **WPSignal service** at api.wpsignal.io for the foll
 * **Site registration**: when you connect in the admin (via the automatic one-click flow or by entering an API key manually), the plugin registers your site with the server and receives credentials.
 * **Event publishing**: when a trigger fires (e.g. a post is saved), the plugin sends an encrypted, HMAC-signed HTTP request to the server.
 * **Realtime connections**: logged-in users' browsers connect to the server via WebSocket or SSE to receive events.
-* **Collaborative editing**: on WordPress 7.0+, Yjs document updates are relayed over the same WebSocket connection.
 
 Event payloads are AES-256-GCM encrypted before leaving WordPress. The WPSignal server relays ciphertext and never has access to plaintext message content. Data is delivered in realtime and is **not persisted** on the server.
 

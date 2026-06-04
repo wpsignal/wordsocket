@@ -18,6 +18,10 @@
 #
 # Then commits, tags vX.Y.Z, and pushes — triggering the GitHub Action
 # that builds and attaches wordsocket.zip to the release.
+#
+# After this script completes, run in order:
+#   npm run dist    (builds the zip from the now-bumped source)
+#   npm run svn     (pushes trunk + tag to WordPress.org)
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 

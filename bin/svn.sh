@@ -65,6 +65,11 @@ command -v svn &>/dev/null || die "svn is not installed. Run: brew install subve
 
 if [[ "$ASSETS_ONLY" == false && "$README_ONLY" == false ]]; then
   [[ -f "$ZIP" ]] || die "dist/wordsocket.zip not found. Run 'npm run dist' first."
+
+  ZIP_VERSION="$(unzip -p "$ZIP" wordsocket/wordsocket.php | grep -m1 'Version:' | sed 's/.*Version:[[:space:]]*//' | tr -d '[:space:]')"
+  if [[ "$ZIP_VERSION" != "$VERSION" ]]; then
+    die "Version mismatch: package.json says $VERSION but dist zip contains $ZIP_VERSION. Run 'npm run dist' first."
+  fi
 fi
 
 info "Updating SVN checkout"
