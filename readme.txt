@@ -3,7 +3,7 @@ Contributors: wpsignal
 Tags: realtime, websocket, collaboration, events, woocommerce
 Requires at least: 6.2
 Tested up to: 7.0
-Stable tag: 0.16.0
+Stable tag: 0.17.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -112,6 +112,10 @@ https://www.youtube.com/watch?v=yS1roK49HEQ
 
 == Changelog ==
 
+= 0.17.0 =
+* Prevent connection attempts when no auth
+
+
 = 0.16.0 =
 * Remove rtc functionality and added feedback form
 
@@ -200,6 +204,9 @@ https://www.youtube.com/watch?v=yS1roK49HEQ
 * Initial release.
 
 == Upgrade Notice ==
+
+= 0.17.0 =
+Prevent connection attempts when no auth
 
 = 0.16.0 =
 Remove rtc functionality and added feedback form
