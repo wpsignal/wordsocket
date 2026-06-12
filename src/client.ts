@@ -22,7 +22,12 @@ class WPSignalClient implements WPSApi {
   private ws: WebSocket | null = null;
   private sseReader: EventSource | null = null;
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private visibilityListenerAttached = false;
   private _connected = false;
+  /** Debug-only: when true the WS close handler skips the automatic 5s reconnect,
+   * letting `window.wpsTest.drop()` mimic a dead-after-sleep socket until `wake()`. */
+  private debugSuppressReconnect = false;
 
   /** Token for the current SSE connection; retained so reconnects can reuse it when channels change. */
   private sseToken: string | null = null;
@@ -199,6 +204,7 @@ class WPSignalClient implements WPSApi {
 
   /** Initialise the client: obtain a token and open a transport connection. */
   start(): void {
+    if (this.config.debug) this.attachDebugHelpers();
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", () => this.init());
     } else {
@@ -206,7 +212,100 @@ class WPSignalClient implements WPSApi {
     }
   }
 
+  /**
+   * Debug-only test harness exposed at `window.wpsTest`.
+   * Lets you exercise the sleep/wake reconnect path from the console without
+   * actually suspending the device. Only attached when `config.debug` is true.
+   *
+   *   wpsTest.status()  – log connection state
+   *   wpsTest.drop()    – simulate a dead socket (no auto-reconnect)
+   *   wpsTest.wake()    – fire the visibility/online reconnect path
+   *   wpsTest.cycle()   – drop, then wake ~1.5s later (one-shot round trip)
+   */
+  private attachDebugHelpers(): void {
+    const status = () => {
+      const snapshot = {
+        connected: this._connected,
+        transport: this._transport,
+        wsReadyState: this.ws?.readyState ?? null,
+        reconnectPending: this.reconnectTimer !== null,
+        suppressed: this.debugSuppressReconnect,
+      };
+      wpsDebug("[debug] status", snapshot, "log", true);
+      return snapshot;
+    };
+
+    const drop = () => {
+      wpsDebug("[debug] Simulating connection drop (sleep)…");
+      this.debugSuppressReconnect = true;
+      if (this.reconnectTimer !== null) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+      // Closing triggers the WS close handler, which honours debugSuppressReconnect.
+      this.ws?.close();
+      // SSE has no close handler that flips connection state, so do it here.
+      if (this.sseReader) {
+        this.sseReader.close();
+        this.sseReader = null;
+        this.setConnected(false);
+      }
+    };
+
+    const wake = () => {
+      wpsDebug("[debug] Simulating wake (visibility + online)…");
+      this.debugSuppressReconnect = false;
+      window.dispatchEvent(new Event("online"));
+      document.dispatchEvent(new Event("visibilitychange"));
+    };
+
+    const cycle = (ms = 1500) => {
+      drop();
+      setTimeout(wake, ms);
+    };
+
+    (window as unknown as { wpsTest?: unknown }).wpsTest = {
+      status,
+      drop,
+      wake,
+      cycle,
+    };
+    wpsDebug(
+      "[debug] Test helpers ready: wpsTest.status() | .drop() | .wake() | .cycle()",
+      null,
+      "log",
+      true,
+    );
+  }
+
+  private attachVisibilityListeners(): void {
+    if (this.visibilityListenerAttached) return;
+    this.visibilityListenerAttached = true;
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible")
+        this.handleReconnectIfNeeded();
+    });
+    window.addEventListener("online", () => this.handleReconnectIfNeeded());
+  }
+
+  private handleReconnectIfNeeded(): void {
+    if (this._connected) return;
+    // init() is already in flight (cleanup ran but token fetch hasn't resolved yet).
+    if (this._transport === null && this.reconnectTimer === null) return;
+    // Don't interrupt a WS handshake in progress — let it open or fall back naturally.
+    if (this.ws?.readyState === WebSocket.CONNECTING) return;
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    wpsDebug("Reconnecting on visibility/network restore...");
+    this.cleanup();
+    this.init();
+  }
+
   private init(): void {
+    this.attachVisibilityListeners();
+
     let tokenPromise: Promise<{
       token: string;
       channels: string[];
@@ -278,10 +377,10 @@ class WPSignalClient implements WPSApi {
 
     this.ws.addEventListener("open", () => {
       didOpen = true;
-      this.setConnected(true);
       wpsDebug("WebSocket connected");
       this.ws!.send(JSON.stringify({ type: "subscribe", channels }));
       this.flushPendingSubscriptions();
+      this.setConnected(true);
     });
 
     this.ws.addEventListener("message", (e: MessageEvent) => {
@@ -347,9 +446,12 @@ class WPSignalClient implements WPSApi {
       this.setConnected(false);
       if (!didOpen) {
         fallbackToSSE();
+      } else if (this.debugSuppressReconnect) {
+        wpsDebug("[debug] Auto-reconnect suppressed (simulated sleep)");
       } else {
         wpsDebug("Reconnecting in 5s...");
-        setTimeout(() => {
+        this.reconnectTimer = setTimeout(() => {
+          this.reconnectTimer = null;
           this.cleanup();
           this.init();
         }, 5000);
@@ -370,7 +472,9 @@ class WPSignalClient implements WPSApi {
     this.sseToken = token;
 
     // Absorb any channels queued before the connection was established.
-    this.pendingSubscriptions.splice(0).forEach((ch) => this.sseChannels.add(ch));
+    this.pendingSubscriptions
+      .splice(0)
+      .forEach((ch) => this.sseChannels.add(ch));
     channels.forEach((ch) => this.sseChannels.add(ch));
 
     this._transport = "sse";
@@ -428,6 +532,11 @@ class WPSignalClient implements WPSApi {
   }
 
   private cleanup(): void {
+    this.debugSuppressReconnect = false;
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (this.sseReconnectTimer !== null) {
       clearTimeout(this.sseReconnectTimer);
       this.sseReconnectTimer = null;
@@ -451,6 +560,7 @@ class WPSignalClient implements WPSApi {
   }
 
   private setConnected(value: boolean): void {
+    if (value === this._connected) return;
     this._connected = value;
     this.connectionHandlers.forEach((fn) => fn(value));
   }

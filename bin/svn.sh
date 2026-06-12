@@ -85,12 +85,23 @@ fi
 ok "Prerequisites met"
 
 if [[ "$README_ONLY" == true ]]; then
-  # ── readme-only: copy readme.txt to trunk and commit ───────────────────────
+  # ── readme-only: copy readme.txt to trunk + stable tag and commit ──────────
   echo ""
   bold "Updating readme.txt"
   [[ -f "$PLUGIN_DIR/readme.txt" ]] || die "readme.txt not found in plugin directory."
+
   cp "$PLUGIN_DIR/readme.txt" "$SVN_DIR/trunk/readme.txt"
   ok "readme.txt copied to trunk/"
+
+  # wp.org serves the plugin page from the stable tag, not trunk.
+  # Keep both in sync so readme-only updates are immediately visible.
+  STABLE_TAG_DIR="$SVN_DIR/tags/$VERSION"
+  if [[ -d "$STABLE_TAG_DIR" ]]; then
+    cp "$PLUGIN_DIR/readme.txt" "$STABLE_TAG_DIR/readme.txt"
+    ok "readme.txt copied to tags/$VERSION/"
+  else
+    warn "tags/$VERSION/ not found — only trunk updated. Create the tag before pushing readme changes."
+  fi
 
   echo ""
   bold "Committing to WordPress.org SVN"
