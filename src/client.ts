@@ -213,14 +213,13 @@ class WPSignalClient implements WPSApi {
   }
 
   /**
-   * Debug-only test harness exposed at `window.wpsTest`.
-   * Lets you exercise the sleep/wake reconnect path from the console without
-   * actually suspending the device. Only attached when `config.debug` is true.
+   * Expose a `window.wpsTest` harness for exercising the sleep/wake reconnect
+   * path from the console. Attached only when `config.debug` is true.
    *
-   *   wpsTest.status()  – log connection state
-   *   wpsTest.drop()    – simulate a dead socket (no auto-reconnect)
-   *   wpsTest.wake()    – fire the visibility/online reconnect path
-   *   wpsTest.cycle()   – drop, then wake ~1.5s later (one-shot round trip)
+   *   wpsTest.status()  logs connection state
+   *   wpsTest.drop()    simulates a dead socket (no auto-reconnect)
+   *   wpsTest.wake()    fires the visibility/online reconnect path
+   *   wpsTest.cycle()   drops, then wakes ~1.5s later
    */
   private attachDebugHelpers(): void {
     const status = () => {
@@ -278,6 +277,7 @@ class WPSignalClient implements WPSApi {
     );
   }
 
+  /** Reconnect when the tab becomes visible or the network comes back online. */
   private attachVisibilityListeners(): void {
     if (this.visibilityListenerAttached) return;
     this.visibilityListenerAttached = true;
@@ -288,11 +288,15 @@ class WPSignalClient implements WPSApi {
     window.addEventListener("online", () => this.handleReconnectIfNeeded());
   }
 
+  /**
+   * Reconnect immediately rather than waiting for the scheduled retry. No-ops if
+   * already connected, mid-handshake, or if an init() is already in flight.
+   */
   private handleReconnectIfNeeded(): void {
     if (this._connected) return;
     // init() is already in flight (cleanup ran but token fetch hasn't resolved yet).
     if (this._transport === null && this.reconnectTimer === null) return;
-    // Don't interrupt a WS handshake in progress — let it open or fall back naturally.
+    // Don't interrupt a WS handshake in progress; let it open or fall back naturally.
     if (this.ws?.readyState === WebSocket.CONNECTING) return;
     if (this.reconnectTimer !== null) {
       clearTimeout(this.reconnectTimer);
@@ -303,6 +307,10 @@ class WPSignalClient implements WPSApi {
     this.init();
   }
 
+  /**
+   * Obtain a token (reused from config on first load, otherwise fetched) and
+   * open a transport. Retries after 30s if the token fetch fails.
+   */
   private init(): void {
     this.attachVisibilityListeners();
 
@@ -347,12 +355,18 @@ class WPSignalClient implements WPSApi {
       });
   }
 
+  /** Build the WebSocket URL, carrying the auth token as a query param. */
   private wsUrl(token: string, baseUrl: string): string {
     const wsProto = baseUrl.startsWith("https") ? "wss" : "ws";
     const wsHost = baseUrl.replace(/^https?:\/\//, "");
     return `${wsProto}://${wsHost}/ws?token=${encodeURIComponent(token)}`;
   }
 
+  /**
+   * Open a WebSocket and wire up its handlers. Subscribes to `channels` on open;
+   * falls back to SSE if the socket never opens, and schedules a reconnect if an
+   * established socket later closes.
+   */
   private connectWebSocket(token: string, channels: string[]): void {
     const wsUrl = this.wsUrl(token, this.baseUrl);
 
@@ -531,6 +545,10 @@ class WPSignalClient implements WPSApi {
     });
   }
 
+  /**
+   * Tear down the active transport and timers. Retains sseToken and sseChannels
+   * so the next connect restores all subscriptions automatically.
+   */
   private cleanup(): void {
     this.debugSuppressReconnect = false;
     if (this.reconnectTimer !== null) {
@@ -555,16 +573,16 @@ class WPSignalClient implements WPSApi {
     }
     this._transport = null;
     this.setConnected(false);
-    // sseToken and sseChannels are intentionally kept so the next connectSSE
-    // call (e.g. after a token refresh) restores all subscriptions automatically.
   }
 
+  /** Update connection state, notifying handlers only when the value changes. */
   private setConnected(value: boolean): void {
     if (value === this._connected) return;
     this._connected = value;
     this.connectionHandlers.forEach((fn) => fn(value));
   }
 
+  /** Mint a fresh token, channel list, and expiry from the REST endpoint. */
   private async fetchToken(): Promise<{
     token: string;
     channels: string[];
@@ -584,6 +602,10 @@ class WPSignalClient implements WPSApi {
     return res.json();
   }
 
+  /**
+   * Fan an incoming event out to DOM listeners (`wpsignal:<event>`), catch-all
+   * message handlers, and per-event handlers.
+   */
   private dispatchEvent(
     eventName: string,
     channel: string,
@@ -599,6 +621,10 @@ class WPSignalClient implements WPSApi {
     this.eventHandlers.get(eventName)?.forEach((fn) => fn(data, channel));
   }
 
+  /**
+   * Schedule a token refresh at 80% of its lifetime (min 10s). Refreshes in
+   * place over an open WebSocket, otherwise reconnects with the new token.
+   */
   private scheduleRefresh(exp: number): void {
     if (this.refreshTimer) {
       clearTimeout(this.refreshTimer);
@@ -631,6 +657,7 @@ class WPSignalClient implements WPSApi {
     }, refreshAt);
   }
 
+  /** Send any channels queued while the socket was still connecting. */
   private flushPendingSubscriptions(): void {
     if (
       this.pendingSubscriptions.length &&
