@@ -18,21 +18,21 @@
 #   2. Syncs dist/svn-assets/ to SVN assets/ (if present)
 #   3. Tags the release: svn cp trunk/ tags/{version}/
 #   4. Stages new/deleted files and commits
-# ─────────────────────────────────────────────────────────────────────────────
+# 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PLUGIN_DIR"
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+# Helpers
 bold()  { printf '\033[1m%s\033[0m\n' "$*"; }
 info()  { printf '  \033[34m→\033[0m %s\n' "$*"; }
 ok()    { printf '  \033[32m✔\033[0m %s\n' "$*"; }
 warn()  { printf '  \033[33m⚠\033[0m %s\n' "$*"; }
 die()   { printf '\033[31mError:\033[0m %s\n' "$*" >&2; exit 1; }
 
-# ── Flags ────────────────────────────────────────────────────────────────────
+# Flags
 ASSETS_ONLY=false
 README_ONLY=false
 for arg in "$@"; do
@@ -40,7 +40,7 @@ for arg in "$@"; do
   [[ "$arg" == "--readme-only" ]] && README_ONLY=true
 done
 
-# ── Config ────────────────────────────────────────────────────────────────────
+# Config
 VERSION="$(node -p "require('./package.json').version")"
 PLUGIN_SLUG="wordsocket"
 SVN_DIR="${SVN_DIR:-$PLUGIN_DIR/../wordsocket-svn}"
@@ -57,7 +57,7 @@ fi
 bold "WordSocket SVN: v${VERSION}${ASSETS_ONLY:+ (assets only)}${README_ONLY:+ (readme only)}"
 echo ""
 
-# ── Preflight ─────────────────────────────────────────────────────────────────
+# Preflight
 info "Checking prerequisites"
 
 [[ -d "$SVN_DIR" ]]  || die "SVN directory not found: $SVN_DIR"
@@ -85,7 +85,7 @@ fi
 ok "Prerequisites met"
 
 if [[ "$README_ONLY" == true ]]; then
-  # ── readme-only: copy readme.txt to trunk + stable tag and commit ──────────
+  # readme-only: copy readme.txt to trunk + stable tag and commit
   echo ""
   bold "Updating readme.txt"
   [[ -f "$PLUGIN_DIR/readme.txt" ]] || die "readme.txt not found in plugin directory."
@@ -116,7 +116,7 @@ if [[ "$README_ONLY" == true ]]; then
 fi
 
 if [[ "$ASSETS_ONLY" == false ]]; then
-  # ── 1. Sync trunk ───────────────────────────────────────────────────────────
+  # 1. Sync trunk
   echo ""
   bold "Syncing trunk"
 
@@ -132,7 +132,7 @@ if [[ "$ASSETS_ONLY" == false ]]; then
   ok "trunk/ updated"
 fi
 
-# ── 2. Sync SVN assets ────────────────────────────────────────────────────────
+# 2. Sync SVN assets
 echo ""
 bold "Syncing assets"
 
@@ -146,7 +146,7 @@ else
   warn "Icons and banners will not be updated."
 fi
 
-# ── 3. Stage new and deleted files ────────────────────────────────────────────
+# 3. Stage new and deleted files
 echo ""
 bold "Staging SVN changes"
 cd "$SVN_DIR"
@@ -164,7 +164,7 @@ done < <(svn status | grep '^!' | awk '{print $2}' || true)
 ok "Deleted files removed"
 
 if [[ "$ASSETS_ONLY" == false ]]; then
-  # ── 4. Create version tag ───────────────────────────────────────────────────
+  # 4. Create version tag
   echo ""
   bold "Tagging release"
 
@@ -173,7 +173,7 @@ if [[ "$ASSETS_ONLY" == false ]]; then
   ok "Tag created: tags/$VERSION"
 fi
 
-# ── 5. Commit ─────────────────────────────────────────────────────────────────
+# 5. Commit
 echo ""
 bold "Committing to WordPress.org SVN"
 info "This may take a moment..."
