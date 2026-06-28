@@ -10,10 +10,12 @@
  */
 
 import { wpsDebug } from "./utils";
+import WPSClientDebug from "./utils/client-debug";
+import WPSignalEvent from "./event";
 
 window.wpsDebug ??= wpsDebug;
 
-class WPSignalClient implements WPSApi {
+export class WPSignalClient implements WPSApi {
   private readonly config: WpSignalConfig;
   private readonly baseUrl: string;
 
@@ -204,77 +206,42 @@ class WPSignalClient implements WPSApi {
 
   /** Initialise the client: obtain a token and open a transport connection. */
   start(): void {
-    if (this.config.debug) this.attachDebugHelpers();
+    if (this.config.isDebug) {
+      new WPSClientDebug({
+        status: () => ({
+          connected: this._connected,
+          transport: this._transport,
+          wsReadyState: this.ws?.readyState ?? null,
+          reconnectPending: this.reconnectTimer !== null,
+          suppressed: this.debugSuppressReconnect,
+        }),
+        drop: () => {
+          this.debugSuppressReconnect = true;
+          if (this.reconnectTimer !== null) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+          }
+          // Closing triggers the WS close handler, which honors debugSuppressReconnect.
+          this.ws?.close();
+          // SSE has no close handler that flips connection state, so do it here.
+          if (this.sseReader) {
+            this.sseReader.close();
+            this.sseReader = null;
+            this.setConnected(false);
+          }
+        },
+        wake: () => {
+          this.debugSuppressReconnect = false;
+          window.dispatchEvent(new Event("online"));
+          document.dispatchEvent(new Event("visibilitychange"));
+        },
+      });
+    }
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", () => this.init());
     } else {
       this.init();
     }
-  }
-
-  /**
-   * Expose a `window.wpsTest` harness for exercising the sleep/wake reconnect
-   * path from the console. Attached only when `config.debug` is true.
-   *
-   *   wpsTest.status()  logs connection state
-   *   wpsTest.drop()    simulates a dead socket (no auto-reconnect)
-   *   wpsTest.wake()    fires the visibility/online reconnect path
-   *   wpsTest.cycle()   drops, then wakes ~1.5s later
-   */
-  private attachDebugHelpers(): void {
-    const status = () => {
-      const snapshot = {
-        connected: this._connected,
-        transport: this._transport,
-        wsReadyState: this.ws?.readyState ?? null,
-        reconnectPending: this.reconnectTimer !== null,
-        suppressed: this.debugSuppressReconnect,
-      };
-      wpsDebug("[debug] status", snapshot, "log", true);
-      return snapshot;
-    };
-
-    const drop = () => {
-      wpsDebug("[debug] Simulating connection drop (sleep)…");
-      this.debugSuppressReconnect = true;
-      if (this.reconnectTimer !== null) {
-        clearTimeout(this.reconnectTimer);
-        this.reconnectTimer = null;
-      }
-      // Closing triggers the WS close handler, which honours debugSuppressReconnect.
-      this.ws?.close();
-      // SSE has no close handler that flips connection state, so do it here.
-      if (this.sseReader) {
-        this.sseReader.close();
-        this.sseReader = null;
-        this.setConnected(false);
-      }
-    };
-
-    const wake = () => {
-      wpsDebug("[debug] Simulating wake (visibility + online)…");
-      this.debugSuppressReconnect = false;
-      window.dispatchEvent(new Event("online"));
-      document.dispatchEvent(new Event("visibilitychange"));
-    };
-
-    const cycle = (ms = 1500) => {
-      drop();
-      setTimeout(wake, ms);
-    };
-
-    (window as unknown as { wpsTest?: unknown }).wpsTest = {
-      status,
-      drop,
-      wake,
-      cycle,
-    };
-    wpsDebug(
-      "[debug] Test helpers ready: wpsTest.status() | .drop() | .wake() | .cycle()",
-      null,
-      "log",
-      true,
-    );
   }
 
   /** Reconnect when the tab becomes visible or the network comes back online. */
@@ -613,12 +580,17 @@ class WPSignalClient implements WPSApi {
   ): void {
     wpsDebug(`${eventName}:${channel}`, data);
     document.dispatchEvent(
-      new CustomEvent(`wpsignal:${eventName}`, {
-        detail: { channel, data },
+      new WPSignalEvent<Record<string, unknown>>(`wpsignal:${eventName}`, {
+        channel,
+        data,
       }),
     );
-    this.messageHandlers.forEach((fn) => fn(eventName, data, channel));
-    this.eventHandlers.get(eventName)?.forEach((fn) => fn(data, channel));
+    this.messageHandlers.forEach((handler) =>
+      handler(eventName, data, channel),
+    );
+    this.eventHandlers
+      .get(eventName)
+      ?.forEach((handler) => handler(data, channel));
   }
 
   /**

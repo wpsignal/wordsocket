@@ -9,7 +9,7 @@ interface WpSignalConfig {
 	/** Whether to use SSL. */
 	isSsl: boolean;
 	/** Whether to enable debug mode. */
-	debug: boolean;
+	isDebug: boolean;
 	/** WordPress REST URL. */
 	restUrl: string;
 	/** WordPress REST nonce. */
