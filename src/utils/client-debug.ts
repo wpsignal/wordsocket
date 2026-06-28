@@ -1,9 +1,10 @@
+import type { WPSTransportStatus } from "../transports";
 import { wpsDebug } from ".";
 
 type WPSClientDebugStatus = {
   connected: boolean;
   transport: "ws" | "sse" | null;
-  wsReadyState: number | null;
+  transportStatus: WPSTransportStatus;
   reconnectPending: boolean;
   suppressed: boolean;
 };
