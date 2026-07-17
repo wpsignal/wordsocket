@@ -9,7 +9,7 @@ interface WpSignalConfig {
 	/** Whether to use SSL. */
 	isSsl: boolean;
 	/** Whether to enable debug mode. */
-	debug: boolean;
+	isDebug: boolean;
 	/** WordPress REST URL. */
 	restUrl: string;
 	/** WordPress REST nonce. */
@@ -68,6 +68,14 @@ type WPSMessageHandler = ( event: string, data: Record< string, unknown >, chann
 type WPSEventHandler = ( data: Record< string, unknown >, channel: string ) => void;
 /** Handler for incoming binary WebSocket frames (e.g. Yjs updates). */
 type WPSBinaryHandler = ( channel: string, data: Uint8Array ) => void;
+type WPSTransportName = 'ws' | 'sse';
+type WPSStatus = {
+	name: WPSTransportName | null;
+	connected: boolean;
+	readyState: number | null;
+	canPublish: boolean;
+	canPublishBinary: boolean;
+};
 
 /** Public API exposed by the WordSocket client on window.WPS */
 interface WPSApi {
@@ -92,7 +100,9 @@ interface WPSApi {
 	/** Whether the connection is currently open. */
 	readonly connected: boolean;
 	/** Current transport layer, or null while still connecting. */
-	readonly transport: 'ws' | 'sse' | null;
+	readonly transport: WPSTransportName | null;
+	/** Current transport state and capabilities. */
+	readonly status: WPSStatus;
 	/** Register a callback for connection state changes. Returns unsubscribe fn. */
 	onConnectionChange( handler: ( connected: boolean ) => void ): () => void;
 }
