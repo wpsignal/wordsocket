@@ -1,3 +1,5 @@
+**0.18.1** - Security fixes.
+
 **0.18.0**
 * Pluggable WS/SSE transports with window.WPS.status
 * Frictionless reconnection and persistent channel subscriptions

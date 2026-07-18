@@ -3,7 +3,7 @@ Contributors: wpsignal
 Tags: realtime, websocket, collaboration, events, woocommerce
 Requires at least: 6.7
 Tested up to: 7.0
-Stable tag: 0.18.0
+Stable tag: 0.18.1
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -111,6 +111,10 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 
 == Changelog ==
 
+= 0.18.1 =
+* Security fixes
+
+
 = 0.18.0 =
 * Pluggable WS/SSE transports with window.WPS.status
 * Frictionless reconnection and persistent channel subscriptions
@@ -209,6 +213,9 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 * Initial release.
 
 == Upgrade Notice ==
+
+= 0.18.1 =
+Security fixes
 
 = 0.18.0 =
 Pluggable WS/SSE transports with window.WPS.status
