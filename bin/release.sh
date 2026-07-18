@@ -17,7 +17,7 @@
 #   readme.md        WP CLI install URL tag
 #   CHANGELOG.md     Changelog entry
 #
-# Then commits, tags vX.Y.Z, and pushes — triggering the GitHub Action
+# Then commits, tags vX.Y.Z, and pushes: triggering the GitHub Action
 # that builds and attaches wordsocket.zip to the release.
 #
 # After this script completes, run in order:
@@ -51,7 +51,7 @@ NEW_VERSION="$1"; shift
 CURRENT_VERSION="$(node -p "require('./package.json').version")"
 
 [[ "$NEW_VERSION" != "$CURRENT_VERSION" ]] \
-  || die "Already at v$NEW_VERSION — nothing to bump."
+  || die "Already at v$NEW_VERSION: nothing to bump."
 
 # Collect changelog bullets from remaining args
 BULLETS=()
@@ -173,11 +173,11 @@ git add package.json wordsocket.php readme.txt readme.md CHANGELOG.md
 git commit -m "chore: release v${NEW_VERSION}"
 ok "Committed"
 
-git tag "v${NEW_VERSION}"
+git tag -s -m "Release v${NEW_VERSION}" "v${NEW_VERSION}"
 ok "Tagged v${NEW_VERSION}"
 
 git push && git push origin "v${NEW_VERSION}"
-ok "Pushed — GitHub Action will build and attach wordsocket.zip"
+ok "Pushed: GitHub Action will build and attach wordsocket.zip"
 
 echo ""
 bold "Done: v${NEW_VERSION}"

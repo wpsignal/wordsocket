@@ -1,4 +1,7 @@
-**0.18.0** - Pluggable WS/SSE transports with window.WPS.status.
+**0.18.0**
+* Pluggable WS/SSE transports with window.WPS.status
+* Frictionless reconnection and persistent channel subscriptions
+* WPSignalEvent, client debug helpers, and isDebug config rename
 
 **0.17.0** - Prevent connection attempts when no auth.
 

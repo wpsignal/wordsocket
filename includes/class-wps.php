@@ -137,8 +137,6 @@ class WPS {
 	 * @return void
 	 */
 	public function boot() {
-		// Load the plugin textdomain for translations.	
-		add_action( 'init', array( $this, 'load_textdomain' ) );
 
 		$this->config_instance           = new Config();
 		$this->publisher_instance        = new Publisher( $this->config_instance );
@@ -194,15 +192,6 @@ class WPS {
 		// Register the "WordSocket" block category so example/third-party blocks
 		// can use "wordsocket" as their category without registering it themselves.
 		add_filter( 'block_categories_all', array( $this, 'register_block_category' ) );
-	}
-
-	/**
-	 * Load the plugin textdomain for translations.
-	 *
-	 * @return void
-	 */
-	public function load_textdomain() {
-		load_plugin_textdomain( 'wordsocket', false, plugin_basename( DIR ) . 'languages' );
 	}
 
 	/**
