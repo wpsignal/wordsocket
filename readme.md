@@ -1,3 +1,5 @@
+<a href="https://wpsignal.io/wordsocket" target="_blank"><img src="https://wpsignal.io/gh-banner.jpg"></a>
+
 # WordSocket
 
 The official WordPress plugin for [WPSignal](https://wpsignal.io). WordSocket enables developers to connect their site to a secure WebSocket relay.
@@ -34,14 +36,14 @@ type Comment = {
   // ...
 };
 // Handle it in the browser
-document.addEventListener( 'wpsignal:comment.posted', (e: CustomEvent<Comment>) => {
-    console.log(e.detail);
+const on = WPS.on( 'comment.posted', (comment: Comment) => {
+    // Do cool things with the new `comment`
 });
 ```
 
 ## Documentation
 
-Full documentation, API reference, and guides are at <a href="https://wpsignal.io/docs/getting-started" target="_blank">wpsignal.io/docs/getting-started</a>.
+Full documentation, API reference, and guides are at <a href="https://wpsignal.io/docs" target="_blank">wpsignal.io/docs</a>.
 
 ## Changelog
 
