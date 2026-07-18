@@ -56,7 +56,21 @@ Event payloads are AES-256-GCM encrypted before leaving WordPress. The WPSignal 
 * [Terms of Service](https://wpsignal.io/terms)
 * [Privacy Policy](https://wpsignal.io/privacy)
 
+= Setup =
+
 https://www.youtube.com/watch?v=yS1roK49HEQ
+
+= Showcase =
+
+Below are a few examples showcasing the possibilities with WP Signal + WordSocket.
+
+**Biodirectional Realtime Chat Plugin** 
+
+https://www.youtube.com/watch?v=vpKjs5kYnvI&t
+
+**Realtime Poker Plugin** 
+
+https://www.youtube.com/watch?v=FVvpITS29oI
 
 == Installation ==
 
