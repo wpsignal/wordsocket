@@ -1,3 +1,9 @@
+**0.17.0** - Prevent connection attempts when no auth.
+
+**0.16.0** - Remove rtc functionality and added feedback form.
+
+**0.15.1** - Fixed: skip Yjs update and awareness messages when no peers are connected.
+
 **0.15.0** - Fixed: real-time sync on remote server — channel subscribed after SYNC_STEP_1 sent.
 
 **0.14.0** - Revamp admin ui, moved explorer to settings app.

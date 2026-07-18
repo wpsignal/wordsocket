@@ -14,7 +14,8 @@
 #   package.json     version field
 #   wordsocket.php   Version header + VERSION constant
 #   readme.txt       Stable tag, Changelog section, Upgrade Notice section
-#   readme.md        WP CLI install URL tag, Changelog entry
+#   readme.md        WP CLI install URL tag
+#   CHANGELOG.md     Changelog entry
 #
 # Then commits, tags vX.Y.Z, and pushes — triggering the GitHub Action
 # that builds and attaches wordsocket.zip to the release.
@@ -77,8 +78,8 @@ perl -i -pe "s/(Version:\s+)\Q$CURRENT_VERSION\E/\${1}$NEW_VERSION/" wordsocket.
 perl -i -pe "s/const VERSION = '\Q$CURRENT_VERSION\E'/const VERSION = '$NEW_VERSION'/" wordsocket.php
 ok "wordsocket.php → $NEW_VERSION"
 
-# ── 3. readme.txt + readme.md ─────────────────────────────────────────────────
-info "readme.txt + readme.md"
+# ── 3. readme.txt + readme.md + CHANGELOG.md ──────────────────────────────────
+info "readme.txt + readme.md + CHANGELOG.md"
 
 # Pass data to Python via env vars to avoid quoting/escaping issues
 export _WPS_NEW="$NEW_VERSION"
@@ -134,41 +135,41 @@ if len(upgrade_block) > 1 and f'= {new_ver} =' not in upgrade_block[1]:
 with open('readme.txt', 'w') as f:
     f.write(txt)
 
-# ── readme.md ─────────────────────────────────────────────────────────────────
+# ── readme.md (install URL only) ──────────────────────────────────────────────
 with open('readme.md') as f:
     md = f.read()
 
-# Replace any tag (or TAG_HERE placeholder) in the WP CLI install URL
 md = re.sub(
     r'releases/download/[^/]+/wordsocket\.zip',
     f'releases/download/v{new_ver}/wordsocket.zip',
     md
 )
 
-# Prepend changelog entry if this version is not already listed
-if not re.search(r'^\*\*' + re.escape(new_ver) + r'\*\*', md, re.MULTILINE):
-    summary = bullets[0] if bullets else f'Release {new_ver}'
-    md = re.sub(
-        r'^(## Changelog\n)',
-        rf'\g<1>\n**{new_ver}** - {summary}.\n',
-        md,
-        count=1,
-        flags=re.MULTILINE
-    )
-
 with open('readme.md', 'w') as f:
     f.write(md)
+
+# ── CHANGELOG.md ──────────────────────────────────────────────────────────────
+with open('CHANGELOG.md') as f:
+    changelog = f.read()
+
+if not re.search(r'^\*\*' + re.escape(new_ver) + r'\*\*', changelog, re.MULTILINE):
+    summary = bullets[0] if bullets else f'Release {new_ver}'
+    entry = f'**{new_ver}** - {summary}.\n\n'
+    changelog = entry + changelog
+
+with open('CHANGELOG.md', 'w') as f:
+    f.write(changelog)
 
 PYEOF
 
 unset _WPS_NEW _WPS_OLD _WPS_BULLETS
-ok "readme.txt + readme.md → $NEW_VERSION"
+ok "readme.txt + readme.md + CHANGELOG.md → $NEW_VERSION"
 
 # ── 4. Git ────────────────────────────────────────────────────────────────────
 echo ""
 bold "Git"
 
-git add package.json wordsocket.php readme.txt readme.md
+git add package.json wordsocket.php readme.txt readme.md CHANGELOG.md
 git commit -m "chore: release v${NEW_VERSION}"
 ok "Committed"
 
