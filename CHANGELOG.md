@@ -1,3 +1,5 @@
+**0.18.0** - Pluggable WS/SSE transports with window.WPS.status.
+
 **0.17.0** - Prevent connection attempts when no auth.
 
 **0.16.0** - Remove rtc functionality and added feedback form.
