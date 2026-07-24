@@ -45,6 +45,10 @@ const on = WPS.on( 'comment.posted', (comment: Comment) => {
 
 Full documentation, API reference, and guides are at <a href="https://wpsignal.io/docs" target="_blank">wpsignal.io/docs</a>.
 
+## Showcase
+
+https://github.com/wpsignal/wordsocket-examples
+
 ## Changelog
 
 Full changelog can be viewed in [CHANGELOG.md](https://github.com/wpsignal/wordsocket/blob/main/CHANGELOG.md)

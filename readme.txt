@@ -62,7 +62,7 @@ https://www.youtube.com/watch?v=yS1roK49HEQ
 
 = Showcase =
 
-Below are a few examples showcasing the possibilities with WP Signal + WordSocket.
+Below are a few examples showcasing the possibilities with WP Signal + WordSocket. Repository https://github.com/wpsignal/wordsocket-examples
 
 **Biodirectional Realtime Chat Plugin** 
 
