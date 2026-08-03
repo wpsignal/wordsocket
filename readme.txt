@@ -64,6 +64,10 @@ https://www.youtube.com/watch?v=yS1roK49HEQ
 
 Below are a few examples showcasing the possibilities with WP Signal + WordSocket. Repository https://github.com/wpsignal/wordsocket-examples
 
+**Interactivity API** 
+
+https://www.youtube.com/watch?v=2F6zqQrrDXk
+
 **Biodirectional Realtime Chat Plugin** 
 
 https://www.youtube.com/watch?v=vpKjs5kYnvI&t
