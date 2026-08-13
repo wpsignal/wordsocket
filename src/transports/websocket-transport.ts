@@ -14,6 +14,7 @@ export class WebSocketTransport implements WPSTransport {
   private ws: WebSocket | null = null;
   private didOpen = false;
   private isClosing = false;
+  private lastMessageAt: number | null = null;
 
   constructor(
     private readonly baseUrl: string,
@@ -28,6 +29,7 @@ export class WebSocketTransport implements WPSTransport {
 
     this.ws.addEventListener("open", () => {
       this.didOpen = true;
+      this.lastMessageAt = Date.now();
       wpsDebug("WebSocket connected");
       // Channel subscriptions are driven by the client, which replays the full
       // authoritative set on open. The WS transport does not self-subscribe.
@@ -35,6 +37,7 @@ export class WebSocketTransport implements WPSTransport {
     });
 
     this.ws.addEventListener("message", (event: MessageEvent) => {
+      this.lastMessageAt = Date.now();
       if (event.data instanceof ArrayBuffer) {
         this.handleBinaryFrame(new Uint8Array(event.data));
         return;
@@ -104,6 +107,7 @@ export class WebSocketTransport implements WPSTransport {
       readyState: this.ws?.readyState ?? null,
       canPublish: this.canPublish,
       canPublishBinary: this.canPublishBinary,
+      lastMessageAt: this.lastMessageAt,
     };
   }
 

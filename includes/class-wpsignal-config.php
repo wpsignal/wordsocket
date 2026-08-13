@@ -202,12 +202,25 @@ class Config {
 	}
 
 	/**
-	 * Check whether the WordPress version is compatible with the WordSocket Yjs sync provider.
+	 * Check whether the WordPress sync engine (real-time collaboration) is
+	 * available on this site.
 	 *
-	 * @return bool True if the WordPress version is compatible, false otherwise.
+	 * @return bool True if the sync engine is available, false otherwise.
 	 */
 	public function is_wp_sync_available() {
-		return is_wp_version_compatible( '7.0' );
+		return function_exists( 'wp_is_collaboration_enabled' );
+	}
+
+	/**
+	 * Check whether real-time collaboration is enabled on this site.
+	 *
+	 * Defers to wp_is_collaboration_enabled(), which respects both the
+	 * WP_ALLOW_COLLABORATION constant and the Settings > Writing option.
+	 *
+	 * @return bool
+	 */
+	public function is_wp_rtc_enabled() {
+		return $this->is_wp_sync_available() && wp_is_collaboration_enabled();
 	}
 
 	/**

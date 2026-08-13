@@ -4,7 +4,9 @@ interface WpSignalConfig {
 	wpVersion: number;
 	/** Whether to use constant credentials. */
 	isConstant: boolean;
-	/** Whether to enable real-time collaboration. */
+	/** Whether the WP sync engine is present (Gutenberg plugin until RTC ships in core). */
+	isWpRtcAvailable: boolean;
+	/** Whether real-time collaboration is enabled (WP_ALLOW_COLLABORATION and the Settings > Writing option). */
 	isWpRtcEnabled: boolean;
 	/** Whether to use SSL. */
 	isSsl: boolean;
@@ -75,6 +77,8 @@ type WPSStatus = {
 	readyState: number | null;
 	canPublish: boolean;
 	canPublishBinary: boolean;
+	/** Timestamp (ms) of the last inbound frame (including server pings); null when unknown or on SSE. */
+	lastMessageAt: number | null;
 };
 
 /** Public API exposed by the WordSocket client on window.WPS */

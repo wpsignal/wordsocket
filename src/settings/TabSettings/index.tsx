@@ -2,8 +2,9 @@
  * WordPress dependencies.
  */
 import { createInterpolateElement } from "@wordpress/element";
-import { ToggleControl, Notice, Tooltip, Icon } from "@wordpress/components";
-import { __, sprintf } from "@wordpress/i18n";
+import { ToggleControl, Notice } from "@wordpress/components";
+import { Badge } from "@wordpress/ui";
+import { __ } from "@wordpress/i18n";
 
 /**
  * Internal dependencies.
@@ -14,7 +15,11 @@ import { useSettings } from "../context";
 /**
  * Constants.
  */
-const { wpVersion = 0, isWpRtcEnabled = false } = window.wpSignalConfig ?? {};
+const {
+  wpVersion = 0,
+  isWpRtcAvailable = false,
+  isWpRtcEnabled = false,
+} = window.wpSignalConfig ?? {};
 
 /**
  * Rtc tab.
@@ -60,78 +65,73 @@ export function TabSettings({ title }: { title: string }) {
   return (
     <div className="wpsignal-rtc-tab">
       <h2>{title}</h2>
-      <h4>{__("Realtime Collaboration", "wordsocket")}</h4>
-      <Notice status="warning" isDismissible={false}>
-        {__("The inclusion of real-time collaboration in WordPress 7.0 has been delayed and is not yet available.", "wordsocket")}
-      </Notice>
-      {/* {wpVersion >= 7.0 ? (
-        isWpRtcEnabled ? (
-          <ToggleControl
-            disabled={
-              !isWpRtcEnabled ||
-              ["connecting", "disconnected"].includes(fetchStatus) ||
-              !isConnected
-            }
-            help={__(
-              "Registers WordSocket as the Yjs sync provider in the block editor. Disable this to fall back to WordPress HTTP polling.",
-              "wordsocket",
-            )}
-            label={
-              yjsProviderEnabled
+      <h4>
+        {__("Realtime Collaboration", "wordsocket")}{" "}
+        {/* Temporary badge until RTC ships in WordPress core. */}
+        {isWpRtcAvailable && (
+          <Badge intent="stable">
+            {__("Gutenberg detected", "wordsocket")}
+          </Badge>
+        )}
+      </h4>
+      {wpVersion === 0 ? (
+        rtcLoadingComponent
+      ) : !isWpRtcAvailable ? (
+        <Notice status="warning" isDismissible={false}>
+          {__(
+            "Real-time collaboration is not yet part of WordPress core. This feature is only available with the Gutenberg plugin installed and active.",
+            "wordsocket",
+          )}
+        </Notice>
+      ) : isWpRtcEnabled ? (
+        <ToggleControl
+          disabled={
+            ["connecting", "disconnected"].includes(fetchStatus) ||
+            !isConnected
+          }
+          help={__(
+            "Registers WordSocket as the Yjs sync provider in the block editor. Disable this to fall back to WordPress HTTP polling.",
+            "wordsocket",
+          )}
+          label={
+            yjsProviderEnabled
+              ? __(
+                  "Disable WordSocket driven realtime collaboration?",
+                  "wordsocket",
+                )
+              : isConnected
                 ? __(
-                    "Disable WordSocket driven realtime collaboration?",
+                    "Enable WordSocket driven realtime collaboration?",
                     "wordsocket",
                   )
-                : isConnected
-                  ? __(
-                      "Enable WordSocket driven realtime collaboration?",
-                      "wordsocket",
-                    )
-                  : __(
-                      "You must be connected to WPSignal to enable WordSocket driven realtime collaboration.",
-                      "wordsocket",
-                    )
-            }
-            checked={yjsProviderEnabled}
-            onChange={handleYjsProviderChange}
-            __nextHasNoMarginBottom
-          />
-        ) : (
-          <Notice status="warning" isDismissible={false}>
-            {createInterpolateElement(
-              __(
-                "Real-time collaboration is not enabled. Please enable it under <a>Settings > Writing</a>.",
-                "wordsocket",
-              ),
-              {
-                a: (
-                  <a
-                    href="/wp-admin/options-writing.php"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  />
-                ),
-              },
-            )}
-          </Notice>
-        )
+                : __(
+                    "You must be connected to WPSignal to enable WordSocket driven realtime collaboration.",
+                    "wordsocket",
+                  )
+          }
+          checked={yjsProviderEnabled}
+          onChange={handleYjsProviderChange}
+          __nextHasNoMarginBottom
+        />
       ) : (
-        <>
-          {wpVersion === 0 ? (
-            rtcLoadingComponent
-          ) : (
-            <Notice status="warning" isDismissible={false}>
-              {sprintf(
-                __(
-                  "Real-time collaboration is not supported on WordPress %s. Please upgrade to WordPress 7.0 or later.",
-                  "wordsocket",
-                ),
-                wpVersion.toString(),
-              )}
-            </Notice>
+        <Notice status="warning" isDismissible={false}>
+          {createInterpolateElement(
+            __(
+              "Real-time collaboration is not enabled. Please enable it under <a>Settings > Writing</a>.",
+              "wordsocket",
+            ),
+            {
+              a: (
+                <a
+                  href="/wp-admin/options-writing.php"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                />
+              ),
+            },
           )}
-        </>
-      )} */}
+        </Notice>
+      )}
     </div>
   );
 }

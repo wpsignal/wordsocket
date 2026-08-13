@@ -6,6 +6,12 @@ export type WPSTransportStatus = {
   readyState: number | null;
   canPublish: boolean;
   canPublishBinary: boolean;
+  /**
+   * Timestamp (ms) of the last inbound frame, including server pings. Used to
+   * detect zombie sockets that report OPEN after a sleep/background suspension
+   * even though the server has already dropped the connection.
+   */
+  lastMessageAt: number | null;
 };
 
 export type WPSTransportMessage = {

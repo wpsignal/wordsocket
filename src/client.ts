@@ -22,6 +22,19 @@ import type {
 
 window.wpsDebug ??= wpsDebug;
 
+/**
+ * The server sends a `{"type":"ping"}` frame every 20s, so an open WebSocket
+ * that has been silent longer than this is a zombie: the OS/browser kept the
+ * socket object alive through a sleep or background suspension, but the server
+ * has already dropped the connection. Sized to tolerate two missed pings plus
+ * scheduling slack so a single delayed frame cannot trigger a spurious
+ * reconnect. y-websocket uses the same technique (messageReconnectTimeout).
+ */
+const STALE_CONNECTION_TIMEOUT_MS = 45000;
+
+/** How often the watchdog samples transport liveness while connected. */
+const STALE_CHECK_INTERVAL_MS = 10000;
+
 export class WPSignalClient implements WPSApi {
   private readonly config: WpSignalConfig;
   private readonly baseUrl: string;
@@ -31,6 +44,7 @@ export class WPSignalClient implements WPSApi {
   private static ssePublishWarned = false;
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private watchdogTimer: ReturnType<typeof setInterval> | null = null;
   private visibilityListenerAttached = false;
   private _connected = false;
   /** Debug-only: when true the WS close handler skips the automatic 5s reconnect,
@@ -222,14 +236,64 @@ export class WPSignalClient implements WPSApi {
       }
     });
     window.addEventListener("online", () => this.handleReconnect());
+    this.startWatchdog();
+  }
+
+  /**
+   * A WebSocket that reports OPEN but has received nothing (not even the
+   * server's 20s keepalive ping) for STALE_CONNECTION_TIMEOUT_MS is a zombie
+   * left behind by a sleep or background suspension; the server has already
+   * dropped its side, so frames sent on it go nowhere and no close event will
+   * arrive for minutes, if ever.
+   */
+  private isStale(): boolean {
+    const status = this.activeTransport?.getStatus();
+    if (
+      !status ||
+      status.name !== "ws" ||
+      !status.connected ||
+      status.lastMessageAt === null
+    ) {
+      return false;
+    }
+    return Date.now() - status.lastMessageAt > STALE_CONNECTION_TIMEOUT_MS;
+  }
+
+  /**
+   * Periodically force-reconnect zombie sockets. Background tabs clamp the
+   * interval to about once a minute, which still catches stale connections;
+   * the visibilitychange handler covers the return-to-foreground case
+   * immediately.
+   */
+  private startWatchdog(): void {
+    if (this.watchdogTimer !== null) return;
+    this.watchdogTimer = setInterval(() => {
+      if (this.debugSuppressReconnect) return;
+      if (this.isStale()) {
+        this.forceReconnect("Stale connection detected by watchdog");
+      }
+    }, STALE_CHECK_INTERVAL_MS);
+  }
+
+  /** Tear down the current transport and start a fresh connection now. */
+  private forceReconnect(reason: string): void {
+    wpsDebug(`${reason}, reconnecting...`);
+    this.cleanup();
+    this.init();
   }
 
   /**
    * Reconnect immediately rather than waiting for the scheduled retry. No-ops if
-   * already connected, mid-handshake, or if an init() is already in flight.
+   * already connected (and not stale), mid-handshake, or if an init() is
+   * already in flight.
    */
   private handleReconnect(): void {
     if (this._connected) {
+      // A zombie socket still reports connected; verify liveness before
+      // trusting it.
+      if (this.isStale()) {
+        this.forceReconnect("Stale connection detected on wake");
+      }
       return;
     }
     // init() is already in flight (cleanup ran but token fetch hasn't resolved yet).
@@ -247,9 +311,7 @@ export class WPSignalClient implements WPSApi {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    wpsDebug("Reconnecting on visibility/network restore...");
-    this.cleanup();
-    this.init();
+    this.forceReconnect("Visibility/network restored");
   }
 
   /**
@@ -304,8 +366,14 @@ export class WPSignalClient implements WPSApi {
     channels.forEach((ch) => this.subscribedChannels.add(ch));
     const transport = new WebSocketTransport(this.baseUrl, {
       onOpen: () => {
-        this.setConnected(true);
+        /*
+         * Subscribe before announcing the connection: onConnectionChange
+         * handlers (e.g. the Yjs provider) publish immediately, and replies to
+         * those frames are only delivered once the server has processed our
+         * subscriptions.
+         */
         this.replaySubscriptions();
+        this.setConnected(true);
       },
       onMessage: (message) => this.handleTransportMessage(message),
       onBinaryMessage: (channel, data) => {
@@ -331,8 +399,8 @@ export class WPSignalClient implements WPSApi {
     channels.forEach((ch) => this.subscribedChannels.add(ch));
     const transport = new SseTransport(this.baseUrl, {
       onOpen: () => {
-        this.setConnected(true);
         this.replaySubscriptions();
+        this.setConnected(true);
       },
       onMessage: (message) => this.handleTransportMessage(message),
       onBinaryMessage: () => undefined,
@@ -510,6 +578,7 @@ export class WPSignalClient implements WPSApi {
       readyState: null,
       canPublish: false,
       canPublishBinary: false,
+      lastMessageAt: null,
     };
   }
 

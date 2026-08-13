@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-03T14:16:15+00:00\n"
+"POT-Creation-Date: 2026-08-13T02:27:10+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wordsocket\n"
@@ -141,7 +141,39 @@ msgid "Realtime Collaboration"
 msgstr ""
 
 #: build/settings.js:1
-msgid "The inclusion of real-time collaboration in WordPress 7.0 has been delayed and is not yet available."
+msgid "Gutenberg detected"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Registers WordSocket as the Yjs sync provider in the block editor. Disable this to fall back to WordPress HTTP polling."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Disable WordSocket driven realtime collaboration?"
+msgstr ""
+
+#: build/settings.js:1
+msgid "Enable WordSocket driven realtime collaboration?"
+msgstr ""
+
+#: build/settings.js:1
+msgid "You must be connected to WPSignal to enable WordSocket driven realtime collaboration."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Settings saved."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Failed to save Yjs provider settings. Please try again."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Real-time collaboration is not enabled. Please enable it under <a>Settings > Writing</a>."
+msgstr ""
+
+#: build/settings.js:1
+msgid "Real-time collaboration is not yet part of WordPress core. This feature is only available with the Gutenberg plugin installed and active."
 msgstr ""
 
 #: build/settings.js:1

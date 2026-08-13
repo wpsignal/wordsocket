@@ -117,6 +117,8 @@ export class SseTransport implements WPSTransport {
       readyState: this.source?.readyState ?? null,
       canPublish: this.canPublish,
       canPublishBinary: this.canPublishBinary,
+      // SSE has no server keepalive to watchdog; EventSource auto-reconnects.
+      lastMessageAt: null,
     };
   }
 

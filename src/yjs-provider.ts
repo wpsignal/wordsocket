@@ -80,6 +80,37 @@ const MSG_AWARENESS = 0x04;
 const SYNC_STEP_1_COOLDOWN_MS = 2000;
 
 /**
+ * Matches the WPSignalClient auto-reconnect delay after a WebSocket close
+ * (client.ts). Reported as `willAutoRetryInMs` so the editor's disconnect
+ * dialog shows a truthful retry countdown.
+ */
+const WS_RECONNECT_DELAY_MS = 5000;
+
+/**
+ * How often to re-run the SYNC_STEP_1 handshake on a live connection. The
+ * relay drops frames under backpressure (64-message queue per connection)
+ * rather than buffering unboundedly, so a periodic state-vector exchange is
+ * the mechanism that guarantees eventual convergence after any lost frame
+ * (y-websocket's resyncInterval serves the same purpose).
+ */
+const RESYNC_INTERVAL_MS = 30000;
+
+/**
+ * Mirrors @wordpress/sync's ConnectionError, which is locked behind
+ * privateApis and cannot be imported. The editor matches on `code` by value
+ * to pick the disconnect dialog copy.
+ */
+class WPSConnectionError extends Error {
+  readonly code: SyncConnectionErrorCode;
+
+  constructor(code: SyncConnectionErrorCode, message: string) {
+    super(message);
+    this.name = "ConnectionError";
+    this.code = code;
+  }
+}
+
+/**
  * WPSignalYjsProvider class.
  */
 class WPSignalYjsProvider implements ProviderCreatorResult {
@@ -87,8 +118,8 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
   private readonly channel: string;
   /** The Yjs document instance. */
   private readonly ydoc: YDoc;
-  /** The Awareness instance. */
-  private readonly awareness: Awareness;
+  /** The Awareness instance. Absent for collection-level providers (e.g. the comments/notes collection). */
+  private readonly awareness?: Awareness;
   /** The array of unsubscribe functions. */
   private readonly unsubscribers: Array<() => void> = [];
   /** The set of status handlers. */
@@ -106,7 +137,7 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
    */
   private lastSyncStep1SentAt = 0;
 
-  private currentStatus: SyncStatus = "connecting";
+  private currentStatus: SyncConnectionStatus = { status: "connecting" };
 
   constructor({
     objectType,
@@ -126,19 +157,19 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
   /** Register a status handler. Fires immediately with the current status. */
   on(_event: "status", handler: StatusHandler): void {
     this.statusHandlers.add(handler);
-    handler({ status: this.currentStatus });
+    handler(this.currentStatus);
   }
 
   /** Broadcast a null awareness state then tear down all listeners and subscriptions. */
   destroy(): void {
-    this.awareness.setLocalState(null);
-    const nullUpdate = encodeAwarenessUpdate(this.awareness, [
-      this.awareness.clientID,
-    ]);
-    window.WPS?.publishBinary(
-      this.channel,
-      this.frame(MSG_AWARENESS, nullUpdate),
-    );
+    if (this.awareness) {
+      /*
+       * Synchronously fires the awareness 'update' listener, which broadcasts
+       * the removal to peers; must happen before the listeners are detached
+       * below.
+       */
+      this.awareness.setLocalState(null);
+    }
 
     this.unsubscribers.forEach((fn) => fn());
     this.unsubscribers.length = 0;
@@ -161,15 +192,23 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
   }
 
   /** Update the stored status and notify all registered handlers. */
-  private emitStatus(status: SyncStatus): void {
+  private emitStatus(status: SyncConnectionStatus): void {
     this.currentStatus = status;
-    this.statusHandlers.forEach((fn) => fn({ status }));
+    this.statusHandlers.forEach((fn) => fn(status));
   }
 
-  /** Returns true if at least one remote peer is present in awareness. */
+  /**
+   * Returns true if at least one remote peer is present in awareness.
+   * Without an awareness instance (collection-level providers) peers cannot
+   * be detected, so always broadcast.
+   */
   private hasPeers(): boolean {
-    return [...this.awareness.getStates().keys()].some(
-      (id) => id !== this.awareness.clientID,
+    const awareness = this.awareness;
+    if (!awareness) {
+      return true;
+    }
+    return [...awareness.getStates().keys()].some(
+      (id) => id !== awareness.clientID,
     );
   }
 
@@ -182,13 +221,27 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
         "real-time collaboration is disabled.",
         "error",
       );
+      this.emitStatus({
+        status: "disconnected",
+        error: new WPSConnectionError(
+          "unknown-error",
+          "The WordSocket client is not available on this page.",
+        ),
+      });
       return;
     }
 
     const onUpdate = (update: Uint8Array, origin: unknown) => {
       if (this.applyingRemote || origin === this) return;
-      if (!this.hasPeers()) return;
 
+      /*
+       * No peers-present gate here: the awareness view of who is in the room
+       * can be stale (states expire after 30s without renewal), and an update
+       * suppressed on that basis is dropped permanently, silently diverging
+       * the docs. Solo editing costs one small echo frame per update, which
+       * is the price of correctness (y-websocket broadcasts unconditionally
+       * for the same reason).
+       */
       if (wps.connected) {
         wps.publishBinary(this.channel, this.frame(MSG_UPDATE, update));
         debug("outbound update", {
@@ -202,24 +255,36 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
     this.ydoc.on("update", onUpdate);
     this.unsubscribers.push(() => this.ydoc.off("update", onUpdate));
 
-    const onAwarenessChange: AwarenessChangeHandler = (
-      { added, updated, removed },
-      origin,
-    ) => {
-      if (origin === "wpsignal") {
-        return;
-      }
-      const changed = [...added, ...updated, ...removed];
-      if (changed.length === 0 || !wps.connected || !this.hasPeers()) {
-        return;
-      }
-      const encoded = encodeAwarenessUpdate(this.awareness, changed);
-      wps.publishBinary(this.channel, this.frame(MSG_AWARENESS, encoded));
-    };
-    this.awareness.on("change", onAwarenessChange);
-    this.unsubscribers.push(() =>
-      this.awareness.off("change", onAwarenessChange),
-    );
+    const awareness = this.awareness;
+    if (awareness) {
+      const onAwarenessUpdate: AwarenessChangeHandler = (
+        { added, updated, removed },
+        origin,
+      ) => {
+        if (origin === "wpsignal") {
+          return;
+        }
+        const changed = [...added, ...updated, ...removed];
+        if (changed.length === 0 || !wps.connected) {
+          return;
+        }
+        const encoded = encodeAwarenessUpdate(awareness, changed);
+        wps.publishBinary(this.channel, this.frame(MSG_AWARENESS, encoded));
+      };
+      /*
+       * 'update', NOT 'change': y-protocols re-announces the local state with
+       * an unchanged payload every ~15s, and peers purge any client not
+       * renewed within 30s. Those keepalive renewals fire only the 'update'
+       * event; listening to 'change' drops them, so idle clients vanish from
+       * peers' awareness and anything gated on presence breaks. No peers gate
+       * here either: renewals are exactly what re-establishes presence after
+       * both sides have purged each other.
+       */
+      awareness.on("update", onAwarenessUpdate);
+      this.unsubscribers.push(() =>
+        awareness.off("update", onAwarenessUpdate),
+      );
+    }
 
     // Incoming binary frames from peers.
     const offBinary = wps.onBinaryMessage((channel, data) => {
@@ -289,11 +354,14 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
         }
 
         case MSG_AWARENESS: {
+          if (!awareness) {
+            break;
+          }
           const hadPeers = this.hasPeers();
-          applyAwarenessUpdate(this.awareness, payload, "wpsignal");
+          applyAwarenessUpdate(awareness, payload, "wpsignal");
           if (!hadPeers && this.hasPeers()) {
-            const localUpdate = encodeAwarenessUpdate(this.awareness, [
-              this.awareness.clientID,
+            const localUpdate = encodeAwarenessUpdate(awareness, [
+              awareness.clientID,
             ]);
             wps.publishBinary(this.channel, this.frame(MSG_AWARENESS, localUpdate));
           }
@@ -307,9 +375,24 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
     });
     this.unsubscribers.push(offBinary);
 
+    // Periodic resync: converges the docs even after relayed frames are lost.
+    const resyncTimer = setInterval(() => {
+      if (wps.connected) {
+        this.sendSyncStep1(wps);
+      }
+    }, RESYNC_INTERVAL_MS);
+    this.unsubscribers.push(() => clearInterval(resyncTimer));
+
     // Connection state changes.
     const offConnection = wps.onConnectionChange((connected) => {
-      this.emitStatus(connected ? "connected" : "disconnected");
+      this.emitStatus(
+        connected
+          ? { status: "connected" }
+          : {
+              status: "disconnected",
+              willAutoRetryInMs: WS_RECONNECT_DELAY_MS,
+            },
+      );
 
       if (connected) {
         /**
@@ -320,13 +403,15 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
         debug("connect SYNC_STEP_1 sent", { channel: this.channel });
 
         // Announce our presence to peers so collaborator badges appear.
-        const awarenessUpdate = encodeAwarenessUpdate(this.awareness, [
-          this.awareness.clientID,
-        ]);
-        wps.publishBinary(
-          this.channel,
-          this.frame(MSG_AWARENESS, awarenessUpdate),
-        );
+        if (awareness) {
+          const awarenessUpdate = encodeAwarenessUpdate(awareness, [
+            awareness.clientID,
+          ]);
+          wps.publishBinary(
+            this.channel,
+            this.frame(MSG_AWARENESS, awarenessUpdate),
+          );
+        }
 
         for (const update of this.pendingUpdates.splice(0)) {
           wps.publishBinary(this.channel, this.frame(MSG_UPDATE, update));
@@ -351,16 +436,18 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
       wps.subscribe([this.channel]);
       this.sendSyncStep1(wps);
       debug("connect SYNC_STEP_1 sent", { channel: this.channel });
-      const awarenessUpdate = encodeAwarenessUpdate(this.awareness, [
-        this.awareness.clientID,
-      ]);
-      wps.publishBinary(
-        this.channel,
-        this.frame(MSG_AWARENESS, awarenessUpdate),
-      );
+      if (awareness) {
+        const awarenessUpdate = encodeAwarenessUpdate(awareness, [
+          awareness.clientID,
+        ]);
+        wps.publishBinary(
+          this.channel,
+          this.frame(MSG_AWARENESS, awarenessUpdate),
+        );
+      }
     }
 
-    this.emitStatus(wps.connected ? "connected" : "connecting");
+    this.emitStatus({ status: wps.connected ? "connected" : "connecting" });
   }
 }
 
@@ -390,7 +477,13 @@ export async function wpsignalProviderCreator(
     return {
       destroy() {},
       on(_event: "status", handler: StatusHandler) {
-        handler({ status: "disconnected" });
+        handler({
+          status: "disconnected",
+          error: new WPSConnectionError(
+            "unknown-error",
+            "WebSocket is unavailable; the WordSocket client fell back to SSE, which cannot relay collaboration updates.",
+          ),
+        });
       },
     };
   }

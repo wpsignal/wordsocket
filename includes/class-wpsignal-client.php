@@ -103,15 +103,15 @@ class Client {
 		 * refresh, protected by the nonce below.
 		 */
 		$localize = array(
-			'baseUrl'        => esc_url( $base_url ),
-			'isSsl'          => is_ssl(),
-			'wpVersion'      => (float) wp_get_wp_version(),
-			'isConstant'     => $this->config->credential_source() === 'constant',
-			'isWpRtcEnabled' => ( defined( 'WP_COLLABORATION_ENABLED' ) && (bool) WP_COLLABORATION_ENABLED ) ||
-									(bool) get_option( 'wp_collaboration_enabled', false ),
-			'restUrl'        => rest_url( 'wpsignal/v1/token' ),
-			'nonce'          => wp_create_nonce( 'wp_rest' ),
-			'isDebug'        => ( defined( 'WP_ENVIRONMENT_TYPE' ) && WP_ENVIRONMENT_TYPE !== 'production' ),
+			'baseUrl'          => esc_url( $base_url ),
+			'isSsl'            => is_ssl(),
+			'wpVersion'        => (float) wp_get_wp_version(),
+			'isConstant'       => $this->config->credential_source() === 'constant',
+			'isWpRtcAvailable' => $this->config->is_wp_sync_available(),
+			'isWpRtcEnabled'   => $this->config->is_wp_rtc_enabled(),
+			'restUrl'          => rest_url( 'wpsignal/v1/token' ),
+			'nonce'            => wp_create_nonce( 'wp_rest' ),
+			'isDebug'          => ( defined( 'WP_ENVIRONMENT_TYPE' ) && WP_ENVIRONMENT_TYPE !== 'production' ),
 		);
 
 		$token_data = $this->token->mint();
@@ -153,13 +153,15 @@ class Client {
 	 *
 	 * Only enqueued when:
 	 *   1. The plugin is configured (base_url is set).
-	 *   2. The @wordpress/sync package is available (WP 7.0+).
+	 *   2. Real-time collaboration is available and enabled on the site
+	 *      (Gutenberg plugin until RTC ships in core; respects
+	 *      WP_ALLOW_COLLABORATION and the Settings > Writing option).
 	 *   3. The wpsignal client script is already enqueued (connection exists).
 	 *
 	 * @return void
 	 */
 	public function enqueue_yjs_provider() {
-		if ( ! $this->config->is_wp_sync_available() ) {
+		if ( ! $this->config->is_wp_rtc_enabled() ) {
 			return;
 		}
 
@@ -184,14 +186,13 @@ class Client {
 		$asset = require $asset_file;
 		$deps  = array_merge( $asset['dependencies'], array( 'wpsignal', 'wp-hooks' ) );
 
-		// @TODO: Uncomment this when real-time collaboration is available.
-		// wp_enqueue_script(
-		// 	'wpsignal-yjs-provider',
-		// 	URL . 'build/yjs-provider.js',
-		// 	$deps,
-		// 	$asset['version'],
-		// 	true
-		// );
+		wp_enqueue_script(
+			'wpsignal-yjs-provider',
+			URL . 'build/yjs-provider.js',
+			$deps,
+			$asset['version'],
+			true
+		);
 
 		/**
 		 * Compute site_id the same way as Token::mint() so the Yjs channel
