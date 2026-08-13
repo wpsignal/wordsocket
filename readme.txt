@@ -43,6 +43,16 @@ WPSignal is an independent service and is not affiliated with or endorsed by the
 4. The browser decrypts the payload and dispatches `wpsignal:*` DOM events. The relay never sees plaintext content.
 5. When real-time collaboration is available on the site, the block editor uses the same WebSocket connection for collaborative editing with no extra configuration.
 
+= Real-Time Collaboration =
+
+WordSocket ships a WebSocket sync provider for the block editor's real-time collaboration feature. Three things need to be true for it to activate:
+
+1. **The Gutenberg plugin is active.** Real-time collaboration was removed from WordPress core before the 7.0 release; until it ships in core, the feature is only available through the Gutenberg plugin.
+2. **Real-time collaboration is enabled** under **Settings > Writing**. Gutenberg turns it on automatically when activated. Site owners can also disable it globally with the `WP_ALLOW_COLLABORATION` constant in wp-config.php.
+3. **The site is connected to WPSignal**, since the provider shares the plugin's WebSocket connection.
+
+The WordSocket Settings tab shows a "Gutenberg detected" badge when the feature is available on your site. Once active, everything collaboration syncs travels over the WebSocket instead of HTTP polling: document updates, cursors and presence, and collaborative notes. If the connection drops, the editor shows its standard disconnected dialog with an automatic retry countdown, and the provider re-syncs documents when the connection returns. Disabling the provider from the Settings tab restores WordPress HTTP polling for all editors.
+
 = Third-Party Service =
 
 This plugin connects to the **WPSignal service** at api.wpsignal.io for the following operations:
