@@ -3,19 +3,19 @@ Contributors: wpsignal
 Tags: realtime, websocket, collaboration, events, woocommerce
 Requires at least: 6.7
 Tested up to: 7.0
-Stable tag: 0.18.1
+Stable tag: 0.19.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-WebSocket relay for WordPress. Realtime events plus a Yjs sync provider for WordPress 7.0 collaborative editing. No polling, no custom server.
+WebSocket relay for WordPress. Realtime events plus a Yjs sync provider for Gutenberg real-time collaboration. No polling, no custom server.
 
 == Description ==
 
 WordSocket sends realtime events from your WordPress site to connected browsers.
 When content changes: a post is published, a comment is approved, an option is updated: the plugin pushes the event to subscribers instantly via WebSocket (with SSE fallback).
 
-On WordPress 7.0+, WordSocket also registers as a WebSocket-based Yjs sync provider for realtime collaborative editing in the block editor, replacing the default HTTP polling transport with a low-latency WebSocket connection.
+When real-time collaboration is available (currently via the Gutenberg plugin, ahead of its arrival in WordPress core), WordSocket also registers as a WebSocket-based Yjs sync provider for realtime collaborative editing in the block editor, replacing the default HTTP polling transport with a low-latency WebSocket connection.
 
 WPSignal is an independent service and is not affiliated with or endorsed by the WordPress project.
 
@@ -41,7 +41,7 @@ WPSignal is an independent service and is not affiliated with or endorsed by the
 2. When content changes in WordPress, the plugin encrypts and publishes an HMAC-signed event to the WPSignal server.
 3. The server pushes the ciphertext to all browsers subscribed to that channel.
 4. The browser decrypts the payload and dispatches `wpsignal:*` DOM events. The relay never sees plaintext content.
-5. On WordPress 7.0+, the block editor uses the same WebSocket connection for collaborative editing with no extra configuration.
+5. When real-time collaboration is available on the site, the block editor uses the same WebSocket connection for collaborative editing with no extra configuration.
 
 = Third-Party Service =
 
@@ -106,11 +106,15 @@ Yes. The plugin requires a WPSignal account to relay events. Create a free accou
 
 = What data is sent to the WPSignal server? =
 
-During registration: your site URL and name. During normal operation: AES-256-GCM encrypted event payloads (the server never sees plaintext content). On WordPress 7.0+, Yjs document updates (binary diffs of block editor content) are also relayed. All data is delivered in realtime and is not stored on the server. See our [Privacy Policy](https://wpsignal.io/privacy) for full details.
+During registration: your site URL and name. During normal operation: AES-256-GCM encrypted event payloads (the server never sees plaintext content). When real-time collaboration is enabled, Yjs document updates (binary diffs of block editor content) are also relayed. All data is delivered in realtime and is not stored on the server. See our [Privacy Policy](https://wpsignal.io/privacy) for full details.
 
 = Are my event payloads private? =
 
 Event payloads are encrypted with AES-256-GCM before leaving WordPress. The encryption key is derived from your WordPress salts and site key using HKDF-SHA256, and is never sent to the WPSignal server. This means the relay cannot read your message content. Note: all logged-in users on the same site share the same derived key. Per-user message privacy is out of scope for the current version.
+
+= Why is real-time collaboration unavailable on my site? =
+
+Real-time collaboration was removed from WordPress core before the 7.0 release and currently ships with the Gutenberg plugin. Install and activate Gutenberg, then enable it under Settings > Writing > Enable real-time collaboration. The WordSocket Settings tab shows a "Gutenberg detected" badge when the feature is available, and the sync provider activates automatically once collaboration is enabled.
 
 = Does this work for logged-out visitors? =
 
@@ -118,7 +122,7 @@ The built-in client script loads for logged-in users by default. You can enqueue
 
 = What happens if WebSocket is unavailable? =
 
-The client falls back to SSE for receiving events. `window.WPS.subscribe()` and `window.WPS.unsubscribe()` work on SSE connections: channel changes are tracked and applied immediately via a lightweight SSE reconnect (50 ms debounce). For collaborative editing, the plugin detects the fallback and emits a "not synced" status so WordPress can surface the appropriate indicator. You can also disable the collaboration provider entirely from **WordSocket > Settings > Connection** to restore WordPress HTTP polling for all editors.
+The client falls back to SSE for receiving events. `window.WPS.subscribe()` and `window.WPS.unsubscribe()` work on SSE connections: channel changes are tracked and applied immediately via a lightweight SSE reconnect (50 ms debounce). For collaborative editing, the plugin detects the fallback and emits a "not synced" status so WordPress can surface the appropriate indicator. You can also disable the collaboration provider entirely from the **WordSocket Settings tab** to restore WordPress HTTP polling for all editors.
 
 == Screenshots ==
 
@@ -130,6 +134,14 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 6. Explorer tab (connected): live Event Log showing an active WebSocket connection and an incoming encrypted event, with a test event published successfully.
 
 == Changelog ==
+
+= 0.19.0 =
+* New: real-time collaboration re-enabled via Gutenberg detection: the Yjs provider activates when wp_is_collaboration_enabled() reports RTC available and enabled, with a Gutenberg detected badge in the Settings tab
+* Fixed: collection-level sync providers (collaborative notes) crashed on the missing awareness instance, breaking notes realtime
+* Fixed: idle sessions stopped syncing: awareness keepalive renewals are now relayed (update event instead of change) and doc updates are no longer gated on peer presence
+* New: stale-socket watchdog force-reconnects zombie connections after sleep or background suspension, and a 30s state-vector resync heals dropped frames
+* Improved: sync status contract matches Gutenberg 23.7: typed connection error codes and a truthful auto-retry countdown in the editor disconnect dialog
+
 
 = 0.18.1 =
 * Security fixes
@@ -233,6 +245,9 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 * Initial release.
 
 == Upgrade Notice ==
+
+= 0.19.0 =
+New: real-time collaboration re-enabled via Gutenberg detection: the Yjs provider activates when wp_is_collaboration_enabled() reports RTC available and enabled, with a Gutenberg detected badge in the Settings tab
 
 = 0.18.1 =
 Security fixes

@@ -1,3 +1,5 @@
+**0.19.0** - New: real-time collaboration re-enabled via Gutenberg detection: the Yjs provider activates when wp_is_collaboration_enabled() reports RTC available and enabled, with a Gutenberg detected badge in the Settings tab.
+
 **0.18.1** - Security fixes.
 
 **0.18.0**
