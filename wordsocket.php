@@ -11,7 +11,7 @@
  * Text Domain:       wordsocket
  * Domain Path:       /languages
  * Requires at least: 6.7
- * Tested up to:      7.0
+ * Tested up to:      7.1
  * Requires PHP:      7.4
  *
  * @package WordSocket

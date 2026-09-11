@@ -23,7 +23,7 @@ WPSignal is an independent service and is not affiliated with or endorsed by the
 
 * One-click automatic connection via the WPSignal dashboard (no API key required)
 * Manual connection via API key for advanced setups
-* Disconnect button with inline confirmation, removes the site from the server immediately
+* Disconnect button with inline confirmation: the site is archived on the server, its usage history is kept, and reconnecting the same URL restores it
 * WebSocket-first with automatic SSE fallback
 * Per-site JWT signing secrets: each site's connection tokens are cryptographically isolated
 * AES-256-GCM encrypted event payloads: the WPSignal relay receives ciphertext only and never has access to plaintext message content
@@ -48,10 +48,10 @@ WPSignal is an independent service and is not affiliated with or endorsed by the
 WordSocket ships a WebSocket sync provider for the block editor's real-time collaboration feature. Three things need to be true for it to activate:
 
 1. **The Gutenberg plugin is active.** Real-time collaboration was removed from WordPress core before the 7.0 release; until it ships in core, the feature is only available through the Gutenberg plugin.
-2. **Real-time collaboration is enabled** under **Settings > Writing**. Gutenberg turns it on automatically when activated. Site owners can also disable it globally with the `WP_ALLOW_COLLABORATION` constant in wp-config.php.
+2. **Real-time collaboration is enabled** under **Gutenberg > Experiments > Enable real-time collaboration** (Gutenberg 23.8 and later; earlier versions used Settings > Writing).
 3. **The site is connected to WPSignal**, since the provider shares the plugin's WebSocket connection.
 
-The WordSocket Settings tab shows a "Gutenberg detected" badge when the feature is available on your site. Once active, everything collaboration syncs travels over the WebSocket instead of HTTP polling: document updates, cursors and presence, and collaborative notes. If the connection drops, the editor shows its standard disconnected dialog with an automatic retry countdown, and the provider re-syncs documents when the connection returns. Disabling the provider from the Settings tab restores WordPress HTTP polling for all editors.
+The WordSocket Settings tab shows a "Gutenberg detected" badge when the feature is available on your site. Once active, everything collaboration syncs travels over the WebSocket instead of HTTP polling: document updates, cursors and presence, and collaborative notes. If the connection drops, the provider reconnects with increasing delays; after repeated failures the editor shows its standard "connection lost" dialog, and documents re-sync when the connection returns. If a site's credentials are revoked, the editor reports an authentication error instead of retrying forever. The site editor does not use sync providers (core disables collaboration there). Disabling the provider from the Settings tab restores WordPress HTTP polling for all editors.
 
 = Third-Party Service =
 
@@ -80,7 +80,7 @@ https://www.youtube.com/watch?v=2F6zqQrrDXk
 
 Source code: https://github.com/wpsignal/wordsocket-examples
 
-**Biodirectional Realtime Chat Plugin** 
+**Bidirectional Realtime Chat Plugin**
 
 https://www.youtube.com/watch?v=vpKjs5kYnvI&t
 
@@ -92,7 +92,7 @@ https://www.youtube.com/watch?v=FVvpITS29oI
 
 1. Upload the `wordsocket` folder to `/wp-content/plugins/`, or install directly from the WordPress plugin directory.
 2. Activate the plugin through the "Plugins" menu in WordPress.
-3. Go to **WordSocket > Settings > Connection**.
+3. Go to **WordSocket > Settings** and open the **Connect** tab.
 4. Choose a connection method:
    * **Automatic (recommended):** Click **Connect with WPSignal**. You will be redirected to the WPSignal dashboard to authorize the connection. No API key entry required.
    * **Manual:** Switch to the Manual tab, paste your API key, and click **Save Settings**.
@@ -124,11 +124,27 @@ Event payloads are encrypted with AES-256-GCM before leaving WordPress. The encr
 
 = Why is real-time collaboration unavailable on my site? =
 
-Real-time collaboration was removed from WordPress core before the 7.0 release and currently ships with the Gutenberg plugin. Install and activate Gutenberg, then enable it under Settings > Writing > Enable real-time collaboration. The WordSocket Settings tab shows a "Gutenberg detected" badge when the feature is available, and the sync provider activates automatically once collaboration is enabled.
+Real-time collaboration was removed from WordPress core before the 7.0 release and currently ships with the Gutenberg plugin as an experiment. Install and activate Gutenberg, then turn on Gutenberg > Experiments > "Enable real-time collaboration". The WordSocket Settings tab shows a "Gutenberg detected" badge when the feature is available, and the sync provider activates automatically once collaboration is enabled. Post types without custom-fields support are excluded by Gutenberg itself.
 
 = Does this work for logged-out visitors? =
 
-The built-in client script loads for logged-in users by default. You can enqueue the script for all visitors by adding `wpsignal` as a dependency to your own script.
+The built-in client script and the token endpoint (`/wp-json/wpsignal/v1/token`) are limited to logged-in users by default. To open them to all visitors, return true from the `wpsignal_allow_client` filter:
+
+`add_filter( 'wpsignal_allow_client', '__return_true' );`
+
+Tokens minted for visitors carry user ID 0 and are scoped to your site, so keep in mind that anyone can then subscribe to your site's public channels and publish over the WebSocket.
+
+= What happens when I disconnect? =
+
+The plugin tells the WPSignal server to archive the site, then deletes the stored credentials (site key, secrets, and the API key if you connected manually). Your usage history stays on the server, and connecting the same site URL again restores the site with fresh secrets. On a manual connection you will need to paste the API key again. If the server cannot be reached, nothing is deleted and you can retry.
+
+= Why was my connection refused? =
+
+The WPSignal dashboard refuses to authorize a site when your plan's site limit is reached (the message names the site to disconnect first), when your account email is not yet verified, or when the account has been deactivated. The Connect tab shows the exact reason returned by the server.
+
+= Why did events stop? =
+
+Each plan has a monthly message quota. When it is reached the server answers publishes with "quota exceeded", the plugin pauses publishing until the first day of the next month (UTC), and an admin notice appears on the Dashboard and WordSocket screens. The same notice reports rejected credentials (reconnect from the Connect tab) and an unreachable server. Publishing resumes automatically once the cause clears; the notice disappears after the next successful publish.
 
 = What happens if WebSocket is unavailable? =
 
@@ -136,14 +152,31 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 
 == Screenshots ==
 
-1. Connect tab (Automatic): one-click connection flow — log in to your WPSignal dashboard and authorize the site with a single button.
+1. Connect tab (Automatic): one-click connection flow. Log in to your WPSignal dashboard and authorize the site with a single button.
 2. Connect tab (Manual): paste your API key directly for setups where the automatic flow is unavailable.
 3. Connect tab (Automatic): post authentication and green banner is displayed with the words "Connected".
-4. Triggers tab: no-code trigger builder — map WordPress action hooks to realtime events with channel and event name fields.
+4. Triggers tab: no-code trigger builder. Map WordPress action hooks to realtime events with channel and event name fields.
 5. Explorer tab (disconnected): Event Log, Publish Test Event form, and Token Inspector panels ready to connect.
 6. Explorer tab (connected): live Event Log showing an active WebSocket connection and an incoming encrypted event, with a test event published successfully.
 
 == Changelog ==
+
+= 0.20.0 =
+* Security: the token endpoint (/wpsignal/v1/token) now requires a logged-in user by default; sites that serve visitors opt in with the wpsignal_allow_client filter
+* New: publish failures are visible: an admin notice (Dashboard and WordSocket screens) and the Connect tab report a reached monthly quota, rejected credentials, or an unreachable server
+* New: reconnects use exponential backoff with jitter (1s doubling to a 60s cap) instead of fixed delays, for the WebSocket, token fetch, and token refresh
+* New: the relay now closes refused sockets with application codes; a revoked token re-mints once and then reports authentication-failed in the editor instead of retrying forever
+* New: window.WPS.onStateChange() and window.WPS.state expose the connection state, last error, and next retry
+* Improved: real-time collaboration matches Gutenberg 23.9: the editor's connection lost dialog appears after repeated failed reconnects, providers are not registered where core disables collaboration (site editor), and updates over 1 MiB report document-size-limit-exceeded
+* Improved: instructions and docs point to Gutenberg > Experiments > Enable real-time collaboration
+* Fixed: a failed manual connection left the Save button stuck in the busy state
+* Fixed: SSE fallback connections reported as connected after the stream died
+* Fixed: disconnect kept local credentials when the server refused, instead of pretending it succeeded; the confirmation explains that history is kept
+* Fixed: the trigger Remove control is a real button, reachable by keyboard and screen readers
+* Fixed: debug logging respected the wrong flag and was never silent on production sites
+* Fixed: the settings endpoint no longer returns the full API key
+* Fixed: quota throttling and the last publish error are cleared on connect, disconnect, and uninstall
+* Improved: dashboard links follow the configured server URL; typos and untranslated strings
 
 = 0.19.0 =
 * New: real-time collaboration re-enabled via Gutenberg detection: the Yjs provider activates when wp_is_collaboration_enabled() reports RTC available and enabled, with a Gutenberg detected badge in the Settings tab
@@ -256,6 +289,9 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 
 == Upgrade Notice ==
 
+= 0.20.0 =
+Security: the token endpoint now requires a logged-in user by default (use the wpsignal_allow_client filter for public sites). Publish failures are now visible in wp-admin and reconnects back off with jitter.
+
 = 0.19.0 =
 New: real-time collaboration re-enabled via Gutenberg detection: the Yjs provider activates when wp_is_collaboration_enabled() reports RTC available and enabled, with a Gutenberg detected badge in the Settings tab
 
@@ -304,7 +340,7 @@ fix: disable encryption when on non-ssl.
 Fix: non-ssl default to manual authentication
 
 = 0.7.0 =
-Adds one-click automatic connection, a Disconnect button, and per-site JWT secrets. No configuration changes required for existing connections. To use the automatic flow on a new site, go to WordSocket > Settings > Connection > Automatic.
+Adds one-click automatic connection, a Disconnect button, and per-site JWT secrets. No configuration changes required for existing connections. To use the automatic flow on a new site, go to WordSocket > Settings, open the Connect tab and choose Automatic.
 
 = 0.6.0 =
 Simplified settings UI: the Server URL field has been removed. Re-enter your API Key and click Connect if your site does not show as connected after upgrading.
