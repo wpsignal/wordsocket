@@ -47,7 +47,11 @@ info "Cleaning dist/"
 rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR"
 
-# ── 2. Build JS/CSS assets ────────────────────────────────────────────────────
+# ── 2. Typecheck + build JS/CSS assets ───────────────────────────────────────
+info "Typechecking (npm run typecheck)"
+npm run typecheck --silent
+ok "Types OK"
+
 info "Building JS/CSS assets (npm run build)"
 npm run build --silent
 ok "Assets built"

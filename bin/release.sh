@@ -3,7 +3,7 @@
 # release.sh: Bump version, update changelogs, commit, tag, and push.
 #
 # Usage:
-#   ./bin/release.sh <version> ["changelog entry"] ["changelog entry"] ...
+#   ./bin/release.sh [--tested <wp-version>] <version> ["changelog entry"] ...
 #
 # Example:
 #   ./bin/release.sh 0.8.0 \
@@ -12,10 +12,12 @@
 #
 # What it updates:
 #   package.json     version field
-#   wordsocket.php   Version header + VERSION constant
-#   readme.txt       Stable tag, Changelog section, Upgrade Notice section
+#   wordsocket.php   Version header + VERSION constant (+ Tested up to, with --tested)
+#   readme.txt       Stable tag, Changelog section, Upgrade Notice section (+ Tested up to)
 #   readme.md        WP CLI install URL tag
 #   CHANGELOG.md     Changelog entry
+#   ../config/versions.json and ../site/src/lib/versions.json via ../scripts/versions.sh
+#                    (the site copy lives in the site repo: commit it there)
 #
 # Then commits, tags vX.Y.Z, and pushes: triggering the GitHub Action
 # that builds and attaches wordsocket.zip to the release.
@@ -36,10 +38,17 @@ ok()   { printf '  \033[32m✔\033[0m %s\n' "$*"; }
 die()  { printf '\033[31mError:\033[0m %s\n' "$*" >&2; exit 1; }
 
 # ── Args ──────────────────────────────────────────────────────────────────────
+TESTED_UP_TO=""
+if [[ "${1:-}" == "--tested" ]]; then
+  TESTED_UP_TO="${2:-}"; shift 2 || true
+  [[ "$TESTED_UP_TO" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] \
+    || die "--tested needs a WordPress version like 7.1 (got: '$TESTED_UP_TO')"
+fi
+
 if [[ $# -lt 1 ]]; then
-  bold "Usage: $0 <version> [\"changelog entry\"] ..."
+  bold "Usage: $0 [--tested <wp-version>] <version> [\"changelog entry\"] ..."
   echo ""
-  echo "  $0 0.8.0 \"Fixed connect flow redirect\" \"Fixed RTC opt-in for WP 7 Beta 6\""
+  echo "  $0 --tested 7.1 0.8.0 \"Fixed connect flow redirect\" \"Fixed RTC opt-in for WP 7 Beta 6\""
   exit 1
 fi
 
@@ -78,6 +87,20 @@ perl -i -pe "s/(Version:\s+)\Q$CURRENT_VERSION\E/\${1}$NEW_VERSION/" wordsocket.
 perl -i -pe "s/const VERSION = '\Q$CURRENT_VERSION\E'/const VERSION = '$NEW_VERSION'/" wordsocket.php
 ok "wordsocket.php → $NEW_VERSION"
 
+if [[ -n "$TESTED_UP_TO" ]]; then
+  perl -i -pe "s/(Tested up to:\s+)[0-9.]+/\${1}$TESTED_UP_TO/" wordsocket.php
+  perl -i -pe "s/^(Tested up to: )[0-9.]+/\${1}$TESTED_UP_TO/" readme.txt
+  ok "Tested up to → $TESTED_UP_TO (wordsocket.php + readme.txt)"
+fi
+
+# ── 2b. Shared version registry ───────────────────────────────────────────────
+VERSIONS_SH="$PLUGIN_DIR/../scripts/versions.sh"
+if [[ -x "$VERSIONS_SH" ]]; then
+  info "config/versions.json"
+  "$VERSIONS_SH" set wordsocket "$NEW_VERSION" >/dev/null
+  ok "versions.json → $NEW_VERSION (site copy is in the site repo: commit it there)"
+fi
+
 # ── 3. readme.txt + readme.md + CHANGELOG.md ──────────────────────────────────
 info "readme.txt + readme.md + CHANGELOG.md"
 
@@ -106,13 +129,16 @@ txt = txt.replace(f'Stable tag: {old_ver}', f'Stable tag: {new_ver}')
 chg = f'= {new_ver} =\n'
 chg += (''.join(f'* {b}\n' for b in bullets) if bullets else '') + '\n'
 
-# Replace existing section for this version (may be empty), or prepend a new one.
+# Replace an existing section for this version when bullets are given (a
+# hand-written section is kept when none are), or prepend a new one.
 # Matches the header line and all following non-section-header lines.
 existing = re.search(
     r'= ' + re.escape(new_ver) + r' =\n(?:(?!= [0-9]).*\n)*',
     txt
 )
-if existing:
+if existing and not bullets:
+    pass
+elif existing:
     txt = re.sub(
         r'= ' + re.escape(new_ver) + r' =\n(?:(?!= [0-9]).*\n)*',
         chg,
