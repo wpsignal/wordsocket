@@ -29,7 +29,9 @@ export function wpsDebug(
   prefix: string = "",
 ) {
   const _type = type === "info" ? "log" : type;
-  if (!window.wpSignalConfig?.debug && _type === "log") {
+  // Errors always reach the console; everything else only in debug mode
+  // (WP_ENVIRONMENT_TYPE other than production, localized as isDebug).
+  if (_type !== "error" && !window.wpSignalConfig?.isDebug) {
     return;
   }
   const styledLabel = [
@@ -52,9 +54,10 @@ export function wpsDebug(
  * @returns The stack trace as a string.
  */
 function getStackTrace() {
-  const obj: any = {};
-  Error.captureStackTrace(obj, getStackTrace);
-  const stack = obj.stack;
+  const obj: { stack?: string } = {};
+  // V8-only helper; other engines simply produce no trace.
+  (Error as unknown as { captureStackTrace?: (o: object, f: unknown) => void }).captureStackTrace?.(obj, getStackTrace);
+  const stack = obj.stack ?? "";
   // remove the first 2 lines from the trace string (this function and the caller)
   const trace = "Stack trace:\n" + stack.split("\n").slice(2).join("\n") + "\n";
   return trace;

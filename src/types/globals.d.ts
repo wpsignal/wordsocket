@@ -6,10 +6,12 @@ interface WpSignalConfig {
 	isConstant: boolean;
 	/** Whether the WP sync engine is present (Gutenberg plugin until RTC ships in core). */
 	isWpRtcAvailable: boolean;
-	/** Whether real-time collaboration is enabled (WP_ALLOW_COLLABORATION and the Settings > Writing option). */
+	/** Whether real-time collaboration is enabled (Gutenberg > Experiments toggle, via wp_is_collaboration_enabled()). */
 	isWpRtcEnabled: boolean;
 	/** Whether to use SSL. */
 	isSsl: boolean;
+	/** WPSignal dashboard URL (settings page only; derived from the server base URL). */
+	dashboardUrl?: string;
 	/** Whether to enable debug mode. */
 	isDebug: boolean;
 	/** WordPress REST URL. */
@@ -42,12 +44,12 @@ interface WpSignalSettings {
 	postTypes: Array< { value: string; label: string } >;
 	/** WPSignal server base URL. */
 	baseUrl: string;
-	/** Stored API key (manual flow only; empty for automatic connections). */
-	apiKey: string;
+	/** WPSignal dashboard URL, derived from baseUrl. */
+	dashboardUrl: string;
 	/** Stored site key (set after either connection flow completes). */
 	siteKey: string;
 	/** Array of registered trigger instances. */
-	triggers: WpSignalTriggerRow[] | [];
+	triggers: WpSignalTriggerRow[];
 }
 
 /** Localized by class-wpsignal-client.php (enqueue_yjs_provider) */
@@ -79,7 +81,40 @@ type WPSStatus = {
 	canPublishBinary: boolean;
 	/** Timestamp (ms) of the last inbound frame (including server pings); null when unknown or on SSE. */
 	lastMessageAt: number | null;
+	/** Why the connection is down, if it is; cleared on the next successful open. */
+	lastError: WPSConnectionError | null;
+	/** Consecutive failed connection attempts since the last successful open. */
+	failures: number;
 };
+
+/**
+ * Error codes shared with the Yjs provider. They mirror @wordpress/sync's
+ * ConnectionErrorCode so the editor can pick its copy without translation.
+ */
+type WPSConnectionErrorCode =
+	| 'authentication-failed'
+	| 'connection-expired'
+	| 'connection-limit-exceeded'
+	| 'document-size-limit-exceeded'
+	| 'protocol-mismatch'
+	| 'unknown-error';
+
+interface WPSConnectionError {
+	code: WPSConnectionErrorCode;
+	message: string;
+}
+
+/** Full connection state delivered to `onStateChange` handlers. */
+interface WPSConnectionState {
+	connected: boolean;
+	transport: WPSTransportName | null;
+	/** Present while disconnected because of an error. */
+	error?: WPSConnectionError;
+	/** Present while an automatic retry is scheduled: milliseconds until it fires. */
+	retryInMs?: number;
+	/** Consecutive failed attempts since the last successful open. */
+	failures: number;
+}
 
 /** Public API exposed by the WordSocket client on window.WPS */
 interface WPSApi {
@@ -109,6 +144,10 @@ interface WPSApi {
 	readonly status: WPSStatus;
 	/** Register a callback for connection state changes. Returns unsubscribe fn. */
 	onConnectionChange( handler: ( connected: boolean ) => void ): () => void;
+	/** Register a callback receiving the full connection state (error, retry countdown, failure count). Returns unsubscribe fn. */
+	onStateChange( handler: ( state: WPSConnectionState ) => void ): () => void;
+	/** The current connection state, as delivered to onStateChange. */
+	readonly state: WPSConnectionState;
 }
 
 // ---------------------------------------------------------------------------

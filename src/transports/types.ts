@@ -21,8 +21,17 @@ export type WPSTransportMessage = {
 };
 
 export type WPSTransportCloseEvent = {
+  /** WebSocket close code, including the relay's application codes (4001, 4003, 4029). */
   code?: number;
+  /** Close reason from the relay, when it sent one. */
+  reason?: string;
   wasOpen: boolean;
+  /**
+   * The transport is retrying on its own (EventSource auto-reconnect) and
+   * will call onOpen again if it succeeds; the client should not schedule
+   * its own reconnect for this event.
+   */
+  transient?: boolean;
 };
 
 export type WPSTransportCallbacks = {

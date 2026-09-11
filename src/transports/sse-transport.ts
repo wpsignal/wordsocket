@@ -18,6 +18,7 @@ export class SseTransport implements WPSTransport {
   public readonly canPublish = false;
   public readonly canPublishBinary = false;
 
+  private didOpen = false;
   private source: EventSource | null = null;
   private token: string | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -38,12 +39,23 @@ export class SseTransport implements WPSTransport {
 
     source.addEventListener("open", () => {
       wpsDebug("SSE connected");
+      this.didOpen = true;
       this.callbacks.onOpen();
     });
 
     source.addEventListener("error", (event) => {
-      wpsDebug("SSE error", event, "error");
       this.callbacks.onError(event);
+      if (source.readyState === EventSource.CLOSED) {
+        // The browser gave up (for example a 401 or 404 on the stream URL):
+        // no automatic retry will follow, so the client must decide.
+        wpsDebug("SSE closed by the browser", null, "warn");
+        this.source = null;
+        this.callbacks.onClose({ wasOpen: this.didOpen });
+        return;
+      }
+      // CONNECTING: EventSource retries by itself and fires "open" again.
+      wpsDebug("SSE dropped, browser is reconnecting", null, "log");
+      this.callbacks.onClose({ wasOpen: this.didOpen, transient: true });
     });
 
     SSE_EVENT_TYPES.forEach((eventType) => {

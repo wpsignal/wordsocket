@@ -10,17 +10,31 @@
  */
 
 import { wpsDebug } from "./utils";
+import { Backoff } from "./utils/backoff";
 import WPSClientDebug from "./utils/client-debug";
 import WPSignalEvent from "./event";
 import { SseTransport, WebSocketTransport } from "./transports";
 import type {
   WPSTransport,
+  WPSTransportCloseEvent,
   WPSTransportMessage,
   WPSTransportName,
   WPSTransportStatus,
 } from "./transports";
 
-window.wpsDebug ??= wpsDebug;
+if (window.wpSignalConfig?.isDebug) {
+  window.wpsDebug ??= wpsDebug;
+}
+
+/**
+ * Application close codes sent by the relay when it refuses or ends a
+ * WebSocket session (4000-4999 are reserved for applications by RFC 6455).
+ * Older relays reject at the HTTP upgrade instead, which the browser reports
+ * as a plain failure to open; that path falls through to backoff.
+ */
+const CLOSE_INVALID_TOKEN = 4001;
+const CLOSE_SITE_NOT_FOUND = 4003;
+const CLOSE_CONNECTION_LIMIT = 4029;
 
 /**
  * The server sends a `{"type":"ping"}` frame every 20s, so an open WebSocket
@@ -54,7 +68,25 @@ export class WPSignalClient implements WPSApi {
   private readonly messageHandlers = new Set<WPSMessageHandler>();
   private readonly eventHandlers = new Map<string, Set<WPSEventHandler>>();
   private readonly connectionHandlers = new Set<(c: boolean) => void>();
+  private readonly stateHandlers = new Set<(s: WPSConnectionState) => void>();
   private readonly binaryHandlers = new Set<WPSBinaryHandler>();
+
+  /**
+   * Retry schedule shared by every path that re-enters `init()` (socket
+   * close, token fetch failure, refresh failure). Reset on a successful open.
+   */
+  private readonly backoff = new Backoff();
+  /** Last connection error, kept until the next successful open. */
+  private lastError: WPSConnectionError | null = null;
+  /** Delay of the reconnect currently scheduled, for `onStateChange` consumers. */
+  private retryInMs: number | null = null;
+  /**
+   * One fresh token is minted after a 4001 before giving up: the JWT may
+   * simply have expired while the tab slept. A second 4001 is terminal.
+   */
+  private remintedAfterAuthFailure = false;
+  /** Set once a terminal error stops all automatic retries. */
+  private halted = false;
 
   /**
    * Authoritative set of channels the client wants subscribed. Persists across
@@ -177,8 +209,23 @@ export class WPSignalClient implements WPSApi {
   }
 
   /** Current connection and transport capabilities. */
-  get status(): WPSTransportStatus {
-    return this.activeTransport?.getStatus() ?? this.emptyStatus();
+  get status(): WPSStatus {
+    return {
+      ...(this.activeTransport?.getStatus() ?? this.emptyStatus()),
+      lastError: this.lastError,
+      failures: this.backoff.failures,
+    };
+  }
+
+  /** Current connection state as seen by `onStateChange` handlers. */
+  get state(): WPSConnectionState {
+    return {
+      connected: this._connected,
+      transport: this.transportName,
+      error: this.lastError ?? undefined,
+      retryInMs: this.retryInMs ?? undefined,
+      failures: this.backoff.failures,
+    };
   }
 
   /**
@@ -189,6 +236,19 @@ export class WPSignalClient implements WPSApi {
     this.connectionHandlers.add(handler);
     return () => {
       this.connectionHandlers.delete(handler);
+    };
+  }
+
+  /**
+   * Like `onConnectionChange` but with the full state: why the connection is
+   * down, whether and when a retry is scheduled, and how many attempts have
+   * failed. Fires on every change, including retry scheduling while offline.
+   * Returns an unsubscribe function.
+   */
+  onStateChange(handler: (s: WPSConnectionState) => void): () => void {
+    this.stateHandlers.add(handler);
+    return () => {
+      this.stateHandlers.delete(handler);
     };
   }
 
@@ -356,9 +416,15 @@ export class WPSignalClient implements WPSApi {
           this.connectSseTransport(data.token, data.channels);
         }
       })
-      .catch((err) => {
-        wpsDebug("Token fetch failed", err, "error");
-        setTimeout(() => this.init(), 30000);
+      .catch((err: unknown) => {
+        wpsDebug("Token fetch failed", err, "warn");
+        if (isAuthStatus(err)) {
+          // The REST endpoint refused us (logged out, or public clients
+          // disabled): retrying cannot help until the page reloads.
+          this.halt("authentication-failed", "Token request was refused");
+          return;
+        }
+        this.scheduleRetry(() => this.init(), "unknown-error", messageOf(err));
       });
   }
 
@@ -379,20 +445,58 @@ export class WPSignalClient implements WPSApi {
       onBinaryMessage: (channel, data) => {
         this.binaryHandlers.forEach((handler) => handler(channel, data));
       },
-      onClose: ({ wasOpen }) => {
-        this.setConnected(false);
-        if (!wasOpen) {
-          this.fallbackToSse(token, channels);
-        } else if (this.debugSuppressReconnect) {
-          wpsDebug("[debug] Auto-reconnect suppressed (simulated sleep)");
-        } else {
-          this.scheduleReconnect();
-        }
-      },
+      onClose: (event) => this.handleWebSocketClose(event, token, channels),
       onError: () => undefined,
     });
     this.activateTransport(transport);
     transport.connect({ token, channels });
+  }
+
+  private handleWebSocketClose(
+    { code, reason, wasOpen }: WPSTransportCloseEvent,
+    token: string,
+    channels: string[],
+  ): void {
+    this.setConnected(false);
+    switch (code) {
+      case CLOSE_INVALID_TOKEN:
+        if (!this.remintedAfterAuthFailure) {
+          this.remintedAfterAuthFailure = true;
+          wpsDebug("Token rejected, minting a fresh one", reason ?? null, "warn");
+          this.cleanup();
+          this.init();
+        } else {
+          this.halt("authentication-failed", reason ?? "Token rejected by the relay");
+        }
+        return;
+      case CLOSE_SITE_NOT_FOUND:
+        this.halt("authentication-failed", reason ?? "Site is no longer registered");
+        return;
+      case CLOSE_CONNECTION_LIMIT:
+        this.scheduleRetry(
+          () => {
+            this.cleanup();
+            this.init();
+          },
+          "connection-limit-exceeded",
+          reason ?? "Connection limit reached for this site",
+        );
+        return;
+    }
+    if (!wasOpen) {
+      this.fallbackToSse(token, channels);
+    } else if (this.debugSuppressReconnect) {
+      wpsDebug("[debug] Auto-reconnect suppressed (simulated sleep)");
+    } else {
+      this.scheduleRetry(
+        () => {
+          this.cleanup();
+          this.init();
+        },
+        "unknown-error",
+        reason ?? (code ? `WebSocket closed (${code})` : "WebSocket closed"),
+      );
+    }
   }
 
   private connectSseTransport(token: string, channels: string[]): void {
@@ -404,8 +508,21 @@ export class WPSignalClient implements WPSApi {
       },
       onMessage: (message) => this.handleTransportMessage(message),
       onBinaryMessage: () => undefined,
-      onClose: () => {
+      onClose: ({ transient, wasOpen }) => {
         this.setConnected(false);
+        if (transient) {
+          return; // EventSource retries on its own and will call onOpen.
+        }
+        // The browser closed the stream for good (typically a rejected
+        // token): mint a fresh token and reconnect on the shared schedule.
+        this.scheduleRetry(
+          () => {
+            this.cleanup();
+            this.init();
+          },
+          "unknown-error",
+          wasOpen ? "Event stream closed" : "Event stream could not be opened",
+        );
       },
       onError: () => undefined,
     });
@@ -451,7 +568,51 @@ export class WPSignalClient implements WPSApi {
   private setConnected(value: boolean): void {
     if (value === this._connected) return;
     this._connected = value;
+    if (value) {
+      this.backoff.reset();
+      this.lastError = null;
+      this.retryInMs = null;
+      this.remintedAfterAuthFailure = false;
+    }
     this.connectionHandlers.forEach((fn) => fn(value));
+    this.emitState();
+  }
+
+  private emitState(): void {
+    const state = this.state;
+    this.stateHandlers.forEach((fn) => fn(state));
+  }
+
+  /**
+   * Schedule `action` after the next backoff delay, recording why. Every
+   * automatic retry in the client goes through here so the schedule (and the
+   * countdown consumers display) is consistent.
+   */
+  private scheduleRetry(action: () => void, code: WPSConnectionErrorCode, message: string): void {
+    if (this.halted) return;
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+    }
+    const delay = this.backoff.next();
+    this.lastError = { code, message };
+    this.retryInMs = delay;
+    wpsDebug(`Retrying in ${Math.round(delay / 1000)}s`, { code, message, failures: this.backoff.failures }, "warn");
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.retryInMs = null;
+      action();
+    }, delay);
+    this.emitState();
+  }
+
+  /** Stop retrying entirely: only a page reload (or `start()`) can recover. */
+  private halt(code: WPSConnectionErrorCode, message: string): void {
+    this.halted = true;
+    this.cleanup();
+    this.lastError = { code, message };
+    this.retryInMs = null;
+    wpsDebug("Giving up on the connection", { code, message }, "error");
+    this.emitState();
   }
 
   /** Mint a fresh token, channel list, and expiry from the REST endpoint. */
@@ -469,7 +630,7 @@ export class WPSignalClient implements WPSApi {
       },
     });
     if (!res.ok) {
-      throw new Error(`WordSocket: token request failed (${res.status})`);
+      throw new TokenRequestError(res.status);
     }
     return res.json();
   }
@@ -519,12 +680,21 @@ export class WPSignalClient implements WPSApi {
           }
           this.scheduleRefresh(data.exp);
         })
-        .catch((err) => {
-          wpsDebug("Token refresh failed", err, "error");
-          setTimeout(() => {
-            this.cleanup();
-            this.init();
-          }, 5000);
+        .catch((err: unknown) => {
+          wpsDebug("Token refresh failed", err, "warn");
+          if (isAuthStatus(err)) {
+            this.halt("authentication-failed", "Token refresh was refused");
+            return;
+          }
+          // Keep the current socket while it lasts; try to refresh again later.
+          this.scheduleRetry(
+            () => {
+              this.cleanup();
+              this.init();
+            },
+            "unknown-error",
+            messageOf(err),
+          );
         });
     }, refreshAt);
   }
@@ -560,15 +730,6 @@ export class WPSignalClient implements WPSApi {
       return;
     }
     this.dispatchEvent(message.event, message.channel, message.data ?? {});
-  }
-
-  private scheduleReconnect(): void {
-    wpsDebug("Reconnecting in 5s...");
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = null;
-      this.cleanup();
-      this.init();
-    }, 5000);
   }
 
   private emptyStatus(): WPSTransportStatus {
@@ -645,4 +806,20 @@ if (config?.baseUrl && config?.restUrl) {
   const client = new WPSignalClient(config);
   window.WPS = client;
   client.start();
+}
+
+/** Thrown by `fetchToken` so callers can tell a refusal from a network blip. */
+class TokenRequestError extends Error {
+  constructor(readonly status: number) {
+    super(`WordSocket: token request failed (${status})`);
+    this.name = "TokenRequestError";
+  }
+}
+
+function isAuthStatus(err: unknown): boolean {
+  return err instanceof TokenRequestError && (err.status === 401 || err.status === 403);
+}
+
+function messageOf(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
