@@ -146,6 +146,7 @@ class WPS {
 		$this->admin_instance            = new Admin_Page( $this->config_instance );
 		$this->connect_instance          = new Connect( $this->config_instance );
 		$this->connect_instance->init();
+		( new Notices() )->boot();
 
 		// Register built-in triggers.
 		$this->trigger_registry_instance->register_defaults();

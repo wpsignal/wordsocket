@@ -17,3 +17,8 @@ delete_option( 'wpsignal_site_key' );
 delete_option( 'wpsignal_site_secret' );
 delete_option( 'wpsignal_jwt_secret' );
 delete_option( 'wpsignal_custom_triggers' );
+delete_option( 'wpsignal_yjs_provider_enabled' );
+delete_option( 'wpsignal_limits' );
+delete_option( 'wpsignal_last_publish_error' );
+delete_transient( 'wpsignal_oauth_state' );
+delete_metadata( 'user', 0, 'wpsignal_dismissed_publish_error', '', true );

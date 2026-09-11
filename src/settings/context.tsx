@@ -46,6 +46,8 @@ type SettingsState = {
   noticeMessage: NoticeState | null;
   connectionType: "automatic" | "manual" | null;
   fetchStatus: FetchStatus;
+  /** Last publish failure reported by the server-side publisher, if any. */
+  lastError: { code: string; message: string; time: number } | null;
   yjsProviderEnabled: boolean;
   tabsCache: TabsCached;
   setTabsCache: (tabs: TabsCached) => void;
@@ -67,6 +69,7 @@ const DEFAULT_STATE: SettingsState = {
   noticeMessage: null,
   connectionType: isSsl ? "automatic" : "manual",
   fetchStatus: "init",
+  lastError: null,
   yjsProviderEnabled: false,
   tabsCache: {
     connection: null,
@@ -99,7 +102,6 @@ function successMessage(siteKey: string): React.ReactNode {
  */
 const SettingsContext = createContext<SettingsState>(DEFAULT_STATE);
 
-// TODO: add tab state to avoid unnecessary requests between tab changes.
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [tabsCache, setTabsCache] = useState<TabsCached>({
     connection: null,
@@ -118,6 +120,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setSetting("siteKey", res.site_key);
         setSetting("isConnected", res.is_connected);
         setSetting("yjsProviderEnabled", res.yjs_provider_enabled);
+        setSetting("lastError", res.last_error ?? null);
       } catch (error: any) {
         setSetting("noticeMessage", {
           type: "error",
@@ -143,18 +146,20 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setSetting("noticeMessage", null);
     try {
       await disconnect();
+      setSetting("apiKey", "");
+      setSetting("siteKey", "");
+      setSetting("isConnected", false);
+      setSetting("fetchStatus", "disconnected");
     } catch (error: any) {
+      // The server refused or was unreachable: credentials are still stored,
+      // so the site stays connected and the user can retry.
       setSetting("noticeMessage", {
         type: "error",
         message:
           error?.message ||
           __("Disconnect failed. Please try again.", "wordsocket"),
       });
-    } finally {
-      setSetting("apiKey", "");
-      setSetting("siteKey", "");
-      setSetting("isConnected", false);
-      setSetting("fetchStatus", "disconnected");
+      setSetting("fetchStatus", "idle");
     }
   };
 

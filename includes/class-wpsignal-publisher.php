@@ -63,16 +63,18 @@ class Publisher {
 	 * Persist a throttle timestamp received from the server's 429 response.
 	 *
 	 * @param string $error_code Server error code (e.g. "quota_exceeded").
+	 * @return int|null Unix timestamp the throttle lasts until, or null when nothing was stored.
 	 */
 	private function store_limit( $error_code ) {
 		if ( 'quota_exceeded' !== $error_code ) {
-			return;
+			return null;
 		}
 		// Throttle until the end of the current calendar month (UTC).
 		$end_of_month             = mktime( 23, 59, 59, (int) gmdate( 'n' ) + 1, 0, (int) gmdate( 'Y' ) );
 		$limits                   = get_option( 'wpsignal_limits', array() );
 		$limits['messages_until'] = $end_of_month;
 		update_option( 'wpsignal_limits', $limits, false );
+		return $end_of_month;
 	}
 
 	/**
@@ -159,6 +161,7 @@ class Publisher {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log( '[WPSignal] Publish failed: ' . $response->get_error_message() );
 			}
+			Notices::record( 'unreachable', $response->get_error_message() );
 			return $response;
 		}
 
@@ -175,12 +178,16 @@ class Publisher {
 			}
 			// On quota 429, store the throttle timestamp to skip future requests for the current month.
 			// Throttle is best-effort; billing period boundaries may differ between client and server.
-			if ( 429 === $code && is_array( $error_data ) && isset( $error_data['error'] ) ) {
-				$this->store_limit( $error_data['error'] );
+			$server_code = is_array( $error_data ) && isset( $error_data['error'] ) ? (string) $error_data['error'] : 'http_' . $code;
+			$until       = null;
+			if ( 429 === $code && 'quota_exceeded' === $server_code ) {
+				$until = $this->store_limit( $server_code );
 			}
+			Notices::record( $server_code, $message, $until );
 			return new \WP_Error( 'wpsignal_publish_error', $message );
 		}
 
+		Notices::clear();
 		return $response;
 	}
 

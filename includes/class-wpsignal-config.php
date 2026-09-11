@@ -198,7 +198,7 @@ class Config {
 	 * @return bool
 	 */
 	public function yjs_provider_enabled() {
-		return (bool) get_option( 'wpsignal_yjs_provider_enabled' );
+		return (bool) get_option( 'wpsignal_yjs_provider_enabled', true );
 	}
 
 	/**
@@ -214,8 +214,11 @@ class Config {
 	/**
 	 * Check whether real-time collaboration is enabled on this site.
 	 *
-	 * Defers to wp_is_collaboration_enabled(), which respects both the
-	 * WP_ALLOW_COLLABORATION constant and the Settings > Writing option.
+	 * Defers to wp_is_collaboration_enabled(). Since Gutenberg 23.8 that is
+	 * the "Enable real-time collaboration" toggle under Gutenberg > Experiments
+	 * (the earlier WP_ALLOW_COLLABORATION constant and Settings > Writing option
+	 * no longer exist). Whatever core ships later, this function stays the
+	 * single source of truth.
 	 *
 	 * @return bool
 	 */
@@ -279,13 +282,17 @@ class Config {
 		update_option( 'wpsignal_site_key', $data['site_key'] );
 		update_option( 'wpsignal_site_secret', $data['publish_secret'] );
 		update_option( 'wpsignal_jwt_secret', $data['jwt_secret'] );
+		$this->clear_publish_state();
 	}
 
 	/**
 	 * Clear all site credentials from wp_options (disconnect).
 	 *
-	 * Removes site_key, site_secret, and jwt_secret. The api_key is kept
-	 * so the user can reconnect without re-entering it.
+	 * Removes site_key, site_secret, jwt_secret, and api_key: a manual
+	 * reconnect asks for the API key again. Custom triggers and the Yjs
+	 * setting are kept for the next connection. The server archives the
+	 * site rather than deleting it, so usage history survives a disconnect
+	 * and reconnecting the same site URL reactivates the same site key.
 	 *
 	 * @return void
 	 */
@@ -294,6 +301,18 @@ class Config {
 		delete_option( 'wpsignal_site_secret' );
 		delete_option( 'wpsignal_jwt_secret' );
 		delete_option( 'wpsignal_api_key' );
+		$this->clear_publish_state();
+	}
+
+	/**
+	 * Forget the quota throttle and the last publish failure. A new
+	 * connection (or a disconnect) must not inherit a paused state.
+	 *
+	 * @return void
+	 */
+	public function clear_publish_state() {
+		delete_option( 'wpsignal_limits' );
+		delete_option( Notices::OPTION );
 	}
 
 	/**
