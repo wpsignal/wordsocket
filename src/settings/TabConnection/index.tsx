@@ -16,7 +16,7 @@ import {
   Icon,
 } from "@wordpress/components";
 import { Tabs } from "@wordpress/ui";
-import { __ } from "@wordpress/i18n";
+import { __, sprintf } from "@wordpress/i18n";
 
 /**
  * Internal dependencies.
@@ -73,6 +73,18 @@ export function TabConnection({ title }: { title: string }) {
           "Connection failed: could not reach the WPSignal server. Check that your server is reachable.",
           "wordsocket",
         ),
+      });
+    } else if (wpsNotice === "error_denied") {
+      const reason = params.get("wps_message");
+      setSetting("noticeMessage", {
+        type: "error",
+        message: reason
+          ? sprintf(
+              /* translators: %s: reason given by the WPSignal server */
+              __("Connection refused: %s", "wordsocket"),
+              reason,
+            )
+          : __("Connection refused by the WPSignal server.", "wordsocket"),
       });
     } else if (wpsNotice === "error_data") {
       setSetting("noticeMessage", {

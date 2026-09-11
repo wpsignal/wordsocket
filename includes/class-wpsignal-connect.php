@@ -100,10 +100,14 @@ class Connect {
 	 *
 	 *   wps_state (POST) : The state nonce originally sent by handle_start().
 	 *   wps_code  (POST) : A one-time authorization code to exchange for credentials.
-	 *   wps_error (GET)  : Set to any non-empty value when the user cancelled.
+	 *   wps_error (GET)  : 'cancelled' when the user cancelled, otherwise the
+	 *                      server's error code when authorization was refused
+	 *                      (for example 'site_limit_reached').
+	 *   wps_message (GET): Human-readable reason that accompanies wps_error.
 	 *
 	 * Flow:
-	 *   1. If wps_error is set, redirect with 'cancelled' notice and exit.
+	 *   1. If wps_error is set, redirect with 'cancelled' or 'error_denied' (plus
+	 *      the message) and exit.
 	 *   2. Validate the state nonce against the stored transient (CSRF check).
 	 *   3. Exchange wps_code via POST to /api/connect/exchange.
 	 *   4. Expect response: { site_key, publish_secret, jwt_secret }.
@@ -113,6 +117,7 @@ class Connect {
 	 * Redirects with wps_notice query param on all outcomes:
 	 *   connected      : Success.
 	 *   cancelled      : User cancelled on the dashboard.
+	 *   error_denied   : The server refused the authorization; wps_message carries why.
 	 *   error_state    : State nonce missing or mismatched.
 	 *   error_code     : Authorization code missing.
 	 *   error_exchange : Server call to /api/connect/exchange failed.
@@ -132,11 +137,21 @@ class Connect {
 		// session may not be active (this handler is also registered as nopriv).
 		$state = isset( $_POST['wps_state'] ) ? sanitize_text_field( wp_unslash( $_POST['wps_state'] ) ) : '';
 		$code  = isset( $_POST['wps_code'] ) ? sanitize_text_field( wp_unslash( $_POST['wps_code'] ) ) : '';
-		$error = isset( $_GET['wps_error'] ) ? sanitize_text_field( wp_unslash( $_GET['wps_error'] ) ) : '';
+		$error   = isset( $_GET['wps_error'] ) ? sanitize_text_field( wp_unslash( $_GET['wps_error'] ) ) : '';
+		$message = isset( $_GET['wps_message'] ) ? sanitize_text_field( wp_unslash( $_GET['wps_message'] ) ) : '';
 		// phpcs:enable WordPress.Security.NonceVerification
 
 		if ( $error ) {
-			wp_safe_redirect( add_query_arg( 'wps_notice', 'cancelled', $settings_url ) );
+			if ( 'cancelled' === $error ) {
+				wp_safe_redirect( add_query_arg( 'wps_notice', 'cancelled', $settings_url ) );
+				exit;
+			}
+			// Refused by the server (plan limit, unverified account, ...): surface its reason.
+			$args = array( 'wps_notice' => 'error_denied' );
+			if ( '' !== $message ) {
+				$args['wps_message'] = mb_substr( $message, 0, 200 );
+			}
+			wp_safe_redirect( add_query_arg( $args, $settings_url ) );
 			exit;
 		}
 
