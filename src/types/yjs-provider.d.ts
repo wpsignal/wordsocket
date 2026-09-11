@@ -61,6 +61,14 @@ interface SyncConnectionStatus {
   error?: Error & { code: SyncConnectionErrorCode };
   /** On a disconnected status, the editor shows an auto-retry countdown. */
   willAutoRetryInMs?: number;
+  /** Failed reconnects in a row, informational (Gutenberg 23.8+). */
+  consecutiveFailures?: number;
+  /**
+   * When true the editor opens its "connection lost" dialog even though a
+   * retry is scheduled; without it a retrying provider only shows the
+   * toolbar indicator, forever (Gutenberg 23.8+).
+   */
+  backgroundRetriesFailed?: boolean;
 }
 
 /** Handler registered via `provider.on("status", handler)`. */

@@ -117,13 +117,13 @@ export function TabSettings({ title }: { title: string }) {
         <Notice status="warning" isDismissible={false}>
           {createInterpolateElement(
             __(
-              "Real-time collaboration is not enabled. Please enable it under <a>Settings > Writing</a>.",
+              "Real-time collaboration is not enabled. Turn on <a>Gutenberg > Experiments > Enable real-time collaboration</a>.",
               "wordsocket",
             ),
             {
               a: (
                 <a
-                  href="/wp-admin/options-writing.php"
+                  href="/wp-admin/admin.php?page=gutenberg-experiments"
                   target="_blank"
                   rel="noopener noreferrer"
                 />

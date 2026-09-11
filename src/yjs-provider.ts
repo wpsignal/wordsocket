@@ -80,11 +80,20 @@ const MSG_AWARENESS = 0x04;
 const SYNC_STEP_1_COOLDOWN_MS = 2000;
 
 /**
- * Matches the WPSignalClient auto-reconnect delay after a WebSocket close
- * (client.ts). Reported as `willAutoRetryInMs` so the editor's disconnect
- * dialog shows a truthful retry countdown.
+ * After this many consecutive failed reconnects the status is reported with
+ * `backgroundRetriesFailed`, which is what makes the editor show its
+ * "connection lost" dialog instead of only a toolbar indicator. With the
+ * client's backoff (1s, 2s, 4s, 8s, 16s...) this is roughly half a minute.
  */
-const WS_RECONNECT_DELAY_MS = 5000;
+const BACKGROUND_RETRIES_BEFORE_DIALOG = 5;
+
+/**
+ * Largest encoded update the provider will relay. Mirrors core's HTTP polling
+ * limit (MAX_ENCODED_UPDATE_SIZE_IN_BYTES) and stays under the relay's 2 MiB
+ * WebSocket frame cap. Exceeding it reports `document-size-limit-exceeded`,
+ * which core treats as "collaboration unsupported for this session".
+ */
+const MAX_UPDATE_SIZE_BYTES = 1024 * 1024;
 
 /**
  * How often to re-run the SYNC_STEP_1 handshake on a live connection. The
@@ -149,7 +158,9 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
     const id = objectId !== null ? String(objectId) : "collection";
     this.channel = `${prefix}${objectType}:${id}`;
     this.ydoc = ydoc;
-    this.awareness = awareness;
+    // Core hands over a real y-protocols Awareness (its own copy of the class);
+    // the ambient type only declares the subset core promises, so widen here.
+    this.awareness = awareness as Awareness | undefined;
     debug("provider created", { channel: this.channel });
     this.init();
   }
@@ -192,6 +203,26 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
   }
 
   /** Update the stored status and notify all registered handlers. */
+  /**
+   * True when `update` may be relayed. Otherwise reports the size error once
+   * and stops syncing this document; the editor keeps working locally and
+   * shows why collaboration is off.
+   */
+  private withinSizeLimit(update: Uint8Array): boolean {
+    if (update.byteLength <= MAX_UPDATE_SIZE_BYTES) return true;
+    if (this.currentStatus.error?.code !== "document-size-limit-exceeded") {
+      debug("update too large to relay", { channel: this.channel, bytes: update.byteLength }, "error");
+      this.emitStatus({
+        status: "disconnected",
+        error: new WPSConnectionError(
+          "document-size-limit-exceeded",
+          "The document is too large to sync in real time.",
+        ),
+      });
+    }
+    return false;
+  }
+
   private emitStatus(status: SyncConnectionStatus): void {
     this.currentStatus = status;
     this.statusHandlers.forEach((fn) => fn(status));
@@ -243,6 +274,7 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
        * for the same reason).
        */
       if (wps.connected) {
+        if (!this.withinSizeLimit(update)) return;
         wps.publishBinary(this.channel, this.frame(MSG_UPDATE, update));
         debug("outbound update", {
           channel: this.channel,
@@ -309,7 +341,7 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
           /**
            * Send our own SYNC_STEP_1 so the peer can reply with what WE
            * are missing. Without this, sync is one-directional: the peer
-           * gets our stste but we never learn what the peer has that we lack.
+           * gets our state but we never learn what the peer has that we lack.
            *
            * Rate-limited: the server echoes frames back to the sender, so
            * a recently-sent SYNC_STEP_1 arriving here is our own echo, not
@@ -383,16 +415,14 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
     }, RESYNC_INTERVAL_MS);
     this.unsubscribers.push(() => clearInterval(resyncTimer));
 
-    // Connection state changes.
-    const offConnection = wps.onConnectionChange((connected) => {
-      this.emitStatus(
-        connected
-          ? { status: "connected" }
-          : {
-              status: "disconnected",
-              willAutoRetryInMs: WS_RECONNECT_DELAY_MS,
-            },
-      );
+    // Connection state changes. `onStateChange` carries the reason and the
+    // retry schedule; the sync work below only cares about the edge.
+    let wasConnected = wps.connected;
+    const offConnection = wps.onStateChange((state) => {
+      this.emitStatus(statusFromState(state));
+      const connected = state.connected;
+      if (connected === wasConnected) return;
+      wasConnected = connected;
 
       if (connected) {
         /**
@@ -414,6 +444,7 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
         }
 
         for (const update of this.pendingUpdates.splice(0)) {
+          if (!this.withinSizeLimit(update)) break;
           wps.publishBinary(this.channel, this.frame(MSG_UPDATE, update));
           debug("outbound update", {
             channel: this.channel,
@@ -461,10 +492,38 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
  * "not synced" UI, rather than silently dropping all outgoing updates.
  *
  * If transport is still `null` (client is connecting), we proceed normally:
- * the provider's `onConnectionChange` handler will initiate sync once the
+ * the provider's `onStateChange` handler will initiate sync once the
  * WebSocket opens, or `publishBinary` will surface the error if SSE wins the
  * race.
  */
+/**
+ * Error code used for the SSE-fallback no-op provider. It is one of core's
+ * codes (so the editor never crashes on it), and the boot script tells the
+ * editor it is handled so core's generic dialog stays closed.
+ */
+export const SSE_FALLBACK_ERROR_CODE: SyncConnectionErrorCode = "unknown-error";
+
+/** Map the WordSocket client's connection state onto core's status payload. */
+function statusFromState(state: WPSConnectionState): SyncConnectionStatus {
+  if (state.connected) {
+    return { status: "connected" };
+  }
+  const error = state.error
+    ? new WPSConnectionError(state.error.code, state.error.message)
+    : undefined;
+  if (state.retryInMs === undefined) {
+    // No retry scheduled: either still connecting, or the client gave up.
+    return error ? { status: "disconnected", error } : { status: "connecting" };
+  }
+  return {
+    status: "disconnected",
+    error,
+    willAutoRetryInMs: state.retryInMs,
+    consecutiveFailures: state.failures,
+    backgroundRetriesFailed: state.failures >= BACKGROUND_RETRIES_BEFORE_DIALOG,
+  };
+}
+
 export async function wpsignalProviderCreator(
   options: ProviderCreatorOptions,
 ): Promise<ProviderCreatorResult> {
@@ -480,7 +539,7 @@ export async function wpsignalProviderCreator(
         handler({
           status: "disconnected",
           error: new WPSConnectionError(
-            "unknown-error",
+            SSE_FALLBACK_ERROR_CODE,
             "WebSocket is unavailable; the WordSocket client fell back to SSE, which cannot relay collaboration updates.",
           ),
         });

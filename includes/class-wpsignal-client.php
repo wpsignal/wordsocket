@@ -154,8 +154,8 @@ class Client {
 	 * Only enqueued when:
 	 *   1. The plugin is configured (base_url is set).
 	 *   2. Real-time collaboration is available and enabled on the site
-	 *      (Gutenberg plugin until RTC ships in core; respects
-	 *      WP_ALLOW_COLLABORATION and the Settings > Writing option).
+	 *      (Gutenberg plugin until RTC ships in core; the Gutenberg > Experiments
+	 *      "Enable real-time collaboration" toggle, via wp_is_collaboration_enabled()).
 	 *   3. The wpsignal client script is already enqueued (connection exists).
 	 *
 	 * @return void
