@@ -1,7 +1,7 @@
 /**
  * WordPress dependencies.
  */
-import { __ } from "@wordpress/i18n";
+import { __, sprintf } from "@wordpress/i18n";
 import { CollapsibleCard, Card, Badge } from "@wordpress/ui";
 import { useState, useRef, useEffect } from "@wordpress/element";
 import {
@@ -33,7 +33,7 @@ interface LogEntry {
 
 // TODO: sync triggers between triggers tab and triggers table.
 function PanelTriggers() {
-  const triggers = settings.triggers;
+  const triggers: WpSignalTriggerRow[] = settings.triggers ?? [];
   if (!triggers.length) return null;
   return (
     <CollapsibleCard.Root style={{ gridColumn: "span 2" }}>
@@ -96,75 +96,8 @@ function PanelTriggers() {
             ];
           })}
         </div>
-        ˝
       </CollapsibleCard.Content>
     </CollapsibleCard.Root>
-  );
-}
-
-// Unused — kept as a reference for manual connection status testing.
-function PanelConnection() {
-  const { isConnected, siteKey } = useSettings();
-  const [testText, setTestText] = useState("");
-  const [testOk, setTestOk] = useState(true);
-
-  function test() {
-    setTestText(__("Testing...", "wordsocket"));
-    const url = (settings.baseUrl ?? "").replace(/\/+$/, "") + "/healthz";
-    fetch(url)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then(() => {
-        setTestOk(true);
-        setTestText(__("OK", "wordsocket"));
-      })
-      .catch((err: Error) => {
-        setTestOk(false);
-        setTestText(`${__("Failed:", "wordsocket")} ${err.message}`);
-      });
-  }
-
-  return (
-    <Card.Root className="wpsignal-card">
-      <h3>{__("Connection Status", "wordsocket")}</h3>
-      {isConnected ? (
-        <>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "max-content 1fr",
-              gap: "8px 20px",
-              alignItems: "baseline",
-              marginBottom: 12,
-            }}
-          >
-            <strong>{__("Server URL", "wordsocket")}</strong>
-            <code>{settings.baseUrl}</code>
-            <strong>{__("Site Key", "wordsocket")}</strong>
-            <code>{siteKey}</code>
-          </div>
-          <Button variant="secondary" onClick={test}>
-            {__("Test Connection", "wordsocket")}
-          </Button>
-          {testText && (
-            <span
-              style={{ marginLeft: 10, color: testOk ? "#46b450" : "#dc3232" }}
-            >
-              {testText}
-            </span>
-          )}
-        </>
-      ) : (
-        <p style={{ color: "#dc3232" }}>
-          {__(
-            "Not configured. Go to Connect to set up the plugin.",
-            "wordsocket",
-          )}
-        </p>
-      )}
-    </Card.Root>
   );
 }
 
@@ -494,7 +427,12 @@ function PanelToken() {
   let expiryColor = "#46b450";
   if (remaining !== null) {
     if (remaining > 0) {
-      expiryText = `${__("Expires in:", "wordsocket")} ${Math.floor(remaining / 60)}m ${remaining % 60}s`;
+      expiryText = sprintf(
+        /* translators: 1: minutes, 2: seconds */
+        __("Expires in: %1$dm %2$ds", "wordsocket"),
+        Math.floor(remaining / 60),
+        remaining % 60,
+      );
       expiryColor = remaining < 60 ? "#dc3232" : "#46b450";
     } else {
       expiryText = __("Expired", "wordsocket");

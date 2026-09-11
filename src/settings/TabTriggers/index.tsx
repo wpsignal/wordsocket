@@ -108,7 +108,10 @@ export function TabTriggers({ title }: { title: string }) {
     try {
       const res = await saveTriggers(tabsCache.triggers);
       setTabsCache({ ...tabsCache, triggers: res.triggers });
-      setNotice({ type: "success", message: res.message || "Saved." });
+      setNotice({
+        type: "success",
+        message: res.message || __("Saved.", "wordsocket"),
+      });
     } catch {
       setNotice({
         type: "error",
@@ -119,7 +122,7 @@ export function TabTriggers({ title }: { title: string }) {
     }
   };
 
-  const isTraggersEmpty = tabsCache.triggers.length === 0;
+  const isTriggersEmpty = tabsCache.triggers.length === 0;
 
   return (
     <div className="wpsignal-triggers-app">
@@ -177,7 +180,7 @@ export function TabTriggers({ title }: { title: string }) {
         </Notice>
       )}
 
-      {!isTraggersEmpty && (
+      {!isTriggersEmpty && (
         <Flex gap={5} align="flex-start" direction="column">
           {tabsCache.triggers.map((trigger: Trigger, index: number) => (
             <TriggerRow

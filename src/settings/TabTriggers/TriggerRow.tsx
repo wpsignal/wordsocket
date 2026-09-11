@@ -1,10 +1,10 @@
 import {
+  Button,
   SelectControl,
   TextControl,
   Flex,
   FlexBlock,
   FlexItem,
-  Icon,
 } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 
@@ -14,8 +14,11 @@ import { __ } from "@wordpress/i18n";
 import type { Trigger, PostTypeOption } from "../types";
 
 const OPTION_PRESETS = [
-  { value: "blogname", label: "Site Name (blogname)" },
-  { value: "blogdescription", label: "Site Description (blogdescription)" },
+  { value: "blogname", label: __("Site Name (blogname)", "wordsocket") },
+  {
+    value: "blogdescription",
+    label: __("Site Description (blogdescription)", "wordsocket"),
+  },
 ];
 
 function autoEvent(trigger: Trigger): string {
@@ -64,9 +67,13 @@ export function TriggerRow({
   return (
     <Flex gap={5} align="flex-end" justify="space-between" className="wpsignal-trigger-row">
       <FlexItem>
-        <a style={{ cursor: "pointer" }} onClick={() => onRemove(index)}>
-          <Icon icon="trash" size={40} />
-        </a>
+        <Button
+          icon="trash"
+          label={__("Remove trigger", "wordsocket")}
+          isDestructive
+          onClick={() => onRemove(index)}
+          __next40pxDefaultSize
+        />
       </FlexItem>
       <FlexBlock>
         <SelectControl
