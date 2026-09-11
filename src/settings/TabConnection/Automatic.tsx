@@ -2,9 +2,12 @@ import { __ } from "@wordpress/i18n";
 import { Button } from "@wordpress/components";
 import { createInterpolateElement } from "@wordpress/element";
 
+const { dashboardUrl = "https://api.wpsignal.io/dashboard" } =
+  window.wpSignalConfig ?? {};
+
 export default function Automatic({ isConnecting }: { isConnecting: boolean }) {
   const handleOAuthConnect = (): void => {
-    const oauthStartUrl = (window as any).wpsignalSettings?.oauthStartUrl;
+    const oauthStartUrl = window.wpsignalSettings?.oauthStartUrl;
     if (oauthStartUrl) {
       window.location.href = oauthStartUrl;
     }
@@ -17,7 +20,7 @@ export default function Automatic({ isConnecting }: { isConnecting: boolean }) {
           "Log in to your <a>WPSignal dashboard</a> and authorize this site in one click.",
           "wordsocket",
         ), {
-          a: <a href="https://api.wpsignal.io/dashboard" target="_blank" rel="noopener noreferrer" />,
+          a: <a href={dashboardUrl} target="_blank" rel="noopener noreferrer" />,
         })}
       </p>
       <Button

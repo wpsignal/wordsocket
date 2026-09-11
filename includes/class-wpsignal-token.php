@@ -57,13 +57,18 @@ class Token {
 
 		$permission_callback = fn() => current_user_can( 'manage_options' );
 
+		// Token minting follows the same rule as the frontend client enqueue:
+		// logged-in users only unless a site opts into public clients via the
+		// `wpsignal_allow_client` filter. Anonymous callers otherwise get 401.
 		register_rest_route(
 			'wpsignal/v1',
 			'/token',
 			array(
 				'methods'             => 'GET, POST',
 				'callback'            => array( $this, 'handle_token' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => static function () {
+					return (bool) apply_filters( 'wpsignal_allow_client', is_user_logged_in() );
+				},
 			)
 		);
 
@@ -110,18 +115,9 @@ class Token {
 					'methods'             => 'POST',
 					'callback'            => array( $this, 'handle_post_settings' ),
 					'args'                => array(
-						'settings' => array(
-							'type'       => 'object',
-							'properties' => array(
-								'yjs_provider_enabled' => array( 'type' => 'boolean' ),
-								'is_rtc_enabled'       => array( 'type' => 'boolean' ),
-								'wp_version'           => array( 'type' => 'number' ),
-								'credential_source'    => array( 'type' => 'string' ),
-								'api_key'              => array( 'type' => 'string' ),
-								'site_key'             => array( 'type' => 'string' ),
-								'is_connected'         => array( 'type' => 'boolean' ),
-								'base_url'             => array( 'type' => 'string' ),
-							),
+						'yjs_provider_enabled' => array(
+							'type'     => 'boolean',
+							'required' => true,
 						),
 					),
 					'permission_callback' => $permission_callback,
@@ -295,6 +291,10 @@ class Token {
 			);
 		}
 
+		if ( self::mask_api_key( $this->config->api_key() ) === $api_key ) {
+			$api_key = $this->config->api_key();
+		}
+
 		if ( strlen( $api_key ) !== 64 ) {
 			return new WP_Error(
 				'wpsignal_invalid_api_key',
@@ -328,21 +328,9 @@ class Token {
 			);
 		}
 
-		$code = wp_remote_retrieve_response_code( $response );
+		$code = (int) wp_remote_retrieve_response_code( $response );
 		if ( 200 !== $code ) {
-			$body       = wp_remote_retrieve_body( $response );
-			$error_data = json_decode( $body, true );
-			$error_code = is_array( $error_data ) && isset( $error_data['error'] )
-				? 'wpsignal_' . $error_data['error']
-				: 'wpsignal_connect_failed';
-			$message    = is_array( $error_data ) && isset( $error_data['message'] )
-				? $error_data['message']
-				: sprintf( 'HTTP %d', $code );
-			return new WP_Error(
-				$error_code,
-				$message,
-				array( 'status' => $code )
-			);
+			return self::remote_error( $response, 'connect_failed' );
 		}
 
 		$data = json_decode( wp_remote_retrieve_body( $response ), true );
@@ -367,9 +355,12 @@ class Token {
 	}
 
 	/**
-	 * Disconnect this site: delete the site from the WPSignal server and clear local credentials.
+	 * Disconnect this site: archive it on the WPSignal server and clear local credentials.
 	 *
-	 * POSTs to {base_url}/api/sites/unregister. Returns `WP_Error` if the HTTP request itself fails (network error).
+	 * POSTs to {base_url}/api/sites/unregister. Local credentials are kept (and a
+	 * `WP_Error` returned) when the request fails or the server refuses, so the
+	 * user can retry; a `not_found` refusal means the server already forgot the
+	 * site, which is as disconnected as it gets.
 	 *
 	 * @return WP_REST_Response|\WP_Error Success response or error.
 	 */
@@ -405,6 +396,11 @@ class Token {
 					array( 'status' => 502 )
 				);
 			}
+
+			$code = (int) wp_remote_retrieve_response_code( $response );
+			if ( ( $code < 200 || $code >= 300 ) && 404 !== $code ) {
+				return self::remote_error( $response, 'disconnect_failed' );
+			}
 		}
 
 		$this->config->clear_registration();
@@ -416,8 +412,9 @@ class Token {
 	 * Return current connection settings.
 	 *
 	 * When the site appears locally configured, verifies the site_key still
-	 * exists on the server via a lightweight publish. If the server returns
-	 * 401 (unknown site key), the local registration is cleared.
+	 * exists on the server via a lightweight publish (see `verify_site_exists`).
+	 * The API key is never sent back in full: only a `****` mask plus its last
+	 * four characters, which `handle_register` accepts as "reuse the stored key".
 	 *
 	 * @return WP_REST_Response Settings response.
 	 */
@@ -431,11 +428,12 @@ class Token {
 		return rest_ensure_response(
 			array(
 				'base_url'             => $this->config->base_url(),
-				'api_key'              => $this->config->api_key(),
+				'api_key'              => self::mask_api_key( $this->config->api_key() ),
 				'site_key'             => $is_connected ? $this->config->site_key() : '',
 				'is_connected'         => $is_connected,
 				'yjs_provider_enabled' => $this->config->yjs_provider_enabled(),
 				'credential_source'    => $this->config->credential_source(),
+				'last_error'           => $this->last_publish_error(),
 			)
 		);
 	}
@@ -447,7 +445,7 @@ class Token {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function handle_post_settings( WP_REST_Request $request ) {
-		$yjs_provider_enabled = $request->get_param( 'yjs_provider_enabled' );
+		$yjs_provider_enabled = rest_sanitize_boolean( $request->get_param( 'yjs_provider_enabled' ) );
 		update_option( 'wpsignal_yjs_provider_enabled', $yjs_provider_enabled );
 
 		return rest_ensure_response(
@@ -458,11 +456,42 @@ class Token {
 	}
 
 	/**
+	 * The last publish failure for the settings UI, or null.
+	 *
+	 * @return array|null array{code, message, time}.
+	 */
+	private function last_publish_error() {
+		$error = Notices::last();
+		if ( ! $error ) {
+			return null;
+		}
+		return array(
+			'code'    => $error['code'],
+			'message' => Notices::describe( $error ),
+			'time'    => (int) $error['time'],
+		);
+	}
+
+	/**
+	 * Server error codes that mean this site's credentials are no longer valid.
+	 *
+	 * A publish with a dummy signature answers `invalid_signature` for a live
+	 * site; anything in this list means the registration is gone or locked.
+	 */
+	private const DISCONNECTED_CODES = array(
+		'unknown_site_key',
+		'invalid_token',
+		'site_not_found',
+		'account_deactivated',
+		'invalid_api_key',
+	);
+
+	/**
 	 * Verify the registered site still exists on the WPSignal server.
 	 *
-	 * Response body distinguishes the two 401 cases:
-	 * - "unknown site key"  → site was deleted → clear local credentials.
-	 * - "invalid signature" → site still exists (expected, since we sent a dummy).
+	 * Sends a publish with a dummy signature and inspects the error code:
+	 * `invalid_signature` means the site is live; a code in
+	 * `DISCONNECTED_CODES` means it is not. Network errors assume connected.
 	 *
 	 * @return bool True if the site still exists (or server is unreachable).
 	 */
@@ -492,12 +521,45 @@ class Token {
 		$response_body = wp_remote_retrieve_body( $response );
 		$data          = json_decode( $response_body, true );
 
-		if ( is_array( $data ) && isset( $data['error'] ) && 'unknown_site_key' === $data['error'] ) {
-			// Site was deleted on the server.
-			return false;
-		}
+		$error = is_array( $data ) && isset( $data['error'] ) ? (string) $data['error'] : '';
 
-		return true;
+		return ! in_array( $error, self::DISCONNECTED_CODES, true );
+	}
+
+	/**
+	 * Turn a non-2xx server response into a `WP_Error` carrying the server's
+	 * own code (prefixed `wpsignal_`) and message.
+	 *
+	 * @param array  $response wp_remote_* response.
+	 * @param string $fallback Code to use when the body has none.
+	 * @return WP_Error
+	 */
+	private static function remote_error( $response, $fallback ) {
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( ! is_array( $data ) ) {
+			$data = array();
+		}
+		$error_code = ! empty( $data['error'] ) ? 'wpsignal_' . $data['error'] : 'wpsignal_' . $fallback;
+		$message    = ! empty( $data['message'] )
+			? (string) $data['message']
+			/* translators: %d: HTTP status code */
+			: sprintf( __( 'HTTP %d', 'wordsocket' ), $code );
+
+		return new WP_Error( $error_code, $message, array( 'status' => $code ) );
+	}
+
+	/**
+	 * `****` plus the last four characters, or '' when no key is stored.
+	 *
+	 * @param string $api_key Full key.
+	 * @return string
+	 */
+	public static function mask_api_key( $api_key ) {
+		if ( '' === (string) $api_key ) {
+			return '';
+		}
+		return '****' . substr( $api_key, -4 );
 	}
 
 	/**

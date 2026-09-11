@@ -11,7 +11,12 @@ import { createInterpolateElement } from "@wordpress/element";
 import { useSettings } from "../context";
 import { connectWithApiKey } from "../api";
 
-const { isSsl = false } = window.wpSignalConfig ?? {};
+const { isSsl = false, dashboardUrl = "https://api.wpsignal.io/dashboard" } =
+  window.wpSignalConfig ?? {};
+
+/** The settings endpoint returns a stored key as `****` plus its last four characters. */
+const isMaskedKey = (value: string) => /^\*{4}.{4}$/.test(value);
+const isValidKey = (value: string) => value.length === 64 || isMaskedKey(value);
 
 /**
  * Manual connection component for non-ssl connections.
@@ -21,23 +26,24 @@ export default function Manual({ title = null }: { title?: string | null }) {
   const { setSetting, apiKey, fetchStatus } = useSettings();
 
   async function handleApiKeyConnect(): Promise<void> {
-    setSetting("fetchStatus", "connecting");
     setSetting("noticeMessage", null);
+    if (!isValidKey(apiKey)) {
+      setSetting("noticeMessage", {
+        type: "error",
+        message: __(
+          "API Key is invalid, please include a valid API Key and try again.",
+          "wordsocket",
+        ),
+      });
+      return;
+    }
+    setSetting("fetchStatus", "connecting");
+    let connected = false;
     try {
-      if (apiKey.length !== 64) {
-        setSetting("noticeMessage", {
-          type: "error",
-          message: __(
-            "API Key is invalid, please include a valid API Key and try again.",
-            "wordsocket",
-          ),
-        });
-        return;
-      }
       const res = await connectWithApiKey(apiKey);
       setSetting("siteKey", res.site_key);
       setSetting("isConnected", true);
-      setSetting("fetchStatus", "connected");
+      connected = true;
     } catch (error: any) {
       setSetting("noticeMessage", {
         type: "error",
@@ -48,6 +54,9 @@ export default function Manual({ title = null }: { title?: string | null }) {
             "wordsocket",
           ),
       });
+    } finally {
+      // Never leave the form stuck in "connecting": a failed attempt must be retryable.
+      setSetting("fetchStatus", connected ? "connected" : "idle");
     }
   }
 
@@ -65,7 +74,7 @@ export default function Manual({ title = null }: { title?: string | null }) {
           {
             a: (
               <a
-                href="https://api.wpsignal.io/dashboard"
+                href={dashboardUrl}
                 target="_blank"
                 rel="noopener noreferrer"
               />
@@ -79,10 +88,14 @@ export default function Manual({ title = null }: { title?: string | null }) {
         }`}
         label={__("API Key", "wordsocket")}
         value={apiKey}
-        minLength={64}
         maxLength={64}
         onChange={(value: string) => setSetting("apiKey", value)}
-        type="password"
+        help={
+          isMaskedKey(apiKey)
+            ? __("A key is already saved. Paste a new one to replace it.", "wordsocket")
+            : undefined
+        }
+        type={isMaskedKey(apiKey) ? "text" : "password"}
         __nextHasNoMarginBottom
         __next40pxDefaultSize
       />
@@ -91,9 +104,7 @@ export default function Manual({ title = null }: { title?: string | null }) {
           variant="secondary"
           onClick={handleApiKeyConnect}
           isBusy={fetchStatus === "connecting"}
-          disabled={
-            !apiKey || fetchStatus === "connecting" || apiKey.length !== 64
-          }
+          disabled={fetchStatus === "connecting" || !isValidKey(apiKey)}
         >
           {__("Save Settings", "wordsocket")}
         </Button>

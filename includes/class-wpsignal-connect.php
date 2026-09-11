@@ -120,7 +120,8 @@ class Connect {
 	 *   error_denied   : The server refused the authorization; wps_message carries why.
 	 *   error_state    : State nonce missing or mismatched.
 	 *   error_code     : Authorization code missing.
-	 *   error_exchange : Server call to /api/connect/exchange failed.
+	 *   error_exchange : Server call to /api/connect/exchange failed; wps_message carries
+	 *                    the server's reason when it answered with an error body.
 	 *   error_data     : Server response missing required credential fields.
 	 *
 	 * Can run without a WordPress session (nopriv) because the state nonce
@@ -135,8 +136,8 @@ class Connect {
 		// parameter (a 32-byte random value stored as a transient and verified via hash_equals() below).
 		// WordPress nonces cannot be used here: the callback arrives from an external redirect and the
 		// session may not be active (this handler is also registered as nopriv).
-		$state = isset( $_POST['wps_state'] ) ? sanitize_text_field( wp_unslash( $_POST['wps_state'] ) ) : '';
-		$code  = isset( $_POST['wps_code'] ) ? sanitize_text_field( wp_unslash( $_POST['wps_code'] ) ) : '';
+		$state   = isset( $_POST['wps_state'] ) ? sanitize_text_field( wp_unslash( $_POST['wps_state'] ) ) : '';
+		$code    = isset( $_POST['wps_code'] ) ? sanitize_text_field( wp_unslash( $_POST['wps_code'] ) ) : '';
 		$error   = isset( $_GET['wps_error'] ) ? sanitize_text_field( wp_unslash( $_GET['wps_error'] ) ) : '';
 		$message = isset( $_GET['wps_message'] ) ? sanitize_text_field( wp_unslash( $_GET['wps_message'] ) ) : '';
 		// phpcs:enable WordPress.Security.NonceVerification
@@ -177,8 +178,20 @@ class Connect {
 			)
 		);
 
-		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+		if ( is_wp_error( $response ) ) {
 			wp_safe_redirect( add_query_arg( 'wps_notice', 'error_exchange', $settings_url ) );
+			exit;
+		}
+
+		if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			// The server answered but refused the code (expired, already used, plan limit hit
+			// between authorize and exchange): pass its reason through like a denial.
+			$error = json_decode( wp_remote_retrieve_body( $response ), true );
+			$args  = array( 'wps_notice' => 'error_exchange' );
+			if ( is_array( $error ) && ! empty( $error['message'] ) ) {
+				$args['wps_message'] = mb_substr( (string) $error['message'], 0, 200 );
+			}
+			wp_safe_redirect( add_query_arg( $args, $settings_url ) );
 			exit;
 		}
 

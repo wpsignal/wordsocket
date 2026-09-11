@@ -68,7 +68,6 @@ class Admin_Page {
 			'wordsocket',
 			array( $this, 'render_settings_page' )
 		);
-
 	}
 
 	/**
@@ -111,7 +110,7 @@ class Admin_Page {
 		wp_enqueue_style(
 			'wpsignal-settings',
 			URL . 'build/settings.css',
-			[],
+			array(),
 			$asset['version']
 		);
 
@@ -141,6 +140,8 @@ class Admin_Page {
 			WPS::instance()->trigger_registry()->all()
 		);
 
+		$dashboard_url = trailingslashit( $this->config->base_url() ) . 'dashboard';
+
 		wp_localize_script(
 			'wpsignal-settings',
 			'wpsignalSettings',
@@ -154,7 +155,7 @@ class Admin_Page {
 				'nonce'         => wp_create_nonce( 'wp_rest' ),
 				'postTypes'     => $types_list,
 				'baseUrl'       => $this->config->base_url(),
-				'apiKey'        => $this->config->api_key(),
+				'dashboardUrl'  => $dashboard_url,
 				'siteKey'       => $this->config->site_key(),
 				'triggers'      => $triggers,
 			)
@@ -162,7 +163,12 @@ class Admin_Page {
 
 		wp_add_inline_script(
 			'wpsignal-settings',
-			'window.wpSignalConfig = window.wpSignalConfig || ' . wp_json_encode( array( 'isSsl' => is_ssl() ) ) . ';',
+			'window.wpSignalConfig = window.wpSignalConfig || ' . wp_json_encode(
+				array(
+					'isSsl'        => is_ssl(),
+					'dashboardUrl' => $dashboard_url,
+				)
+			) . ';',
 			'before'
 		);
 
@@ -171,7 +177,7 @@ class Admin_Page {
 		echo '<h1>' . esc_html( get_admin_page_title() ) . '</h1>';
 		$new_tab_hint = '<span class="screen-reader-text"> ' . esc_html__( '(opens in a new tab)', 'wordsocket' ) . '</span>';
 		echo '<nav class="wpsignal-meta-nav" aria-label="' . esc_attr__( 'External links', 'wordsocket' ) . '">';
-		echo '<a href="https://api.wpsignal.io/dashboard?utm_source=wordpress&utm_medium=plugin&utm_campaign=settings-page" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Dashboard', 'wordsocket' ) . $new_tab_hint . '</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo '<a href="' . esc_url( $dashboard_url . '?utm_source=wordpress&utm_medium=plugin&utm_campaign=settings-page' ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Dashboard', 'wordsocket' ) . $new_tab_hint . '</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo '<span aria-hidden="true"> / </span>';
 		echo '<a href="https://wpsignal.io/docs/getting-started/?utm_source=wordpress&utm_medium=plugin&utm_campaign=settings-page" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Documentation', 'wordsocket' ) . $new_tab_hint . '</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo '<span aria-hidden="true"> / </span>';

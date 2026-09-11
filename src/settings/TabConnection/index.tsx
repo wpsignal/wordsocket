@@ -14,6 +14,7 @@ import {
   ProgressBar,
   Tooltip,
   Icon,
+  Notice,
 } from "@wordpress/components";
 import { Tabs } from "@wordpress/ui";
 import { __, sprintf } from "@wordpress/i18n";
@@ -23,7 +24,6 @@ import { __, sprintf } from "@wordpress/i18n";
  */
 import Manual from "./Manual";
 import Automatic from "./Automatic";
-import { Notice } from "../Notice";
 import { useSettings } from "../context";
 
 const { isSsl = false, isConstant = false } = window.wpSignalConfig ?? {};
@@ -39,6 +39,7 @@ export function TabConnection({ title }: { title: string }) {
     handleDisconnect,
     setSetting,
     successMessage,
+    lastError,
   } = useSettings();
 
   // Show a notice from the OAuth callback redirect (wps_notice URL param).
@@ -67,12 +68,19 @@ export function TabConnection({ title }: { title: string }) {
         ),
       });
     } else if (wpsNotice === "error_exchange") {
+      const reason = params.get("wps_message");
       setSetting("noticeMessage", {
         type: "error",
-        message: __(
-          "Connection failed: could not reach the WPSignal server. Check that your server is reachable.",
-          "wordsocket",
-        ),
+        message: reason
+          ? sprintf(
+              /* translators: %s: reason given by the WPSignal server */
+              __("Connection failed: %s", "wordsocket"),
+              reason,
+            )
+          : __(
+              "Connection failed: could not reach the WPSignal server. Check that your server is reachable.",
+              "wordsocket",
+            ),
       });
     } else if (wpsNotice === "error_denied") {
       const reason = params.get("wps_message");
@@ -138,10 +146,17 @@ export function TabConnection({ title }: { title: string }) {
               </Notice>
             )}
             {isConnected && (
-              <Notice status="success">{successMessage(siteKey)}</Notice>
+              <Notice status="success" isDismissible={false}>
+                {successMessage(siteKey)}
+              </Notice>
+            )}
+            {isConnected && lastError && (
+              <Notice status="warning" isDismissible={false}>
+                {lastError.message}
+              </Notice>
             )}
             {!isConnected && ["idle", "disconnected"].includes(fetchStatus) && (
-              <Notice status="error">
+              <Notice status="error" isDismissible={false}>
                 {__("Not connected to WPSignal. Try connecting.", "wordsocket")}
               </Notice>
             )}
@@ -205,7 +220,7 @@ export function TabConnection({ title }: { title: string }) {
               <Flex align="center" gap={5} expanded={false} justify="start">
                 <span className="wpsignal-disconnect-confirm-label">
                   {__(
-                    "Are you sure you want to disconnect this site from WPSignal?",
+                    "Disconnect this site? Stored credentials are removed; your usage history is kept and reconnecting restores the site.",
                     "wordsocket",
                   )}
                 </span>
