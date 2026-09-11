@@ -338,8 +338,7 @@ export class WPSignalClient implements WPSApi {
   /** Tear down the current transport and start a fresh connection now. */
   private forceReconnect(reason: string): void {
     wpsDebug(`${reason}, reconnecting...`);
-    this.cleanup();
-    this.init();
+    this.reInit();
   }
 
   /**
@@ -375,8 +374,17 @@ export class WPSignalClient implements WPSApi {
   }
 
   /**
+   * Cleanup the client and initialize a new connection.
+   */
+  private reInit(): void {
+    this.cleanup();
+    this.init();
+  }
+
+  /**
    * Obtain a token (reused from config on first load, otherwise fetched) and
    * open a transport. Retries after 30s if the token fetch fails.
+   * 
    */
   private init(): void {
     this.attachVisibilityListeners();
@@ -463,8 +471,7 @@ export class WPSignalClient implements WPSApi {
         if (!this.remintedAfterAuthFailure) {
           this.remintedAfterAuthFailure = true;
           wpsDebug("Token rejected, minting a fresh one", reason ?? null, "warn");
-          this.cleanup();
-          this.init();
+          this.reInit();
         } else {
           this.halt("authentication-failed", reason ?? "Token rejected by the relay");
         }
@@ -475,8 +482,7 @@ export class WPSignalClient implements WPSApi {
       case CLOSE_CONNECTION_LIMIT:
         this.scheduleRetry(
           () => {
-            this.cleanup();
-            this.init();
+            this.reInit();
           },
           "connection-limit-exceeded",
           reason ?? "Connection limit reached for this site",
@@ -490,8 +496,7 @@ export class WPSignalClient implements WPSApi {
     } else {
       this.scheduleRetry(
         () => {
-          this.cleanup();
-          this.init();
+          this.reInit();
         },
         "unknown-error",
         reason ?? (code ? `WebSocket closed (${code})` : "WebSocket closed"),
@@ -517,8 +522,7 @@ export class WPSignalClient implements WPSApi {
         // token): mint a fresh token and reconnect on the shared schedule.
         this.scheduleRetry(
           () => {
-            this.cleanup();
-            this.init();
+            this.reInit();
           },
           "unknown-error",
           wasOpen ? "Event stream closed" : "Event stream could not be opened",
@@ -675,8 +679,7 @@ export class WPSignalClient implements WPSApi {
       this.fetchToken()
         .then((data) => {
           if (!this.activeTransport?.refreshAuth(data.token)) {
-            this.cleanup();
-            this.init();
+            this.reInit();
           }
           this.scheduleRefresh(data.exp);
         })
@@ -689,8 +692,7 @@ export class WPSignalClient implements WPSApi {
           // Keep the current socket while it lasts; try to refresh again later.
           this.scheduleRetry(
             () => {
-              this.cleanup();
-              this.init();
+              this.reInit();
             },
             "unknown-error",
             messageOf(err),
