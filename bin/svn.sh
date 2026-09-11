@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ─────────────────────────────────────────────────────────────────────────────
+#
 # svn.sh: Commit a built WordSocket release to WordPress.org SVN
 #
 # Prerequisites:

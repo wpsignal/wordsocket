@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ─────────────────────────────────────────────────────────────────────────────
+# 
 # dist.sh: Build a WordPress.org-ready release of the WordSocket plugin
 #
 # Outputs:
@@ -18,21 +18,21 @@
 #   1. $WPS_ASSETS_DIR env var
 #   2. ./wp-org-assets/ (relative to the plugin root)
 #   3. Skipped with a warning if neither is found
-# ─────────────────────────────────────────────────────────────────────────────
+# 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PLUGIN_DIR"
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+# ── Helpers 
 bold()  { printf '\033[1m%s\033[0m\n' "$*"; }
 info()  { printf '  \033[34m→\033[0m %s\n' "$*"; }
 ok()    { printf '  \033[32m✔\033[0m %s\n' "$*"; }
 warn()  { printf '  \033[33m⚠\033[0m %s\n' "$*"; }
 die()   { printf '\033[31mError:\033[0m %s\n' "$*" >&2; exit 1; }
 
-# ── Version ───────────────────────────────────────────────────────────────────
+# ── Version 
 VERSION="$(node -p "require('./package.json').version")"
 PLUGIN_SLUG="wordsocket"
 ZIP_NAME="${PLUGIN_SLUG}.zip"
@@ -42,12 +42,12 @@ STAGE_DIR="$DIST_DIR/$PLUGIN_SLUG"
 bold "WordSocket dist: v${VERSION}"
 echo ""
 
-# ── 1. Clean ──────────────────────────────────────────────────────────────────
+# ── 1. Clean 
 info "Cleaning dist/"
 rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR"
 
-# ── 2. Typecheck + build JS/CSS assets ───────────────────────────────────────
+# ── 2. Typecheck + build JS/CSS assets 
 info "Typechecking (npm run typecheck)"
 npm run typecheck --silent
 ok "Types OK"
@@ -56,12 +56,12 @@ info "Building JS/CSS assets (npm run build)"
 npm run build --silent
 ok "Assets built"
 
-# ── 3. Generate POT ───────────────────────────────────────────────────────────
+# ── 3. Generate POT 
 info "Generating POT (npm run make-pot)"
 npm run make-pot --silent 2>&1 | grep -v "^$" || true
 ok "POT generated"
 
-# ── 4. Stage plugin files (respecting .distignore) ───────────────────────────
+# ── 4. Stage plugin files (respecting .distignore) 
 info "Staging plugin files → dist/${PLUGIN_SLUG}/"
 mkdir -p "$STAGE_DIR"
 
@@ -87,13 +87,13 @@ rsync -a --no-owner --no-group \
 
 ok "Files staged"
 
-# ── 5. Create zip ─────────────────────────────────────────────────────────────
+# 5. Create zip 
 info "Creating ${ZIP_NAME}"
 (cd "$DIST_DIR" && zip -rq "$ZIP_NAME" "$PLUGIN_SLUG/")
 rm -rf "$STAGE_DIR"
 ok "Zip created: dist/${ZIP_NAME}"
 
-# ── 6. SVN assets (icons, banners, screenshots) ───────────────────────────────
+# 6. SVN assets (icons, banners, screenshots)
 echo ""
 bold "SVN assets"
 
@@ -167,7 +167,7 @@ else
   fi
 fi
 
-# ── Done ──────────────────────────────────────────────────────────────────────
+# Done
 echo ""
 bold "Done"
 echo ""

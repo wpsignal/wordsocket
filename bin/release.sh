@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ─────────────────────────────────────────────────────────────────────────────
+#
 # release.sh: Bump version, update changelogs, commit, tag, and push.
 #
 # Usage:
@@ -25,7 +25,7 @@
 # After this script completes, run in order:
 #   npm run dist    (builds the zip from the now-bumped source)
 #   npm run svn     (pushes trunk + tag to WordPress.org)
-# ─────────────────────────────────────────────────────────────────────────────
+# 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -37,7 +37,7 @@ info() { printf '  \033[34m→\033[0m %s\n' "$*"; }
 ok()   { printf '  \033[32m✔\033[0m %s\n' "$*"; }
 die()  { printf '\033[31mError:\033[0m %s\n' "$*" >&2; exit 1; }
 
-# ── Args ──────────────────────────────────────────────────────────────────────
+# Args
 TESTED_UP_TO=""
 if [[ "${1:-}" == "--tested" ]]; then
   TESTED_UP_TO="${2:-}"; shift 2 || true
@@ -71,7 +71,7 @@ done
 bold "Releasing v$CURRENT_VERSION → v$NEW_VERSION"
 echo ""
 
-# ── 1. package.json ───────────────────────────────────────────────────────────
+# 1. package.json
 info "package.json"
 node -e "
   const fs = require('fs');
@@ -81,7 +81,7 @@ node -e "
 "
 ok "package.json → $NEW_VERSION"
 
-# ── 2. wordsocket.php ─────────────────────────────────────────────────────────
+# 2. wordsocket.php
 info "wordsocket.php"
 perl -i -pe "s/(Version:\s+)\Q$CURRENT_VERSION\E/\${1}$NEW_VERSION/" wordsocket.php
 perl -i -pe "s/const VERSION = '\Q$CURRENT_VERSION\E'/const VERSION = '$NEW_VERSION'/" wordsocket.php
@@ -93,7 +93,7 @@ if [[ -n "$TESTED_UP_TO" ]]; then
   ok "Tested up to → $TESTED_UP_TO (wordsocket.php + readme.txt)"
 fi
 
-# ── 2b. Shared version registry ───────────────────────────────────────────────
+# 2b. Shared version registry
 VERSIONS_SH="$PLUGIN_DIR/../scripts/versions.sh"
 if [[ -x "$VERSIONS_SH" ]]; then
   info "config/versions.json"
@@ -101,7 +101,7 @@ if [[ -x "$VERSIONS_SH" ]]; then
   ok "versions.json → $NEW_VERSION (site copy is in the site repo: commit it there)"
 fi
 
-# ── 3. readme.txt + readme.md + CHANGELOG.md ──────────────────────────────────
+# 3. readme.txt + readme.md + CHANGELOG.md
 info "readme.txt + readme.md + CHANGELOG.md"
 
 # Pass data to Python via env vars to avoid quoting/escaping issues
@@ -118,7 +118,7 @@ old_ver = os.environ['_WPS_OLD']
 raw     = os.environ.get('_WPS_BULLETS', '').strip()
 bullets = [b for b in raw.splitlines() if b.strip()]
 
-# ── readme.txt ────────────────────────────────────────────────────────────────
+# readme.txt
 with open('readme.txt') as f:
     txt = f.read()
 
@@ -161,7 +161,7 @@ if len(upgrade_block) > 1 and f'= {new_ver} =' not in upgrade_block[1]:
 with open('readme.txt', 'w') as f:
     f.write(txt)
 
-# ── readme.md (install URL only) ──────────────────────────────────────────────
+# readme.md (install URL only)
 with open('readme.md') as f:
     md = f.read()
 
@@ -174,7 +174,7 @@ md = re.sub(
 with open('readme.md', 'w') as f:
     f.write(md)
 
-# ── CHANGELOG.md ──────────────────────────────────────────────────────────────
+# CHANGELOG.md
 with open('CHANGELOG.md') as f:
     changelog = f.read()
 
@@ -191,7 +191,7 @@ PYEOF
 unset _WPS_NEW _WPS_OLD _WPS_BULLETS
 ok "readme.txt + readme.md + CHANGELOG.md → $NEW_VERSION"
 
-# ── 4. Git ────────────────────────────────────────────────────────────────────
+# 4. Git
 echo ""
 bold "Git"
 
