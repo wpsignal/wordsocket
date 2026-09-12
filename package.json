@@ -8,10 +8,15 @@
     "make-pot": "wp i18n make-pot . languages/wordsocket.pot --slug=wordsocket --domain=wordsocket",
     "dist": "bash bin/dist.sh",
     "svn": "bash bin/svn.sh",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "wp-scripts lint-js src"
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tests/e2e/tsconfig.json",
+    "lint": "wp-scripts lint-js src",
+    "test": "npm run test:php && npm run test:e2e",
+    "test:php": "vendor/bin/phpunit",
+    "test:e2e": "wp-scripts test-playwright"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@wordpress/e2e-test-utils-playwright": "^2.0.0",
     "@wordpress/scripts": "^30.0.0"
   },
   "dependencies": {
