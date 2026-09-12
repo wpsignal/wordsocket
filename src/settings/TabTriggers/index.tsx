@@ -42,6 +42,9 @@ interface NoticeState {
 export function TabTriggers({ title }: { title: string }) {
   const { tabsCache, setTabsCache } = useSettings();
   const [saving, setSaving] = useState(false);
+  // Saved triggers are fetched once; until they arrive the buttons stay
+  // disabled so a row added early is not overwritten by the response.
+  const [loading, setLoading] = useState(tabsCache.triggers.length === 0);
   const [notice, setNotice] = useState<NoticeState | null>(null);
 
   const postTypes: PostTypeOption[] = window.wpsignalSettings?.postTypes || [];
@@ -55,7 +58,6 @@ export function TabTriggers({ title }: { title: string }) {
         if (res.triggers?.length) {
           setTabsCache({ ...tabsCache, triggers: res.triggers });
         } else {
-          setTabsCache({ ...tabsCache, triggers: [] });
           setNotice({
             type: "warning",
             message: __(
@@ -70,7 +72,8 @@ export function TabTriggers({ title }: { title: string }) {
           type: "error",
           message: __("Failed to load triggers.", "wordsocket"),
         });
-      });
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const addTrigger = (): void => {
@@ -196,14 +199,14 @@ export function TabTriggers({ title }: { title: string }) {
       )}
 
       <div className="wpsignal-triggers-footer">
-        <Button variant="secondary" onClick={addTrigger} disabled={!isTriggersValid()}>
+        <Button variant="secondary" onClick={addTrigger} disabled={loading || !isTriggersValid()}>
           {__("Add Trigger", "wordsocket")}
         </Button>
         <Button
           variant="primary"
           onClick={handleSave}
           isBusy={saving}
-          disabled={saving || !isTriggersValid()}
+          disabled={loading || saving || !isTriggersValid()}
         >
           {__("Save Triggers", "wordsocket")}
         </Button>
