@@ -21,3 +21,4 @@ vendor
 /tests
 phpunit.xml.dist
 playwright.config.ts
+.npmrc
