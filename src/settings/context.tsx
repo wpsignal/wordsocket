@@ -47,7 +47,7 @@ type SettingsState = {
   connectionType: "automatic" | "manual" | null;
   fetchStatus: FetchStatus;
   /** Last publish failure reported by the server-side publisher, if any. */
-  lastError: { code: string; message: string; time: number } | null;
+  lastError: { code: string; message: string; detail: string; time: number } | null;
   /** The Connect tab is showing the "are you sure" row for Disconnect. */
   confirmDisconnect: boolean;
   yjsProviderEnabled: boolean;

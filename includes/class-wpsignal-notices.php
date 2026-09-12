@@ -1,12 +1,13 @@
 <?php
 /**
- * Admin notices for publish failures.
+ * The last publish failure.
  *
  * The publisher runs inside WordPress actions with no user in front of it, so
  * a failed publish (quota reached, credentials rejected, server unreachable)
- * would otherwise be invisible on production sites. This class keeps the last
- * failure in one option and shows it to administrators on the WordSocket and
- * Dashboard screens until the next successful publish, connect, or disconnect.
+ * would otherwise be invisible. This class keeps the last failure in one
+ * option; the WordSocket settings page shows it in the Connect tab, and the
+ * settings probe (`Token::check_connection()`) clears it as soon as the server
+ * answers again. There is deliberately no admin notice.
  *
  * @package WordSocket
  */
@@ -18,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Records and renders the last publish failure.
+ * Records the last publish failure.
  */
 class Notices {
 
@@ -28,31 +29,34 @@ class Notices {
 	const OPTION = 'wpsignal_last_publish_error';
 
 	/**
-	 * User meta storing the `time` of the failure the user dismissed.
-	 */
-	const DISMISSED_META = 'wpsignal_dismissed_publish_error';
-
-	/**
 	 * Minimum seconds between writes for the same error code, so a burst of
 	 * failed triggers does not hammer wp_options.
 	 */
 	const WRITE_INTERVAL = 300;
 
 	/**
-	 * Admin screens that show the notice.
-	 *
-	 * @var string[]
+	 * Server error codes that mean this site's credentials are no longer valid
+	 * (deleted site, regenerated key, deactivated account). Shared by the
+	 * settings check, the disconnect handler, and the client enqueue.
 	 */
-	const SCREENS = array( 'dashboard', 'toplevel_page_wordsocket' );
+	const REJECTED_CODES = array(
+		'unknown_site_key',
+		'invalid_token',
+		'site_not_found',
+		'account_deactivated',
+		'invalid_api_key',
+	);
 
 	/**
-	 * Register hooks.
+	 * Whether the last recorded failure says the server no longer accepts
+	 * this site's credentials. Cleared by a successful publish, a connect, or
+	 * a disconnect.
 	 *
-	 * @return void
+	 * @return bool
 	 */
-	public function boot() {
-		add_action( 'admin_notices', array( $this, 'render' ) );
-		add_action( 'wp_ajax_wpsignal_dismiss_publish_error', array( $this, 'handle_dismiss' ) );
+	public static function credentials_rejected(): bool {
+		$last = self::last();
+		return null !== $last && in_array( $last['code'], self::REJECTED_CODES, true );
 	}
 
 	/**
@@ -83,6 +87,20 @@ class Notices {
 			),
 			false
 		);
+	}
+
+	/**
+	 * Forget the last failure unless it is a quota pause, which a reachability
+	 * probe cannot see and which ends on its own at the end of the month.
+	 *
+	 * @return void
+	 */
+	public static function clear_transient(): void {
+		$last = self::last();
+		if ( null !== $last && 'quota_exceeded' === $last['code'] && (int) $last['until'] > time() ) {
+			return;
+		}
+		self::clear();
 	}
 
 	/**
@@ -123,7 +141,7 @@ class Notices {
 					: __( 'the start of next month', 'wordsocket' );
 				return sprintf(
 					/* translators: %s: date */
-					__( 'Publishing is paused until %s because this site reached its monthly message quota. Upgrade the plan in the WPSignal dashboard to resume sooner.', 'wordsocket' ),
+					__( 'This site reached its monthly message quota; publishing resumes on %s. Upgrade the plan in the WPSignal dashboard to resume sooner.', 'wordsocket' ),
 					$until
 				);
 			case 'unauthorized':
@@ -131,83 +149,11 @@ class Notices {
 			case 'unknown_site_key':
 			case 'site_not_found':
 			case 'invalid_token':
-				return __( 'The WPSignal server rejected this site\'s credentials, so events are not being delivered. Disconnect and connect again from the WordSocket settings.', 'wordsocket' );
+				return __( 'The WPSignal server rejected this site\'s credentials. Disconnect and connect again.', 'wordsocket' );
 			case 'unreachable':
-				return sprintf(
-					/* translators: %s: error detail */
-					__( 'Could not reach the WPSignal server (%s), so events are not being delivered.', 'wordsocket' ),
-					$error['message']
-				);
+				return __( 'The WPSignal server could not be reached.', 'wordsocket' );
 			default:
-				return sprintf(
-					/* translators: %s: error detail */
-					__( 'Publishing to WPSignal failed: %s', 'wordsocket' ),
-					$error['message']
-				);
+				return __( 'The WPSignal server refused the last publish.', 'wordsocket' );
 		}
-	}
-
-	/**
-	 * Print the notice on the Dashboard and WordSocket screens.
-	 *
-	 * @return void
-	 */
-	public function render() {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			return;
-		}
-		$screen = get_current_screen();
-		if ( ! $screen || ! in_array( $screen->id, self::SCREENS, true ) ) {
-			return;
-		}
-		$error = self::last();
-		if ( ! $error ) {
-			return;
-		}
-		if ( (int) get_user_meta( get_current_user_id(), self::DISMISSED_META, true ) === (int) $error['time'] ) {
-			return;
-		}
-		$nonce = wp_create_nonce( 'wpsignal_dismiss_publish_error' );
-		?>
-		<div class="notice notice-warning is-dismissible wpsignal-publish-error" data-time="<?php echo esc_attr( (string) $error['time'] ); ?>" data-nonce="<?php echo esc_attr( $nonce ); ?>">
-			<p>
-				<strong><?php esc_html_e( 'WordSocket:', 'wordsocket' ); ?></strong>
-				<?php echo esc_html( self::describe( $error ) ); ?>
-				<?php if ( 'toplevel_page_wordsocket' !== $screen->id ) : ?>
-					<a href="<?php echo esc_url( admin_url( 'admin.php?page=wordsocket' ) ); ?>"><?php esc_html_e( 'Open WordSocket settings', 'wordsocket' ); ?></a>
-				<?php endif; ?>
-			</p>
-		</div>
-		<script>
-			document.addEventListener( 'click', function ( event ) {
-				var button = event.target.closest( '.wpsignal-publish-error .notice-dismiss' );
-				if ( ! button ) {
-					return;
-				}
-				var notice = button.closest( '.wpsignal-publish-error' );
-				var body   = new URLSearchParams( {
-					action: 'wpsignal_dismiss_publish_error',
-					time: notice.dataset.time,
-					_ajax_nonce: notice.dataset.nonce
-				} );
-				fetch( ajaxurl, { method: 'POST', credentials: 'same-origin', body: body } );
-			} );
-		</script>
-		<?php
-	}
-
-	/**
-	 * Remember that the current user dismissed the current failure.
-	 *
-	 * @return void
-	 */
-	public function handle_dismiss() {
-		check_ajax_referer( 'wpsignal_dismiss_publish_error' );
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( null, 403 );
-		}
-		$time = isset( $_POST['time'] ) ? absint( wp_unslash( $_POST['time'] ) ) : 0;
-		update_user_meta( get_current_user_id(), self::DISMISSED_META, $time );
-		wp_send_json_success();
 	}
 }

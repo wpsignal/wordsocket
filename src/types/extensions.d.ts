@@ -25,7 +25,7 @@ interface WordSocketConnection {
 	isConnected: boolean;
 	siteKey: string;
 	fetchStatus: string;
-	lastError: { code: string; message: string; time: number } | null;
+	lastError: { code: string; message: string; detail: string; time: number } | null;
 }
 
 interface WordSocketExtensionsApi {

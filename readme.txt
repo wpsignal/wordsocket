@@ -152,7 +152,7 @@ Yes. Reserve a namespace on `wpsignal_loaded`: `WPS::instance()->channels()->res
 
 = Why did events stop? =
 
-Each plan has a monthly message quota. When it is reached the server answers publishes with "quota exceeded", the plugin pauses publishing until the first day of the next month (UTC), and an admin notice appears on the Dashboard and WordSocket screens. The same notice reports rejected credentials (reconnect from the Connect tab) and an unreachable server. Publishing resumes automatically once the cause clears; the notice disappears after the next successful publish.
+Each plan has a monthly message quota. When it is reached the server answers publishes with "quota exceeded" and the plugin pauses publishing until the first day of the next month (UTC). The Connect tab on the WordSocket settings page shows this, as well as rejected credentials (disconnect and connect again) and an unreachable server, and clears the warning as soon as the server answers again. There is no admin notice.
 
 = What happens if WebSocket is unavailable? =
 
@@ -173,6 +173,9 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 * New: Extensions tab on the settings page listing available extensions, plus an API for extension plugins to render their settings there (`window.wordsocket`, `wordsocket_settings_enqueue`, `WPS::instance()->extensions()`)
 * New: private channel namespaces: `WPS::instance()->channels()->reserve( $namespace, $capability )` gates a channel at the token level; once any namespace is reserved, tokens list channels explicitly
 * Changed: requires PHP 8.2
+* Fixed: with the relay unreachable, the SSE fallback let the browser reconnect every few seconds forever; after three misses the client's own backoff takes over
+* Fixed: the client is no longer loaded while the server rejects the site's credentials (regenerated key, deleted site), so a dead connection does not retry until someone reconnects
+* Changed: the publish-failure admin notice added in 0.20.0 is gone; the Connect tab is the one place that reports a failing connection, and it clears as soon as the server answers again
 
 = 0.20.1 =
 * Fixed: a site whose credentials were revoked on the server (API key regenerated in the dashboard) re-minted tokens in a tight loop instead of stopping with authentication-failed; retry state now resets only once a connection has stayed open

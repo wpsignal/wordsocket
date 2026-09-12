@@ -5,6 +5,7 @@ import {
   useState,
   createInterpolateElement,
   useEffect,
+  Fragment,
 } from "@wordpress/element";
 import {
   Flex,
@@ -15,6 +16,7 @@ import {
   Tooltip,
   Icon,
   Notice,
+  __experimentalTruncate as Truncate,
 } from "@wordpress/components";
 import { Tabs } from "@wordpress/ui";
 import { __, sprintf } from "@wordpress/i18n";
@@ -33,7 +35,10 @@ const { isSsl = false, isConstant = false } = window.wpSignalConfig ?? {};
  * Read the OAuth callback's wps_notice / wps_message from the URL and remove
  * them so they only ever apply to the load that carried them.
  */
-function consumeCallbackParams(): { notice: string | null; reason: string | null } {
+function consumeCallbackParams(): {
+  notice: string | null;
+  reason: string | null;
+} {
   const url = new URL(window.location.href);
   const notice = url.searchParams.get("wps_notice");
   const reason = url.searchParams.get("wps_message");
@@ -150,7 +155,9 @@ export function TabConnection({ title }: { title: string }) {
           <ProgressBar className="wpsignal-progress-bar" />
         )}
         {noticeMessage ? (
-          <Notice status={noticeMessage.type} isDismissible={false}>{noticeMessage.message}</Notice>
+          <Notice status={noticeMessage.type} isDismissible={false}>
+            {noticeMessage.message}
+          </Notice>
         ) : (
           <>
             {fetchStatus === "connecting" && (
@@ -158,14 +165,32 @@ export function TabConnection({ title }: { title: string }) {
                 {__("Validating connection settings...", "wordsocket")}
               </Notice>
             )}
-            {isConnected && (
+            {isConnected && !lastError && (
               <Notice status="success" isDismissible={false}>
                 {successMessage(siteKey)}
               </Notice>
             )}
             {isConnected && lastError && (
-              <Notice status="warning" isDismissible={false}>
-                {lastError.message}
+              <Notice status="error" isDismissible={false}>
+                <Fragment>
+                  {__("Connected as", "wordsocket")}{" "}
+                  <code>
+                    <Truncate limit={16} ellipsizeMode="middle" ellipsis="...">
+                      {siteKey}
+                    </Truncate>
+                  </code>
+                  {", "}
+                  {__("but events are not being delivered.", "wordsocket")}{" "}
+                  {lastError.message}
+                </Fragment>
+                {lastError.detail && lastError.detail !== lastError.message && (
+                  <details>
+                    <summary>{__("Show error details", "wordsocket")}</summary>
+                    <p className="wpsignal-connection-detail">
+                      <code>{lastError.detail}</code>
+                    </p>
+                  </details>
+                )}
               </Notice>
             )}
             <ConnectionStatusSlot />

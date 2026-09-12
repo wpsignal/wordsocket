@@ -42,11 +42,12 @@ final class NoticesTest extends WordSocketTestCase {
 			$this->assertStringContainsString( 'rejected', Notices::describe( array( 'code' => $code, 'message' => 'x', 'time' => time() ) ), $code );
 		}
 
+		// The raw detail is not part of the copy: the settings endpoint returns it separately.
 		$network = Notices::describe( array( 'code' => 'unreachable', 'message' => 'cURL error 7', 'time' => time() ) );
-		$this->assertStringContainsString( 'Could not reach', $network );
-		$this->assertStringContainsString( 'cURL error 7', $network );
+		$this->assertStringContainsString( 'could not be reached', $network );
+		$this->assertStringNotContainsString( 'cURL', $network );
 
 		$other = Notices::describe( array( 'code' => 'http_500', 'message' => 'boom', 'time' => time() ) );
-		$this->assertStringContainsString( 'boom', $other );
+		$this->assertStringContainsString( 'refused', $other );
 	}
 }

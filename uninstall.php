@@ -21,4 +21,3 @@ delete_option( 'wpsignal_yjs_provider_enabled' );
 delete_option( 'wpsignal_limits' );
 delete_option( 'wpsignal_last_publish_error' );
 delete_transient( 'wpsignal_oauth_state' );
-delete_metadata( 'user', 0, 'wpsignal_dismissed_publish_error', '', true );

@@ -440,7 +440,7 @@ class Token {
 		$is_connected = $this->config->is_configured();
 
 		if ( $is_connected ) {
-			$is_connected = $this->verify_site_exists();
+			$is_connected = $this->check_connection();
 		}
 
 		return rest_ensure_response(
@@ -476,7 +476,7 @@ class Token {
 	/**
 	 * The last publish failure for the settings UI, or null.
 	 *
-	 * @return array|null array{code, message, time}.
+	 * @return array|null array{code, message, detail, time}.
 	 */
 	private function last_publish_error() {
 		$error = Notices::last();
@@ -486,6 +486,7 @@ class Token {
 		return array(
 			'code'    => $error['code'],
 			'message' => Notices::describe( $error ),
+			'detail'  => (string) $error['message'],
 			'time'    => (int) $error['time'],
 		);
 	}
@@ -501,29 +502,19 @@ class Token {
 	);
 
 	/**
-	 * Server error codes that mean this site's credentials are no longer valid.
-	 *
-	 * A publish with a dummy signature answers `invalid_signature` for a live
-	 * site; anything in this list means the registration is gone or locked.
-	 */
-	private const DISCONNECTED_CODES = array(
-		'unknown_site_key',
-		'invalid_token',
-		'site_not_found',
-		'account_deactivated',
-		'invalid_api_key',
-	);
-
-	/**
-	 * Verify the registered site still exists on the WPSignal server.
+	 * Probe the WPSignal server and reconcile the stored publish failure.
 	 *
 	 * Sends a publish with a dummy signature and inspects the error code:
-	 * `invalid_signature` means the site is live; a code in
-	 * `DISCONNECTED_CODES` means it is not. Network errors assume connected.
+	 * `invalid_signature` means the site is live, so a stale "unreachable" or
+	 * "rejected" notice is cleared (a quota pause stays: the probe cannot see
+	 * it and it ends on its own); a code in `Notices::REJECTED_CODES` means the
+	 * credentials are dead and is recorded; a network error is recorded as
+	 * unreachable. Used by the settings endpoint and by the admin notice, so
+	 * the notice heals as soon as the server is back.
 	 *
-	 * @return bool True if the site still exists (or server is unreachable).
+	 * @return bool True if the site still exists (or the server is unreachable).
 	 */
-	private function verify_site_exists() {
+	public function check_connection(): bool {
 		$body         = '{}';
 		$timestamp_ms = (string) round( microtime( true ) * 1000 );
 		$url          = trailingslashit( $this->config->base_url() ) . 'publish';
@@ -543,15 +534,21 @@ class Token {
 		);
 
 		if ( is_wp_error( $response ) ) {
+			Notices::record( 'unreachable', $response->get_error_message() );
 			return true; // Network error: assume still connected.
 		}
 
-		$response_body = wp_remote_retrieve_body( $response );
-		$data          = json_decode( $response_body, true );
-
+		$data  = json_decode( wp_remote_retrieve_body( $response ), true );
 		$error = is_array( $data ) && isset( $data['error'] ) ? (string) $data['error'] : '';
 
-		return ! in_array( $error, self::DISCONNECTED_CODES, true );
+		if ( in_array( $error, Notices::REJECTED_CODES, true ) ) {
+			$message = is_array( $data ) && ! empty( $data['message'] ) ? (string) $data['message'] : $error;
+			Notices::record( $error, $message );
+			return false;
+		}
+
+		Notices::clear_transient();
+		return true;
 	}
 
 	/**

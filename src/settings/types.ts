@@ -29,7 +29,7 @@ export interface Settings {
   credential_source?: "constant" | "database";
   is_ssl: boolean;
   /** Last publish failure recorded by the plugin, if events are not being delivered. */
-  last_error?: { code: string; message: string; time: number } | null;
+  last_error?: { code: string; message: string; detail: string; time: number } | null;
 }
 
 export interface ConnectResponse {

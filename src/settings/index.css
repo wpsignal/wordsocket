@@ -346,3 +346,11 @@
     padding: 2px 8px;
   }
 }
+
+.wpsignal-connection-detail {
+  margin: 4px 0 0;
+
+  code {
+    font-size: 12px;
+  }
+}

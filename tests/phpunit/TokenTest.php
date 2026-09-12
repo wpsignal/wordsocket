@@ -3,6 +3,7 @@
  * Token: JWT minting, the token route gate, and the connection REST routes.
  */
 
+use WPSignal\Notices;
 use WPSignal\Token;
 use WPSignal\WPS;
 
@@ -196,6 +197,41 @@ final class TokenTest extends WordSocketTestCase {
 		$this->fake_http( static fn() => new WP_Error( 'http_request_failed', 'timeout' ) );
 		list( , $settings ) = $this->rest( 'GET', 'settings' );
 		$this->assertTrue( $settings['is_connected'], 'an unreachable server is not a revoked site' );
+	}
+
+	public function test_the_settings_probe_heals_a_stale_unreachable_notice_and_records_rejections(): void {
+		$this->as_admin();
+		$this->connect_site();
+		Notices::record( 'unreachable', 'cURL error 7' );
+
+		// Server back and the site live: the probe answers invalid_signature.
+		$this->fake_http( static fn() => array( 401, array( 'error' => 'invalid_signature', 'message' => 'bad signature' ) ) );
+		list( , $settings ) = $this->rest( 'GET', 'settings' );
+		$this->assertTrue( $settings['is_connected'] );
+		$this->assertNull( $settings['last_error'], 'a reachable, live server clears the stale notice' );
+
+		// A quota pause is not something the probe can see: it stays.
+		Notices::record( 'quota_exceeded', 'quota', time() + 3600 );
+		list( , $settings ) = $this->rest( 'GET', 'settings' );
+		$this->assertSame( 'quota_exceeded', $settings['last_error']['code'] );
+		Notices::clear();
+
+		// Credentials rejected: recorded from the probe, so the notice appears
+		// without waiting for a trigger to fire.
+		remove_all_filters( 'pre_http_request' );
+		$this->fake_http( static fn() => array( 401, array( 'error' => 'unknown_site_key', 'message' => 'unknown site key' ) ) );
+		list( , $settings ) = $this->rest( 'GET', 'settings' );
+		$this->assertFalse( $settings['is_connected'] );
+		$this->assertSame( 'unknown_site_key', $settings['last_error']['code'] );
+		$this->assertTrue( Notices::credentials_rejected() );
+
+		// Server down: recorded as unreachable, connection assumed.
+		remove_all_filters( 'pre_http_request' );
+		Notices::clear();
+		$this->fake_http( static fn() => new WP_Error( 'http_request_failed', 'timeout' ) );
+		list( , $settings ) = $this->rest( 'GET', 'settings' );
+		$this->assertTrue( $settings['is_connected'] );
+		$this->assertSame( 'unreachable', $settings['last_error']['code'] );
 	}
 
 	public function test_post_settings_casts_the_boolean_and_requires_it(): void {
