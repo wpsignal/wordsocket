@@ -81,6 +81,13 @@ class Client {
 			return;
 		}
 
+		// The server has refused this site's credentials (deleted site,
+		// regenerated key): a client would only fail to connect until someone
+		// reconnects from the settings page, where the notice says so.
+		if ( Notices::credentials_rejected() ) {
+			return;
+		}
+
 		$base_url = $this->config->base_url();
 
 		$asset_file = DIR . 'build/client.asset.php';

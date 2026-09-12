@@ -13,12 +13,23 @@ const SSE_EVENT_TYPES = [
   "comment.created",
 ];
 
+/**
+ * How many browser-driven EventSource reconnects in a row are tolerated
+ * before the transport gives up and hands the decision back to the client.
+ * The browser retries every few seconds with no backoff and no cap; after
+ * this many misses the client's own schedule (exponential, 60 s cap, retrying
+ * WebSocket first) takes over, so an unreachable relay is not polled forever.
+ */
+const MAX_BROWSER_RETRIES = 3;
+
 export class SseTransport implements WPSTransport {
   public readonly name = "sse" as const;
   public readonly canPublish = false;
   public readonly canPublishBinary = false;
 
   private didOpen = false;
+  /** Consecutive browser reconnects since the last successful open. */
+  private browserRetries = 0;
   private source: EventSource | null = null;
   private token: string | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -40,6 +51,7 @@ export class SseTransport implements WPSTransport {
     source.addEventListener("open", () => {
       wpsDebug("SSE connected");
       this.didOpen = true;
+      this.browserRetries = 0;
       this.callbacks.onOpen();
     });
 
@@ -53,8 +65,20 @@ export class SseTransport implements WPSTransport {
         this.callbacks.onClose({ wasOpen: this.didOpen });
         return;
       }
-      // CONNECTING: EventSource retries by itself and fires "open" again.
-      wpsDebug("SSE dropped, browser is reconnecting", null, "log");
+      // CONNECTING: EventSource retries by itself and fires "open" again,
+      // every few seconds, forever. Allow a few of those (a blip), then stop
+      // it and let the client back off properly.
+      this.browserRetries += 1;
+      if (this.browserRetries >= MAX_BROWSER_RETRIES) {
+        wpsDebug(`SSE unreachable after ${this.browserRetries} browser retries, handing over to the client`, null, "warn");
+        source.close();
+        this.source = null;
+        this.callbacks.onClose({ wasOpen: this.didOpen });
+        return;
+      }
+      if (this.browserRetries === 1) {
+        wpsDebug("SSE dropped, browser is reconnecting", null, "log");
+      }
       this.callbacks.onClose({ wasOpen: this.didOpen, transient: true });
     });
 

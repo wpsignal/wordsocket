@@ -99,7 +99,7 @@ final class PublisherTest extends WordSocketTestCase {
 
 		$this->assertTrue( is_wp_error( WPS::publish( 'events', 'e' ) ) );
 		$this->assertSame( 'unreachable', Notices::last()['code'] );
-		$this->assertStringContainsString( 'Could not reach', Notices::describe( Notices::last() ) );
+		$this->assertStringContainsString( 'could not be reached', Notices::describe( Notices::last() ) );
 
 		$fail = false;
 		$this->assertFalse( is_wp_error( WPS::publish( 'events', 'e' ) ) );
@@ -116,6 +116,30 @@ final class PublisherTest extends WordSocketTestCase {
 		$this->assertSame( 'invalid_signature', $notice['code'] );
 		$this->assertStringContainsString( 'rejected', Notices::describe( $notice ) );
 		$this->assertArrayNotHasKey( 'messages_until', (array) get_option( 'wpsignal_limits', array() ) );
+	}
+
+	public function test_client_is_not_enqueued_while_the_server_rejects_the_credentials(): void {
+		$this->connect_site();
+		$this->as_admin();
+		$client = new \WPSignal\Client( WPS::instance()->config(), WPS::instance()->token() );
+
+		wp_dequeue_script( 'wpsignal' );
+		$client->enqueue();
+		$this->assertTrue( wp_script_is( 'wpsignal', 'enqueued' ), 'connected site: client enqueued' );
+
+		wp_dequeue_script( 'wpsignal' );
+		Notices::record( 'unknown_site_key', 'unknown site key' );
+		$this->assertTrue( Notices::credentials_rejected() );
+		$client->enqueue();
+		$this->assertFalse( wp_script_is( 'wpsignal', 'enqueued' ), 'rejected credentials: no client, no reconnect loop' );
+
+		// A transient failure is not a rejection.
+		Notices::clear();
+		Notices::record( 'unreachable', 'cURL error 7' );
+		$this->assertFalse( Notices::credentials_rejected() );
+		$client->enqueue();
+		$this->assertTrue( wp_script_is( 'wpsignal', 'enqueued' ) );
+		wp_dequeue_script( 'wpsignal' );
 	}
 
 	public function test_publish_without_registration_returns_not_configured(): void {
