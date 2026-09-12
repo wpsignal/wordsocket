@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: WordSocket 0.20.1\n"
+"Project-Id-Version: WordSocket 0.21.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wordsocket\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-12T04:30:27+00:00\n"
+"POT-Creation-Date: 2026-09-12T19:54:55+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 3.0.0-alpha-01b1b10\n"
 "X-Domain: wordsocket\n"
@@ -50,31 +50,31 @@ msgstr ""
 msgid "Settings"
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:178
+#: includes/class-wpsignal-admin-page.php:189
 msgid "(opens in a new tab)"
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:179
+#: includes/class-wpsignal-admin-page.php:190
 msgid "External links"
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:180
+#: includes/class-wpsignal-admin-page.php:191
 msgid "Dashboard"
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:182
+#: includes/class-wpsignal-admin-page.php:193
 msgid "Documentation"
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:184
+#: includes/class-wpsignal-admin-page.php:195
 msgid "Support"
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:186
+#: includes/class-wpsignal-admin-page.php:197
 msgid "Feedback"
 msgstr ""
 
-#: includes/class-wpsignal-admin-page.php:188
+#: includes/class-wpsignal-admin-page.php:199
 msgid "WPSignal home (opens in a new tab)"
 msgstr ""
 
@@ -82,42 +82,30 @@ msgstr ""
 msgid "Permission denied."
 msgstr ""
 
-#: includes/class-wpsignal-notices.php:123
+#: includes/class-wpsignal-notices.php:141
 msgid "the start of next month"
 msgstr ""
 
 #. translators: %s: date
-#: includes/class-wpsignal-notices.php:126
-#, php-format
-msgid "Publishing is paused until %s because this site reached its monthly message quota. Upgrade the plan in the WPSignal dashboard to resume sooner."
-msgstr ""
-
-#: includes/class-wpsignal-notices.php:134
-msgid "The WPSignal server rejected this site's credentials, so events are not being delivered. Disconnect and connect again from the WordSocket settings."
-msgstr ""
-
-#. translators: %s: error detail
-#: includes/class-wpsignal-notices.php:138
-#, php-format
-msgid "Could not reach the WPSignal server (%s), so events are not being delivered."
-msgstr ""
-
-#. translators: %s: error detail
 #: includes/class-wpsignal-notices.php:144
 #, php-format
-msgid "Publishing to WPSignal failed: %s"
+msgid "This site reached its monthly message quota; publishing resumes on %s. Upgrade the plan in the WPSignal dashboard to resume sooner."
 msgstr ""
 
-#: includes/class-wpsignal-notices.php:174
-msgid "WordSocket:"
+#: includes/class-wpsignal-notices.php:152
+msgid "The WPSignal server rejected this site's credentials. Disconnect and connect again."
 msgstr ""
 
-#: includes/class-wpsignal-notices.php:177
-msgid "Open WordSocket settings"
+#: includes/class-wpsignal-notices.php:154
+msgid "The WPSignal server could not be reached."
+msgstr ""
+
+#: includes/class-wpsignal-notices.php:156
+msgid "The WPSignal server refused the last publish."
 msgstr ""
 
 #: includes/class-wpsignal-publisher.php:98
-#: includes/class-wpsignal-token.php:152
+#: includes/class-wpsignal-token.php:161
 msgid "WordSocket is not configured."
 msgstr ""
 
@@ -125,33 +113,33 @@ msgstr ""
 msgid "Monthly message quota reached."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:143
+#: includes/class-wpsignal-token.php:152
 msgid "JWT secret not configured."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:262
+#: includes/class-wpsignal-token.php:273
 msgid "Channel and event are required."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:289
+#: includes/class-wpsignal-token.php:300
 msgid "API Key is empty, please include it and try again."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:301
+#: includes/class-wpsignal-token.php:312
 #: build/settings.js:1
 msgid "API Key is invalid, please include a valid API Key and try again."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:341
+#: includes/class-wpsignal-token.php:352
 msgid "Invalid response from server."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:351
+#: includes/class-wpsignal-token.php:362
 msgid "Connection settings validated!"
 msgstr ""
 
 #. translators: %d: HTTP status code
-#: includes/class-wpsignal-token.php:564
+#: includes/class-wpsignal-token.php:572
 #, php-format
 msgid "HTTP %d"
 msgstr ""
@@ -377,6 +365,18 @@ msgid "Validating connection settings..."
 msgstr ""
 
 #: build/settings.js:3
+msgid "Connected as"
+msgstr ""
+
+#: build/settings.js:3
+msgid "but events are not being delivered."
+msgstr ""
+
+#: build/settings.js:3
+msgid "Show error details"
+msgstr ""
+
+#: build/settings.js:3
 msgid "Not connected to WPSignal. Try connecting."
 msgstr ""
 
@@ -556,9 +556,41 @@ msgid "View registered triggers and publish test events to see realtime event ha
 msgstr ""
 
 #: build/settings.js:4
+msgid "Could not load extensions."
+msgstr ""
+
+#: build/settings.js:4
+msgid "Extensions are plugins built on WordSocket. Installed extensions add their settings here; the rest are available or on their way."
+msgstr ""
+
+#: build/settings.js:4
+msgid "Connect your site on the Connect tab to use installed extensions."
+msgstr ""
+
+#: build/settings.js:4
+msgid "requires"
+msgstr ""
+
+#: build/settings.js:4
+msgid "Available extensions"
+msgstr ""
+
+#: build/settings.js:4
+msgid "Get it"
+msgstr ""
+
+#: build/settings.js:4
+msgid "Coming soon"
+msgstr ""
+
+#: build/settings.js:4
 msgid "Triggers"
 msgstr ""
 
 #: build/settings.js:4
 msgid "Explorer"
+msgstr ""
+
+#: build/settings.js:4
+msgid "Extensions"
 msgstr ""
