@@ -15,10 +15,11 @@
  *   WPS_API_URL       https://api.wpsignal.local:8443           (local-tls.sh)
  *   WPS_E2E_EMAIL     e2e@wpsignal.local                        (local-tls.sh --seed-e2e)
  *   WPS_E2E_PASSWORD  e2e-password-1
+ *   WPS_LOCAL_TLS     ../api/scripts/local-tls.sh   the rehearsal stack the run starts and stops
  */
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { request } from "@playwright/test";
 
 process.env.WP_BASE_URL ??= "https://e2e.wpsignal.local";
@@ -28,6 +29,7 @@ process.env.WP_PASSWORD ??= "wps-e2e-password";
 process.env.WPS_API_URL ??= "https://api.wpsignal.local:8443";
 process.env.WPS_E2E_EMAIL ??= "e2e@wpsignal.local";
 process.env.WPS_E2E_PASSWORD ??= "e2e-password-1";
+process.env.WPS_LOCAL_TLS ??= resolve(__dirname, "../../../api/scripts/local-tls.sh");
 
 // The WordPress fixtures build their REST request context without
 // ignoreHTTPSErrors, so Node must trust the mkcert root CA that signs the
