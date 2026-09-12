@@ -116,6 +116,17 @@ class Admin_Page {
 
 		wp_style_add_data( 'wpsignal-settings', 'rtl', 'replace' );
 
+		/**
+		 * Fires on the WordSocket settings screen once the settings app is enqueued.
+		 *
+		 * Extensions enqueue their settings-page script here, with
+		 * `wpsignal-settings` among its dependencies, so `window.wordsocket`
+		 * exists when it runs. This fires during page render (the settings app
+		 * is enqueued from `render_settings_page()`), so `wp_enqueue_script()`
+		 * with `$in_footer = true` is the right call.
+		 */
+		do_action( 'wordsocket_settings_enqueue' );
+
 		// Localize post types for the triggers dropdown.
 		$post_types = get_post_types( array( 'public' => true ), 'objects' );
 		$types_list = array();
@@ -210,11 +221,8 @@ class Admin_Page {
 	private function render_skeleton() {
 		echo '<div class="wpsignal-skeleton">';
 		echo '<div class="wpsignal-skeleton__tabs">';
-		echo '</div>';
-		echo '<div class="wpsignal-skeleton__tab wpsignal-skeleton__shimmer"></div>';
-		echo '<div class="wpsignal-skeleton__tab wpsignal-skeleton__shimmer"></div>';
-		echo '<div class="wpsignal-skeleton__tab wpsignal-skeleton__shimmer"></div>';
-		echo '<div class="wpsignal-skeleton__tab wpsignal-skeleton__shimmer"></div>';
+		// One pill per tab: Connect, Settings, Triggers, Explorer, Extensions.
+		echo str_repeat( '<div class="wpsignal-skeleton__tab wpsignal-skeleton__shimmer"></div>', 5 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo '</div>';
 		echo '<div class="wpsignal-skeleton__body">';
 		echo '<div class="wpsignal-skeleton__notice wpsignal-skeleton__shimmer"></div>';

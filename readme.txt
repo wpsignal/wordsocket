@@ -4,7 +4,7 @@ Tags: realtime, websocket, collaboration, events, woocommerce
 Requires at least: 6.7
 Tested up to: 7.1
 Stable tag: 0.20.1
-Requires PHP: 7.4
+Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -142,6 +142,14 @@ The plugin tells the WPSignal server to archive the site, then deletes the store
 
 The WPSignal dashboard refuses to authorize a site when your plan's site limit is reached (the message names the site to disconnect first), when your account email is not yet verified, or when the account has been deactivated. The Connect tab shows the exact reason returned by the server.
 
+= How do extensions plug in? =
+
+An extension is a separate plugin built on WordSocket (WooCommerce, Live Blog, and Chat are on the way). Its settings appear on the WordSocket settings page under the Extensions tab, which also lists what is available. Developers: register on `wpsignal_loaded` with `WPS::instance()->extensions()->register()`, enqueue a settings script on the `wordsocket_settings_enqueue` action with `wpsignal-settings` as a dependency, and render `window.wordsocket.ExtensionPanel` from a plugin registered with `wp.plugins.registerPlugin( slug, { scope: 'wordsocket', render } )`.
+
+= Can I make a channel private? =
+
+Yes. Reserve a namespace on `wpsignal_loaded`: `WPS::instance()->channels()->reserve( 'orders', 'manage_woocommerce' )` (a capability, or a callable receiving the user ID). The relay then refuses subscribe and publish frames on that namespace from anyone else. Once any namespace is reserved, tokens list channels explicitly instead of allowing every channel of the site, so register each channel you subscribe to through the `wpsignal_token_channels` filter. Payload encryption is site-wide and is not a privacy boundary between users; the channel gate is.
+
 = Why did events stop? =
 
 Each plan has a monthly message quota. When it is reached the server answers publishes with "quota exceeded", the plugin pauses publishing until the first day of the next month (UTC), and an admin notice appears on the Dashboard and WordSocket screens. The same notice reports rejected credentials (reconnect from the Connect tab) and an unreachable server. Publishing resumes automatically once the cause clears; the notice disappears after the next successful publish.
@@ -160,6 +168,11 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 6. Explorer tab (connected): live Event Log showing an active WebSocket connection and an incoming encrypted event, with a test event published successfully.
 
 == Changelog ==
+
+= 0.21.0 =
+* New: Extensions tab on the settings page listing available extensions, plus an API for extension plugins to render their settings there (`window.wordsocket`, `wordsocket_settings_enqueue`, `WPS::instance()->extensions()`)
+* New: private channel namespaces: `WPS::instance()->channels()->reserve( $namespace, $capability )` gates a channel at the token level; once any namespace is reserved, tokens list channels explicitly
+* Changed: requires PHP 8.2
 
 = 0.20.1 =
 * Fixed: a site whose credentials were revoked on the server (API key regenerated in the dashboard) re-minted tokens in a tight loop instead of stopping with authentication-failed; retry state now resets only once a connection has stayed open
@@ -292,6 +305,9 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 * Initial release.
 
 == Upgrade Notice ==
+
+= 0.21.0 =
+Adds the Extensions tab and the extension API, private channel namespaces for plugin developers, and now requires PHP 8.2.
 
 = 0.20.1 =
 Fixes a reconnect loop after credentials are revoked on the server and a Disconnect that could not complete after regenerating the dashboard API key.

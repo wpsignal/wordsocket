@@ -113,6 +113,20 @@ class WPS {
 	private $custom_triggers;
 
 	/**
+	 * Channel namespace reservations.
+	 *
+	 * @var Channels
+	 */
+	private $channels_instance;
+
+	/**
+	 * Extension registry.
+	 *
+	 * @var Extensions
+	 */
+	private $extensions_instance;
+
+	/**
 	 * Get the singleton instance.
 	 *
 	 * @return WPS
@@ -139,8 +153,10 @@ class WPS {
 	public function boot() {
 
 		$this->config_instance           = new Config();
+		$this->channels_instance         = new Channels();
+		$this->extensions_instance       = new Extensions();
 		$this->publisher_instance        = new Publisher( $this->config_instance );
-		$this->token_instance            = new Token( $this->config_instance, $this->publisher_instance );
+		$this->token_instance            = new Token( $this->config_instance, $this->publisher_instance, $this->channels_instance );
 		$this->trigger_registry_instance = new Trigger_Registry( $this->publisher_instance );
 		$this->client_instance           = new Client( $this->config_instance, $this->token_instance );
 		$this->admin_instance            = new Admin_Page( $this->config_instance );
@@ -179,6 +195,7 @@ class WPS {
 
 		// REST routes.
 		add_action( 'rest_api_init', array( $this->token_instance, 'register_routes' ) );
+		add_action( 'rest_api_init', array( $this->extensions_instance, 'register_routes' ) );
 		$this->triggers_rest = new Triggers_REST();
 		add_action( 'rest_api_init', array( $this->triggers_rest, 'register_routes' ) );
 
@@ -238,6 +255,29 @@ class WPS {
 	 */
 	public function token() {
 		return $this->token_instance;
+	}
+
+	/**
+	 * Get the trigger registry.
+	 *
+	 * @return Trigger_Registry
+	 */
+	/**
+	 * Channel namespace reservations (see `Channels`).
+	 *
+	 * @return Channels
+	 */
+	public function channels() {
+		return $this->channels_instance;
+	}
+
+	/**
+	 * Extension registry (see `Extensions`).
+	 *
+	 * @return Extensions
+	 */
+	public function extensions() {
+		return $this->extensions_instance;
 	}
 
 	/**
