@@ -1,3 +1,5 @@
+**0.20.1** - Fixes a re-mint loop when a site's credentials are revoked on the server (retry state now resets only after a stable connection) and a Disconnect that was refused after the dashboard API key was regenerated.
+
 **0.20.0** - Security: the token endpoint requires a logged-in user by default. Publish failures surface as admin notices, reconnects back off with jitter, the relay closes refused sockets with application codes (revoked tokens report authentication-failed), and the collaboration provider matches Gutenberg 23.9 (connection lost dialog, experiment gating, 1 MiB update cap).
 
 **0.19.0** - New: real-time collaboration re-enabled via Gutenberg detection: the Yjs provider activates when wp_is_collaboration_enabled() reports RTC available and enabled, with a Gutenberg detected badge in the Settings tab.

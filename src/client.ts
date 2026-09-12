@@ -29,12 +29,16 @@ if (window.wpSignalConfig?.isDebug) {
 /**
  * Application close codes sent by the relay when it refuses or ends a
  * WebSocket session (4000-4999 are reserved for applications by RFC 6455).
- * Older relays reject at the HTTP upgrade instead, which the browser reports
- * as a plain failure to open; that path falls through to backoff.
  */
 const CLOSE_INVALID_TOKEN = 4001;
 const CLOSE_SITE_NOT_FOUND = 4003;
 const CLOSE_CONNECTION_LIMIT = 4029;
+
+/**
+ * A socket that stays open this long counts as established, and only then is
+ * the retry state (backoff, one-time re-mint) reset. 
+ */
+const STABLE_CONNECTION_MS = 3000;
 
 /**
  * The server sends a `{"type":"ping"}` frame every 20s, so an open WebSocket
@@ -87,6 +91,8 @@ export class WPSignalClient implements WPSApi {
   private remintedAfterAuthFailure = false;
   /** Set once a terminal error stops all automatic retries. */
   private halted = false;
+  /** Pending "connection is established" check, see STABLE_CONNECTION_MS. */
+  private stableTimer: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Authoritative set of channels the client wants subscribed. Persists across
@@ -572,11 +578,19 @@ export class WPSignalClient implements WPSApi {
   private setConnected(value: boolean): void {
     if (value === this._connected) return;
     this._connected = value;
+    if (this.stableTimer !== null) {
+      clearTimeout(this.stableTimer);
+      this.stableTimer = null;
+    }
     if (value) {
-      this.backoff.reset();
       this.lastError = null;
       this.retryInMs = null;
-      this.remintedAfterAuthFailure = false;
+      this.stableTimer = setTimeout(() => {
+        this.stableTimer = null;
+        this.backoff.reset();
+        this.remintedAfterAuthFailure = false;
+        this.emitState();
+      }, STABLE_CONNECTION_MS);
     }
     this.connectionHandlers.forEach((fn) => fn(value));
     this.emitState();

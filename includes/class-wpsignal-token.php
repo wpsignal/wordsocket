@@ -359,8 +359,9 @@ class Token {
 	 *
 	 * POSTs to {base_url}/api/sites/unregister. Local credentials are kept (and a
 	 * `WP_Error` returned) when the request fails or the server refuses, so the
-	 * user can retry; a `not_found` refusal means the server already forgot the
-	 * site, which is as disconnected as it gets.
+	 * user can retry. A `not_found`, `invalid_api_key`, or `unknown_site_key`
+	 * refusal means the server already forgot the site or the key, which is as
+	 * disconnected as it gets (see `GONE_ON_DISCONNECT`).
 	 *
 	 * @return WP_REST_Response|\WP_Error Success response or error.
 	 */
@@ -398,8 +399,14 @@ class Token {
 			}
 
 			$code = (int) wp_remote_retrieve_response_code( $response );
-			if ( ( $code < 200 || $code >= 300 ) && 404 !== $code ) {
-				return self::remote_error( $response, 'disconnect_failed' );
+			if ( $code < 200 || $code >= 300 ) {
+				$error = self::remote_error( $response, 'disconnect_failed' );
+				// A site the server has already forgotten, or a key it no longer
+				// accepts (regenerated in the dashboard), cannot be disconnected
+				// any further: clearing the local copy is the whole job.
+				if ( ! in_array( $error->get_error_code(), self::GONE_ON_DISCONNECT, true ) ) {
+					return $error;
+				}
 			}
 		}
 
@@ -471,6 +478,16 @@ class Token {
 			'time'    => (int) $error['time'],
 		);
 	}
+
+	/**
+	 * Disconnect refusals that mean there is nothing left to disconnect on the
+	 * server, so local credentials are cleared anyway.
+	 */
+	private const GONE_ON_DISCONNECT = array(
+		'wpsignal_not_found',
+		'wpsignal_invalid_api_key',
+		'wpsignal_unknown_site_key',
+	);
 
 	/**
 	 * Server error codes that mean this site's credentials are no longer valid.

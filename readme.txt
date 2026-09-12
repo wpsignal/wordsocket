@@ -161,6 +161,10 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 
 == Changelog ==
 
+= 0.20.1 =
+* Fixed: a site whose credentials were revoked on the server (API key regenerated in the dashboard) re-minted tokens in a tight loop instead of stopping with authentication-failed; retry state now resets only once a connection has stayed open
+* Fixed: Disconnect was refused after the dashboard API key had been regenerated, leaving the site stuck with dead credentials; a rejected key now clears the local copy like a forgotten site
+
 = 0.20.0 =
 * Security: the token endpoint (/wpsignal/v1/token) now requires a logged-in user by default; sites that serve visitors opt in with the wpsignal_allow_client filter
 * New: publish failures are visible: an admin notice (Dashboard and WordSocket screens) and the Connect tab report a reached monthly quota, rejected credentials, or an unreachable server
@@ -288,6 +292,9 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 * Initial release.
 
 == Upgrade Notice ==
+
+= 0.20.1 =
+Fixes a reconnect loop after credentials are revoked on the server and a Disconnect that could not complete after regenerating the dashboard API key.
 
 = 0.20.0 =
 Security: the token endpoint now requires a logged-in user by default (use the wpsignal_allow_client filter for public sites). Publish failures are now visible in wp-admin and reconnects back off with jitter.
