@@ -28,6 +28,22 @@ import { useSettings } from "../context";
 
 const { isSsl = false, isConstant = false } = window.wpSignalConfig ?? {};
 
+/**
+ * Read the OAuth callback's wps_notice / wps_message from the URL and remove
+ * them so they only ever apply to the load that carried them.
+ */
+function consumeCallbackParams(): { notice: string | null; reason: string | null } {
+  const url = new URL(window.location.href);
+  const notice = url.searchParams.get("wps_notice");
+  const reason = url.searchParams.get("wps_message");
+  if (notice !== null || reason !== null) {
+    url.searchParams.delete("wps_notice");
+    url.searchParams.delete("wps_message");
+    window.history.replaceState(window.history.state, "", url.toString());
+  }
+  return { notice, reason };
+}
+
 export function TabConnection({ title }: { title: string }) {
   // Context
   const {
@@ -40,13 +56,16 @@ export function TabConnection({ title }: { title: string }) {
     setSetting,
     successMessage,
     lastError,
+    confirmDisconnect,
   } = useSettings();
 
-  // Show a notice from the OAuth callback redirect (wps_notice URL param).
+  // The OAuth callback lands here with wps_notice (and wps_message) in the
+  // URL. Read them once and strip them, otherwise a reload after a later
+  // manual connect keeps showing the stale "cancelled" or error notice.
+  const [callback] = useState(() => consumeCallbackParams());
+
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const wpsNotice = params.get("wps_notice");
-    if (wpsNotice === "connected" && siteKey) {
+    if (callback.notice === "connected" && siteKey) {
       setSetting("noticeMessage", {
         type: "success",
         message: successMessage(siteKey),
@@ -54,12 +73,9 @@ export function TabConnection({ title }: { title: string }) {
     }
   }, [siteKey]);
 
-  // Notification messages handling
   useEffect(() => {
-    // OAuth callback redirect (wps_notice URL param).
-    const params = new URLSearchParams(window.location.search);
-    const wpsNotice = params.get("wps_notice");
-    if (wpsNotice === "error_state") {
+    const { notice, reason } = callback;
+    if (notice === "error_state") {
       setSetting("noticeMessage", {
         type: "error",
         message: __(
@@ -67,8 +83,7 @@ export function TabConnection({ title }: { title: string }) {
           "wordsocket",
         ),
       });
-    } else if (wpsNotice === "error_exchange") {
-      const reason = params.get("wps_message");
+    } else if (notice === "error_exchange") {
       setSetting("noticeMessage", {
         type: "error",
         message: reason
@@ -82,8 +97,7 @@ export function TabConnection({ title }: { title: string }) {
               "wordsocket",
             ),
       });
-    } else if (wpsNotice === "error_denied") {
-      const reason = params.get("wps_message");
+    } else if (notice === "error_denied") {
       setSetting("noticeMessage", {
         type: "error",
         message: reason
@@ -94,7 +108,7 @@ export function TabConnection({ title }: { title: string }) {
             )
           : __("Connection refused by the WPSignal server.", "wordsocket"),
       });
-    } else if (wpsNotice === "error_data") {
+    } else if (notice === "error_data") {
       setSetting("noticeMessage", {
         type: "error",
         message: __(
@@ -102,20 +116,18 @@ export function TabConnection({ title }: { title: string }) {
           "wordsocket",
         ),
       });
-    } else if (wpsNotice === "error" || wpsNotice?.startsWith("error_")) {
+    } else if (notice === "error" || notice?.startsWith("error_")) {
       setSetting("noticeMessage", {
         type: "error",
         message: __("Connection failed. Please try again.", "wordsocket"),
       });
-    } else if (wpsNotice === "cancelled") {
+    } else if (notice === "cancelled") {
       setSetting("noticeMessage", {
         type: "error",
         message: __("Connection cancelled.", "wordsocket"),
       });
     }
   }, []);
-
-  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
   return (
     <div className="wpsignal-connection-tab">
@@ -238,7 +250,7 @@ export function TabConnection({ title }: { title: string }) {
                     fetchStatus === "disconnecting" ||
                     fetchStatus === "connecting"
                   }
-                  onClick={() => setConfirmDisconnect(false)}
+                  onClick={() => setSetting("confirmDisconnect", false)}
                 >
                   {__("Cancel", "wordsocket")}
                 </Button>
@@ -251,7 +263,7 @@ export function TabConnection({ title }: { title: string }) {
                   fetchStatus === "disconnecting" ||
                   fetchStatus === "connecting"
                 }
-                onClick={() => setConfirmDisconnect(true)}
+                onClick={() => setSetting("confirmDisconnect", true)}
               >
                 {__("Disconnect", "wordsocket")}
               </Button>

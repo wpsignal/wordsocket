@@ -48,6 +48,8 @@ type SettingsState = {
   fetchStatus: FetchStatus;
   /** Last publish failure reported by the server-side publisher, if any. */
   lastError: { code: string; message: string; time: number } | null;
+  /** The Connect tab is showing the "are you sure" row for Disconnect. */
+  confirmDisconnect: boolean;
   yjsProviderEnabled: boolean;
   tabsCache: TabsCached;
   setTabsCache: (tabs: TabsCached) => void;
@@ -70,6 +72,7 @@ const DEFAULT_STATE: SettingsState = {
   connectionType: isSsl ? "automatic" : "manual",
   fetchStatus: "init",
   lastError: null,
+  confirmDisconnect: false,
   yjsProviderEnabled: false,
   tabsCache: {
     connection: null,
@@ -142,6 +145,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }
 
   const handleDisconnect = async (): Promise<void> => {
+    // The confirmation row has served its purpose once Disconnect is clicked;
+    // clearing it here means a later reconnect starts from the plain button.
+    setSetting("confirmDisconnect", false);
     setSetting("fetchStatus", "disconnecting");
     setSetting("noticeMessage", null);
     try {
