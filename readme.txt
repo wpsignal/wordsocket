@@ -169,6 +169,9 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 
 == Changelog ==
 
+= 0.21.1 =
+* Changed: releases are published to WordPress.org by the GitHub release workflow after a successful build, instead of by hand
+
 = 0.21.0 =
 * New: Extensions tab on the settings page listing available extensions, plus an API for extension plugins to render their settings there (`window.wordsocket`, `wordsocket_settings_enqueue`, `WPS::instance()->extensions()`)
 * New: private channel namespaces: `WPS::instance()->channels()->reserve( $namespace, $capability )` gates a channel at the token level; once any namespace is reserved, tokens list channels explicitly

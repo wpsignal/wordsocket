@@ -19,12 +19,12 @@
 #   ../config/versions.json and ../site/src/lib/versions.json via ../scripts/versions.sh
 #                    (the site copy lives in the site repo: commit it there)
 #
-# Then commits, tags vX.Y.Z, and pushes: triggering the GitHub Action
-# that builds and attaches wordsocket.zip to the release.
-#
-# After this script completes, run in order:
-#   npm run dist    (builds the zip from the now-bumped source)
-#   npm run svn     (pushes trunk + tag to WordPress.org)
+# Then commits, tags vX.Y.Z, and pushes. The tag triggers the release
+# workflow (.github/workflows/release.yml), which typechecks, builds the zip,
+# verifies its version, creates the GitHub release, and only then publishes
+# the same zip to WordPress.org SVN. Nothing else to run; watch the Actions
+# tab. If the workflow fails, fix the cause, then move the tag onto the fix:
+#   git tag -fs vX.Y.Z -m "Release vX.Y.Z" && git push --force origin vX.Y.Z
 # 
 set -euo pipefail
 
@@ -203,10 +203,12 @@ git tag -s -m "Release v${NEW_VERSION}" "v${NEW_VERSION}"
 ok "Tagged v${NEW_VERSION}"
 
 git push && git push origin "v${NEW_VERSION}"
-ok "Pushed: GitHub Action will build and attach wordsocket.zip"
+ok "Pushed: the release workflow builds the zip, creates the GitHub release, then publishes to WordPress.org"
 
 echo ""
 bold "Done: v${NEW_VERSION}"
 echo ""
-echo "  Track the release at: https://github.com/wpsignal/wordsocket/releases/tag/v${NEW_VERSION}"
+echo "  Watch the workflow: https://github.com/wpsignal/wordsocket/actions"
+echo "  GitHub release:     https://github.com/wpsignal/wordsocket/releases/tag/v${NEW_VERSION}"
+echo "  WordPress.org:      https://wordpress.org/plugins/wordsocket/ (a few minutes after the workflow finishes)"
 echo ""

@@ -12,7 +12,8 @@
     "lint": "wp-scripts lint-js src",
     "test": "npm run test:php && npm run test:e2e",
     "test:php": "vendor/bin/phpunit",
-    "test:e2e": "wp-scripts test-playwright"
+    "test:e2e": "wp-scripts test-playwright",
+    "release": "bash bin/release.sh"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

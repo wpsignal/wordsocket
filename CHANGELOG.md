@@ -1,3 +1,5 @@
+**0.21.1** - Releases publish to WordPress.org from the GitHub workflow after a successful build; `npm run release` is the single local step.
+
 **0.21.0** - Extensions tab and extension API (`window.wordsocket`, `wordsocket_settings_enqueue`, `WPS::extensions()`), private channel namespaces (`WPS::channels()->reserve()`), PHP 8.2 minimum.
 
 **0.20.1** - Fixes a re-mint loop when a site's credentials are revoked on the server (retry state now resets only after a stable connection) and a Disconnect that was refused after the dashboard API key was regenerated.

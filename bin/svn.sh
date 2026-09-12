@@ -12,6 +12,12 @@
 #   npm run svn -- --readme-only      readme.txt only (no version bump needed)
 #   SVN_USERNAME=yourname npm run svn
 #   SVN_DIR=/path/to/wordsocket-svn npm run svn
+#   SVN_USERNAME=... SVN_PASSWORD=... npm run svn     Unattended (CI): no prompts, no cached auth
+#
+# Since 0.21.1 the normal path is the release workflow (.github/workflows/release.yml):
+# the tag push builds the zip, creates the GitHub release, and runs this script
+# with the WPORG_SVN_* secrets. Run it by hand only for --assets-only, --readme-only,
+# or when the workflow cannot.
 #
 # What it does (full release):
 #   1. Syncs dist/wordsocket.zip contents to SVN trunk/
@@ -48,10 +54,15 @@ SVN_DIR="$(cd "$SVN_DIR" && pwd)"
 ZIP="$PLUGIN_DIR/dist/${PLUGIN_SLUG}.zip"
 SVN_ASSETS_SRC="$PLUGIN_DIR/dist/svn-assets"
 
-# Optional SVN username (SVN will prompt if not set)
+# Optional SVN credentials. Username alone lets SVN prompt for the password;
+# with a password the run is fully unattended and nothing is cached on disk.
 SVN_USER_FLAG=()
 if [[ -n "${SVN_USERNAME:-}" ]]; then
   SVN_USER_FLAG=(--username "$SVN_USERNAME")
+fi
+if [[ -n "${SVN_PASSWORD:-}" ]]; then
+  [[ -n "${SVN_USERNAME:-}" ]] || die "SVN_PASSWORD needs SVN_USERNAME too."
+  SVN_USER_FLAG+=(--password "$SVN_PASSWORD" --non-interactive --no-auth-cache)
 fi
 
 bold "WordSocket SVN: v${VERSION}${ASSETS_ONLY:+ (assets only)}${README_ONLY:+ (readme only)}"
