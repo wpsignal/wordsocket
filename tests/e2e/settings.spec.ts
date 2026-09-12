@@ -25,6 +25,28 @@ test.describe("WordSocket settings page", () => {
     await expect(page.getByRole("button", { name: "Disconnect" })).toBeVisible();
   });
 
+  test("Extensions tab renders the stub extension's panel and the catalogue", async ({ admin, page }) => {
+    await admin.visitAdminPage("admin.php", "page=wordsocket");
+    // The stub's status line lands in the Connect tab through ConnectionStatusFill.
+    await expect(page.locator(".stub-extension-status")).toHaveText("Stub extension is active.");
+
+    // Tabs are linkable: &tab=extensions opens the tab, and selecting one writes it back.
+    await admin.visitAdminPage("admin.php", "page=wordsocket&tab=extensions");
+    await expect(page.getByRole("tab", { name: "Extensions" })).toHaveAttribute("aria-selected", "true");
+    await page.getByRole("tab", { name: "Explorer" }).click();
+    await expect.poll(() => new URL(page.url()).searchParams.get("tab")).toBe("explorer");
+    await page.getByRole("tab", { name: "Extensions" }).click();
+    const panel = page.locator(".wpsignal-extension[data-extension='wordsocket-stub-extension']");
+    await expect(panel.getByRole("heading", { name: "Stub Extension" })).toBeVisible();
+    await expect(panel.locator(".stub-extension-state")).toContainText("Site connected");
+    await expect(panel.locator(".stub-extension-state")).toContainText("client online", { timeout: 15_000 });
+
+    // Catalogue entries for extensions not installed here.
+    const woo = page.locator(".wpsignal-extension--catalogue[data-extension='wordsocket-woocommerce']");
+    await expect(woo).toBeVisible();
+    await expect(woo.getByText("Coming soon")).toBeVisible();
+  });
+
   test("Explorer tab shows a live connection", async ({ admin, page }) => {
     await admin.visitAdminPage("admin.php", "page=wordsocket");
     await page.getByRole("tab", { name: "Explorer" }).click();

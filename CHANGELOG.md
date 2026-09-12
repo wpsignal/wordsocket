@@ -1,3 +1,5 @@
+**0.21.0** - Extensions tab and extension API (`window.wordsocket`, `wordsocket_settings_enqueue`, `WPS::extensions()`), private channel namespaces (`WPS::channels()->reserve()`), PHP 8.2 minimum.
+
 **0.20.1** - Fixes a re-mint loop when a site's credentials are revoked on the server (retry state now resets only after a stable connection) and a Disconnect that was refused after the dashboard API key was regenerated.
 
 **0.20.0** - Security: the token endpoint requires a logged-in user by default. Publish failures surface as admin notices, reconnects back off with jitter, the relay closes refused sockets with application codes (revoked tokens report authentication-failed), and the collaboration provider matches Gutenberg 23.9 (connection lost dialog, experiment gating, 1 MiB update cap).

@@ -70,3 +70,7 @@ export function publishEvent( channel: string, event: string, data: unknown ): P
 		data: { channel, event, data },
 	} );
 }
+
+export function getExtensions(): Promise< { extensions: WordSocketExtensionInfo[] } > {
+	return apiFetch( { path: '/wpsignal/v1/extensions' } );
+}

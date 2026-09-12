@@ -35,15 +35,24 @@ class Token {
 	private $publisher;
 
 	/**
+	 * Channel prefixes for minted tokens.
+	 *
+	 * @var Channels
+	 */
+	private $channels;
+
+	/**
 	 * Constructor.
 	 *
-	 * @param Config    $config    Configuration accessor.
-	 * @param Publisher $publisher Event publisher for the /publish proxy.
+	 * @param Config        $config    Configuration accessor.
+	 * @param Publisher     $publisher Event publisher for the /publish proxy.
+	 * @param Channels|null $channels  Namespace reservations; a fresh registry (no reservations) when omitted.
 	 * @return void
 	 */
-	public function __construct( Config $config, Publisher $publisher ) {
+	public function __construct( Config $config, Publisher $publisher, ?Channels $channels = null ) {
 		$this->config    = $config;
 		$this->publisher = $publisher;
+		$this->channels  = $channels ?? new Channels();
 	}
 
 	/**
@@ -190,9 +199,11 @@ class Token {
 		 * Filters the channel prefixes the JWT allows the client to subscribe to.
 		 *
 		 * The WPSignal server rejects subscribe/publish frames whose channel does
-		 * not start with one of these prefixes. Add a prefix here whenever you
-		 * add channels via the `wpsignal_token_channels` filter that fall outside
-		 * the default `site:{site_id}:` namespace.
+		 * not start with one of these prefixes. The default is the site wildcard
+		 * `site:{site_id}:` until a plugin reserves a namespace through
+		 * `WPS::instance()->channels()->reserve()`; from then on it is an explicit
+		 * list (see `Channels::allowed_prefixes()`), so register every channel you
+		 * subscribe to through `wpsignal_token_channels`.
 		 *
 		 * @param string[] $prefixes  Default allowed prefixes.
 		 * @param int      $user_id   Current user ID.
@@ -200,7 +211,7 @@ class Token {
 		 */
 		$allowed_prefixes = apply_filters(
 			'wpsignal_token_channel_prefixes',
-			array( 'site:' . $site_id . ':' ),
+			$this->channels->allowed_prefixes( $user->ID, $site_id, (array) $channels ),
 			$user->ID,
 			$site_id
 		);

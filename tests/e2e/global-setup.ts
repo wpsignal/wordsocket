@@ -2,6 +2,8 @@ import { WPS_API_URL, WPS_E2E_EMAIL, WP_PASSWORD, WP_USERNAME, dashboardLogin, s
 import { request, type FullConfig } from "@playwright/test";
 import { RequestUtils } from "@wordpress/e2e-test-utils-playwright";
 import { readFile, writeFile } from "node:fs/promises";
+import { existsSync, symlinkSync } from "node:fs";
+import { resolve } from "node:path";
 
 /**
  * Same job as @wordpress/scripts' global setup (log in through RequestUtils
@@ -31,6 +33,16 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
       `The target site talks to ${serverUrl}, not the rehearsal server ${WPS_API_URL}. ` +
         "Run api/scripts/local-tls.sh --e2e-site <wp-root> against a dedicated E2E site.",
     );
+  }
+
+  // The stub extension (tests/fixtures) exercises the extension API and
+  // reserves a channel namespace; it is symlinked and activated on the E2E site.
+  const stubLink = resolve(process.env.WP_ROOT!, "wp-content/plugins/wordsocket-stub-extension");
+  if (!existsSync(stubLink)) {
+    symlinkSync(resolve("tests/fixtures/wordsocket-stub-extension"), stubLink);
+  }
+  if (wp("plugin", "list", "--name=wordsocket-stub-extension", "--status=active", "--field=name") !== "wordsocket-stub-extension") {
+    wp("plugin", "activate", "wordsocket-stub-extension");
   }
 
   if (wp("user", "list", `--login=${WP_USERNAME}`, "--field=user_login") !== WP_USERNAME) {

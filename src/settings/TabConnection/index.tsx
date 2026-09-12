@@ -25,6 +25,7 @@ import { __, sprintf } from "@wordpress/i18n";
 import Manual from "./Manual";
 import Automatic from "./Automatic";
 import { useSettings } from "../context";
+import { ConnectionStatusSlot } from "../extensions/api";
 
 const { isSsl = false, isConstant = false } = window.wpSignalConfig ?? {};
 
@@ -167,6 +168,7 @@ export function TabConnection({ title }: { title: string }) {
                 {lastError.message}
               </Notice>
             )}
+            <ConnectionStatusSlot />
             {!isConnected && ["idle", "disconnected"].includes(fetchStatus) && (
               <Notice status="error" isDismissible={false}>
                 {__("Not connected to WPSignal. Try connecting.", "wordsocket")}
