@@ -25,5 +25,8 @@
     "@wordpress/i18n": "^5.0.0",
     "@wordpress/ui": "^0.10.0",
     "y-protocols": "^1.0.7"
+  },
+  "engines": {
+    "node": ">=22.19.0"
   }
 }
