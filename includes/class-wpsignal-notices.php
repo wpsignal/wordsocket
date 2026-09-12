@@ -91,11 +91,9 @@ class Notices {
 	 * @return void
 	 */
 	public static function clear() {
-		static $cleared = false;
-		if ( $cleared ) {
-			return;
-		}
-		$cleared = true;
+		// get_option() is served from the options cache, so this costs nothing
+		// on the common path (no stored failure) and stays correct in long
+		// running processes such as WP-CLI and the test suite.
 		if ( false !== get_option( self::OPTION, false ) ) {
 			delete_option( self::OPTION );
 		}

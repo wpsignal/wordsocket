@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/12.5/phpunit.xsd"
+         bootstrap="tests/phpunit/bootstrap.php"
+         colors="true"
+         failOnWarning="true"
+         displayDetailsOnTestsThatTriggerWarnings="true">
+    <testsuites>
+        <testsuite name="integration">
+            <directory>tests/phpunit</directory>
+        </testsuite>
+    </testsuites>
+    <php>
+        <!-- Override with WP_ROOT=/path/to/wordpress vendor/bin/phpunit -->
+        <env name="WP_ROOT" value="/opt/homebrew/var/www/wpsignal.local"/>
+    </php>
+</phpunit>
