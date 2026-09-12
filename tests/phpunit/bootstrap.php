@@ -12,9 +12,18 @@
  * environment, so it can never be pointed at a live site by accident.
  */
 
+// The target install comes from WP_ROOT, or from tests/local.json (gitignored,
+// see tests/local.example.json): `phpunitWpRoot`, falling back to `wpRoot`.
+// It may differ from the Playwright site: this suite deletes and re-reads
+// options within one request, which needs a working object cache (a site
+// running a persistent-cache drop-in that ignores forced reloads fails here).
 $wp_root = getenv( 'WP_ROOT' );
+if ( ! $wp_root && is_readable( __DIR__ . '/../local.json' ) ) {
+	$local   = json_decode( (string) file_get_contents( __DIR__ . '/../local.json' ), true );
+	$wp_root = is_array( $local ) ? ( $local['phpunitWpRoot'] ?? $local['wpRoot'] ?? '' ) : '';
+}
 if ( ! $wp_root || ! file_exists( $wp_root . '/wp-load.php' ) ) {
-	fwrite( STDERR, "WP_ROOT must point at a WordPress install (wp-load.php not found at '{$wp_root}').\n" );
+	fwrite( STDERR, "No WordPress install: set WP_ROOT, or phpunitWpRoot / wpRoot in tests/local.json (wp-load.php not found at '{$wp_root}').\n" );
 	exit( 1 );
 }
 

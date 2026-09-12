@@ -16,6 +16,11 @@ export default defineConfig({
   // makes this refuse to run, so nothing is ever left behind by mistake.
   webServer: {
     command: `${process.env.WPS_LOCAL_TLS} --e2e-site ${process.env.WP_ROOT} --seed-e2e`,
+    // The dashboard user the script seeds; the script has no defaults of its own.
+    env: {
+      E2E_EMAIL: process.env.WPS_E2E_EMAIL!,
+      E2E_PASSWORD: process.env.WPS_E2E_PASSWORD!,
+    },
     url: `${process.env.WPS_API_URL}/healthz`,
     ignoreHTTPSErrors: true,
     reuseExistingServer: false,

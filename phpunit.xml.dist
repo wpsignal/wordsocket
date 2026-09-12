@@ -10,8 +10,5 @@
             <directory>tests/phpunit</directory>
         </testsuite>
     </testsuites>
-    <php>
-        <!-- Override with WP_ROOT=/path/to/wordpress vendor/bin/phpunit -->
-        <env name="WP_ROOT" value="/opt/homebrew/var/www/wpsignal.local"/>
-    </php>
+    <!-- The target WordPress comes from tests/local.json (wpRoot) or WP_ROOT in the environment. -->
 </phpunit>

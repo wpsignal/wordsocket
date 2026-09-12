@@ -1,35 +1,57 @@
 /**
- * Environment defaults for the E2E suite. Imported first so the values are in
- * place before `@wordpress/e2e-test-utils-playwright` reads them at load time.
+ * Environment for the E2E suite, imported first so the values are in place
+ * before `@wordpress/e2e-test-utils-playwright` reads them at load time.
  *
- * The suite targets the dedicated E2E WordPress (created in Lempify) that
+ * Machine-specific values live in `tests/local.json` (gitignored; copy
+ * `tests/local.example.json`), and every one can be overridden by the
+ * environment variable named next to it. Nothing here has a built-in default:
+ * a missing value stops the run with the key that is needed.
+ *
+ * The suite targets a dedicated E2E WordPress that
  * `api/scripts/local-tls.sh --e2e-site <root>` pins at the rehearsal server.
  * It connects, disconnects, and revokes credentials there, so it must never be
  * pointed at the site you develop against or at production; global-setup
  * refuses both.
- *
- *   WP_BASE_URL       https://e2e.wpsignal.local
- *   WP_ROOT           /opt/homebrew/var/www/e2e.wpsignal.local   (wp-cli target)
- *   WP_USERNAME       wps-e2e          administrator created or reset on each run
- *   WP_PASSWORD       wps-e2e-password
- *   WPS_API_URL       https://api.wpsignal.local:8443           (local-tls.sh)
- *   WPS_E2E_EMAIL     e2e@wpsignal.local                        (local-tls.sh --seed-e2e)
- *   WPS_E2E_PASSWORD  e2e-password-1
- *   WPS_LOCAL_TLS     ../api/scripts/local-tls.sh   the rehearsal stack the run starts and stops
  */
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { request } from "@playwright/test";
 
-process.env.WP_BASE_URL ??= "https://e2e.wpsignal.local";
-process.env.WP_ROOT ??= "/opt/homebrew/var/www/e2e.wpsignal.local";
-process.env.WP_USERNAME ??= "wps-e2e";
-process.env.WP_PASSWORD ??= "wps-e2e-password";
-process.env.WPS_API_URL ??= "https://api.wpsignal.local:8443";
-process.env.WPS_E2E_EMAIL ??= "e2e@wpsignal.local";
-process.env.WPS_E2E_PASSWORD ??= "e2e-password-1";
-process.env.WPS_LOCAL_TLS ??= resolve(__dirname, "../../../api/scripts/local-tls.sh");
+const LOCAL_CONFIG = resolve(__dirname, "../local.json");
+
+/** JSON key -> environment variable. */
+const KEYS = {
+  wpRoot: "WP_ROOT",
+  wpBaseUrl: "WP_BASE_URL",
+  wpUsername: "WP_USERNAME",
+  wpPassword: "WP_PASSWORD",
+  apiUrl: "WPS_API_URL",
+  dashboardEmail: "WPS_E2E_EMAIL",
+  dashboardPassword: "WPS_E2E_PASSWORD",
+  localTls: "WPS_LOCAL_TLS",
+} as const;
+
+const local: Partial<Record<keyof typeof KEYS, string>> = existsSync(LOCAL_CONFIG)
+  ? JSON.parse(readFileSync(LOCAL_CONFIG, "utf8"))
+  : {};
+
+const missing: string[] = [];
+for (const [key, envName] of Object.entries(KEYS)) {
+  const value = process.env[envName] ?? local[key as keyof typeof KEYS];
+  if (typeof value === "string" && value !== "") {
+    process.env[envName] = value;
+  } else {
+    missing.push(`${key} (or ${envName})`);
+  }
+}
+if (missing.length > 0) {
+  throw new Error(
+    `E2E configuration missing: ${missing.join(", ")}. Copy tests/local.example.json to tests/local.json and fill it in.`,
+  );
+}
+// The rehearsal script path is relative to the plugin directory.
+process.env.WPS_LOCAL_TLS = resolve(__dirname, "../..", process.env.WPS_LOCAL_TLS!);
 
 // The WordPress fixtures build their REST request context without
 // ignoreHTTPSErrors, so Node must trust the mkcert root CA that signs the
@@ -46,12 +68,12 @@ if (!process.env.NODE_EXTRA_CA_CERTS) {
   }
 }
 
-export const WP_ROOT = process.env.WP_ROOT;
-export const WP_USERNAME = process.env.WP_USERNAME;
-export const WP_PASSWORD = process.env.WP_PASSWORD;
-export const WPS_API_URL = process.env.WPS_API_URL;
-export const WPS_E2E_EMAIL = process.env.WPS_E2E_EMAIL;
-export const WPS_E2E_PASSWORD = process.env.WPS_E2E_PASSWORD;
+export const WP_ROOT = process.env.WP_ROOT!;
+export const WP_USERNAME = process.env.WP_USERNAME!;
+export const WP_PASSWORD = process.env.WP_PASSWORD!;
+export const WPS_API_URL = process.env.WPS_API_URL!;
+export const WPS_E2E_EMAIL = process.env.WPS_E2E_EMAIL!;
+export const WPS_E2E_PASSWORD = process.env.WPS_E2E_PASSWORD!;
 
 /** Run a wp-cli command against the target site and return trimmed stdout. */
 export function wp(...args: string[]): string {

@@ -5,3 +5,4 @@ build/
 /vendor/
 .phpunit.result.cache
 artifacts/
+tests/local.json
