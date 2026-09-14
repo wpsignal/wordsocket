@@ -79,7 +79,8 @@ export const WPS_E2E_PASSWORD = process.env.WPS_E2E_PASSWORD!;
 export function wp(...args: string[]): string {
   return execFileSync(
     "php",
-    ["-d", "error_reporting=0", "/opt/homebrew/bin/wp", `--path=${WP_ROOT}`, ...args],
+    // WooCommerce's first-run routines need more than PHP CLI's default 128M.
+    ["-d", "error_reporting=0", "-d", "memory_limit=512M", "/opt/homebrew/bin/wp", `--path=${WP_ROOT}`, ...args],
     { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
   ).trim();
 }
