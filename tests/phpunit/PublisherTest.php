@@ -41,6 +41,34 @@ final class PublisherTest extends WordSocketTestCase {
 		$this->assertSame( array( 'n' => 1 ), $decoded['data'] );
 	}
 
+	public function test_stats_is_a_signed_get_over_an_empty_body(): void {
+		$this->connect_site( 'sitekey1234567890', 'publishsecret' );
+		$this->fake_http( static fn() => array( 200, array( 'active_connections' => 7, 'max_connections' => 500 ) ) );
+		$this->as_admin();
+
+		list( $status, $data ) = $this->rest( 'GET', 'stats' );
+
+		$this->assertSame( 200, $status );
+		$this->assertSame( array( 'active_connections' => 7, 'max_connections' => 500 ), $data );
+		$request = $this->requests[0];
+		$this->assertStringEndsWith( '/site/stats', $request['url'] );
+		$this->assertSame( 'GET', $request['args']['method'] );
+		$headers = $request['args']['headers'];
+		$this->assertSame( hash_hmac( 'sha256', '.' . $headers['X-WP-Signal-Ts'], 'publishsecret' ), $headers['X-WP-Signal-Sign'] );
+	}
+
+	public function test_stats_surfaces_the_server_error(): void {
+		$this->connect_site( 'sitekey1234567890', 'publishsecret' );
+		$this->fake_http( static fn() => array( 401, array( 'error' => 'unknown_site_key', 'message' => 'unknown site key' ) ) );
+		$this->as_admin();
+
+		list( $status, $data ) = $this->rest( 'GET', 'stats' );
+
+		$this->assertSame( 401, $status );
+		$this->assertSame( 'wpsignal_unknown_site_key', $data['code'] );
+		$this->assertSame( 'unknown site key', $data['message'] );
+	}
+
 	public function test_publish_encrypts_over_ssl_and_the_ciphertext_round_trips(): void {
 		$this->connect_site();
 		$_SERVER['HTTPS'] = 'on';

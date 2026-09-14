@@ -101,6 +101,13 @@ export class WPSignalClient implements WPSApi {
    */
   private readonly subscribedChannels = new Set<string>();
 
+  /**
+   * Presence this client wants held per channel, replayed on every (re)connect
+   * so a member is back the moment the socket returns. Setting a channel to
+   * `null` leaves it and stops the replay.
+   */
+  private readonly desiredPresence = new Map<string, Record<string, unknown>>();
+
   /** Cached import of the AES-256-GCM key; resolved once and reused for every message. */
   private cryptoKeyPromise: Promise<CryptoKey | null> | null = null;
   /** True when SubtleCrypto is unavailable (HTTP context); suppresses per-message warnings. */
@@ -134,6 +141,24 @@ export class WPSignalClient implements WPSApi {
     }
     if (this.activeTransport?.getStatus().connected) {
       this.activeTransport.unsubscribe(removed);
+    }
+  }
+
+  /**
+   * Enter (or update) connection-scoped presence on a channel. The relay drops
+   * the membership automatically when the socket closes, and this client
+   * re-sends it on reconnect. Pass `null` to leave: the relay announces the
+   * leave to subscribers at once. Presence needs the WebSocket transport; on
+   * SSE it is a no-op.
+   */
+  setPresence(channel: string, state: Record<string, unknown> | null): void {
+    if (state === null) {
+      this.desiredPresence.delete(channel);
+    } else {
+      this.desiredPresence.set(channel, state);
+    }
+    if (this.activeTransport?.getStatus().connected) {
+      this.activeTransport.setPresence(channel, state);
     }
   }
 
@@ -721,9 +746,13 @@ export class WPSignalClient implements WPSApi {
    * and the token-refresh reconnect.
    */
   private replaySubscriptions(): void {
-    if (!this.subscribedChannels.size) return;
     if (!this.activeTransport?.getStatus().connected) return;
-    this.activeTransport.subscribe([...this.subscribedChannels]);
+    if (this.subscribedChannels.size) {
+      this.activeTransport.subscribe([...this.subscribedChannels]);
+    }
+    this.desiredPresence.forEach((state, channel) => {
+      this.activeTransport?.setPresence(channel, state);
+    });
   }
 
   private handleTransportMessage(message: WPSTransportMessage): void {

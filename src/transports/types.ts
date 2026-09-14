@@ -57,6 +57,10 @@ export interface WPSTransport {
   unsubscribe(channels: string[]): void;
   publish(channel: string, event: string, data: Record<string, unknown>): void;
   publishBinary(channel: string, data: Uint8Array): void;
+  /** Enter/update connection-scoped presence on a channel, or leave it with
+   *  `null`. The membership is also dropped automatically when the socket
+   *  closes. No-op on transports (SSE) that cannot send. */
+  setPresence(channel: string, state: Record<string, unknown> | null): void;
   refreshAuth(token: string): boolean;
   close(): void;
   getStatus(): WPSTransportStatus;

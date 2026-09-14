@@ -1,3 +1,5 @@
+**0.22.0** - `GET /wpsignal/v1/stats` (and `Publisher::stats()`): browsers connected to the site right now and the plan's connection limit, for extension dashboards. New client API `WPS.setPresence()` for connection-scoped presence (who is here right now), with `wps.presence` join/leave/sync events; `setPresence( channel, null )` leaves at once and the relay drops a member the instant its socket closes.
+
 **0.21.1** - Releases publish to WordPress.org from the GitHub workflow after a successful build; `npm run release` is the single local step.
 
 **0.21.0** - Extensions tab and extension API (`window.wordsocket`, `wordsocket_settings_enqueue`, `WPS::extensions()`), private channel namespaces (`WPS::channels()->reserve()`), PHP 8.2 minimum.

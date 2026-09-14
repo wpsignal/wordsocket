@@ -169,6 +169,10 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 
 == Changelog ==
 
+= 0.22.0 =
+* New: `GET /wpsignal/v1/stats` reports how many browsers are connected to the site right now and the plan's connection limit (`WPS::instance()->publisher()->stats()` in PHP), for extension dashboards
+* New: `WPS.setPresence()` for connection-scoped presence (who is here right now); subscribers receive `wps.presence` join/leave/sync events, `WPS.setPresence( channel, null )` leaves at once, and a member drops the instant its connection closes
+
 = 0.21.1 =
 * Changed: releases are published to WordPress.org by the GitHub release workflow after a successful build, instead of by hand
 

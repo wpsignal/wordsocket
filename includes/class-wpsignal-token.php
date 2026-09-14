@@ -133,6 +133,27 @@ class Token {
 				),
 			)
 		);
+
+		register_rest_route(
+			'wpsignal/v1',
+			'/stats',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'handle_stats' ),
+				'permission_callback' => $permission_callback,
+			)
+		);
+	}
+
+	/**
+	 * `GET /wpsignal/v1/stats`: browsers connected to this site right now and
+	 * the plan's connection limit, straight from the server (see `Publisher::stats()`).
+	 *
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function handle_stats() {
+		$stats = $this->publisher->stats();
+		return is_wp_error( $stats ) ? $stats : rest_ensure_response( $stats );
 	}
 
 	/**
@@ -341,7 +362,7 @@ class Token {
 
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		if ( 200 !== $code ) {
-			return self::remote_error( $response, 'connect_failed' );
+			return Publisher::remote_error( $response, 'connect_failed' );
 		}
 
 		$data = json_decode( wp_remote_retrieve_body( $response ), true );
@@ -411,7 +432,7 @@ class Token {
 
 			$code = (int) wp_remote_retrieve_response_code( $response );
 			if ( $code < 200 || $code >= 300 ) {
-				$error = self::remote_error( $response, 'disconnect_failed' );
+				$error = Publisher::remote_error( $response, 'disconnect_failed' );
 				// A site the server has already forgotten, or a key it no longer
 				// accepts (regenerated in the dashboard), cannot be disconnected
 				// any further: clearing the local copy is the whole job.
@@ -551,28 +572,6 @@ class Token {
 		return true;
 	}
 
-	/**
-	 * Turn a non-2xx server response into a `WP_Error` carrying the server's
-	 * own code (prefixed `wpsignal_`) and message.
-	 *
-	 * @param array  $response wp_remote_* response.
-	 * @param string $fallback Code to use when the body has none.
-	 * @return WP_Error
-	 */
-	private static function remote_error( $response, $fallback ) {
-		$code = (int) wp_remote_retrieve_response_code( $response );
-		$data = json_decode( wp_remote_retrieve_body( $response ), true );
-		if ( ! is_array( $data ) ) {
-			$data = array();
-		}
-		$error_code = ! empty( $data['error'] ) ? 'wpsignal_' . $data['error'] : 'wpsignal_' . $fallback;
-		$message    = ! empty( $data['message'] )
-			? (string) $data['message']
-			/* translators: %d: HTTP status code */
-			: sprintf( __( 'HTTP %d', 'wordsocket' ), $code );
-
-		return new WP_Error( $error_code, $message, array( 'status' => $code ) );
-	}
 
 	/**
 	 * `****` plus the last four characters, or '' when no key is stored.

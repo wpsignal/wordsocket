@@ -130,6 +130,14 @@ interface WPSApi {
 	 * No-ops on SSE (one-way transport) or when not connected.
 	 */
 	publishBinary( channel: string, data: Uint8Array ): void;
+	/**
+	 * Enter or update connection-scoped presence on a channel. The relay drops
+	 * the membership the instant this socket closes, and the client re-sends it
+	 * on reconnect; pass null to leave, which is announced at once. Subscribers
+	 * of the channel receive `wps.presence` join/leave/sync events (`channel` is
+	 * the site-relative name, `woo:carts:live`). Requires WebSocket; no-op on SSE.
+	 */
+	setPresence( channel: string, state: Record< string, unknown > | null ): void;
 	/** Register a handler for a specific event name. Returns unsubscribe fn. */
 	on( event: string, handler: WPSEventHandler ): () => void;
 	/** Register a catch-all handler for incoming JSON messages. Returns unsubscribe fn. */

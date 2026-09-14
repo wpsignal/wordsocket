@@ -125,6 +125,10 @@ export class SseTransport implements WPSTransport {
     if (changed) this.scheduleReconnect();
   }
 
+  setPresence(): void {
+    // SSE cannot send; presence requires the WebSocket transport.
+  }
+
   publish(): void {
     // SSE is receive-only.
   }

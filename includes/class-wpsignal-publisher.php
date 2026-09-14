@@ -192,6 +192,70 @@ class Publisher {
 	}
 
 	/**
+	 * Ask the server about this site: browsers connected right now and the
+	 * plan's connection limit. Signed like a publish over an empty body, so it
+	 * needs no dashboard session. Extensions use it for "online now" figures.
+	 *
+	 * @return array{active_connections: int, max_connections: int}|\WP_Error
+	 */
+	public function stats() {
+		if ( ! $this->config->is_configured() ) {
+			return new \WP_Error( 'wpsignal_not_configured', __( 'WordSocket is not configured.', 'wordsocket' ), array( 'status' => 500 ) );
+		}
+
+		$timestamp_ms = (string) round( microtime( true ) * 1000 );
+		$response     = wp_remote_get(
+			trailingslashit( $this->config->base_url() ) . 'site/stats',
+			array(
+				'timeout' => 3,
+				'headers' => array(
+					'X-WP-Signal-Key'  => $this->config->site_key(),
+					'X-WP-Signal-Ts'   => $timestamp_ms,
+					'X-WP-Signal-Sign' => $this->sign( '', $timestamp_ms ),
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		$code = wp_remote_retrieve_response_code( $response );
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( $code < 200 || $code >= 300 || ! is_array( $data ) ) {
+			return self::remote_error( $response, 'stats_error' );
+		}
+
+		return array(
+			'active_connections' => (int) ( $data['active_connections'] ?? 0 ),
+			'max_connections'    => (int) ( $data['max_connections'] ?? 0 ),
+		);
+	}
+
+	/**
+	 * Turn a non-2xx server response into a `WP_Error` carrying the server's
+	 * own code (prefixed `wpsignal_`) and message.
+	 *
+	 * @param array  $response wp_remote_* response.
+	 * @param string $fallback Code to use when the body has none.
+	 * @return WP_Error
+	 */
+	public static function remote_error( $response, $fallback ) {
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( ! is_array( $data ) ) {
+			$data = array();
+		}
+		$error_code = ! empty( $data['error'] ) ? 'wpsignal_' . $data['error'] : 'wpsignal_' . $fallback;
+		$message    = ! empty( $data['message'] )
+			? (string) $data['message']
+			/* translators: %d: HTTP status code */
+			: sprintf( __( 'HTTP %d', 'wordsocket' ), $code );
+
+		return new \WP_Error( $error_code, $message, array( 'status' => $code >= 400 ? $code : 502 ) );
+	}
+
+	/**
 	 * Generate an HMAC-SHA256 signature for a publish request.
 	 *
 	 * @param string $body         Raw JSON body string.

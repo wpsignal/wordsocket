@@ -84,6 +84,10 @@ export class WebSocketTransport implements WPSTransport {
     this.sendJson({ type: "message", channel, event, data });
   }
 
+  setPresence(channel: string, state: Record<string, unknown> | null): void {
+    this.sendJson({ type: "presence", channel, state });
+  }
+
   publishBinary(channel: string, data: Uint8Array): void {
     if (!this.isOpen()) return;
     const channelBytes = new TextEncoder().encode(channel);
