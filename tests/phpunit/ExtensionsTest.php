@@ -94,7 +94,7 @@ final class ExtensionsTest extends WordSocketTestCase {
 		foreach ( array_keys( Extensions::CATALOGUE ) as $slug ) {
 			$this->assertContains( $slug, $slugs );
 		}
-		$catalogue_entry = $all[ array_search( 'wordsocket-woocommerce', $slugs, true ) ];
+		$catalogue_entry = $all[ array_search( 'shopsocket', $slugs, true ) ];
 		$this->assertFalse( $catalogue_entry['installed'] );
 		$this->assertArrayHasKey( 'available', $catalogue_entry );
 	}

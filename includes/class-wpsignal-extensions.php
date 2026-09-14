@@ -25,12 +25,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @usage: register on `wpsignal_loaded`:
  * ```php
  *     WPS::instance()->extensions()->register(
- *         'wordsocket-woocommerce',
+ *         'shopsocket',
  *         array(
  *             'title'       => 'WooCommerce',
  *             'description' => 'Live orders board and live stock on product pages.',
  *             'version'     => '1.0.0',
- *             'docs_url'    => 'https://wpsignal.io/extensions/woocommerce',
+ *             'docs_url'    => 'https://wpsignal.io/extensions/shopsocket',
  *             'requires'    => array( 'woocommerce/woocommerce.php' => 'WooCommerce' ),
  *         )
  *     );
@@ -45,19 +45,19 @@ class Extensions {
 	 * @var array<string, array{title: string, description: string, url: string, available: bool}>
 	 */
 	const CATALOGUE = array(
-		'wordsocket-woocommerce' => array(
-			'title'       => 'WooCommerce',
+		'shopsocket'          => array(
+			'title'       => 'ShopSocket for WooCommerce',
 			'description' => 'A live orders board for your team and live stock on product pages.',
-			'url'         => 'https://wpsignal.io/extensions/woocommerce',
+			'url'         => 'https://wpsignal.io/extensions/shopsocket',
 			'available'   => false,
 		),
-		'wordsocket-liveblog'    => array(
+		'wordsocket-liveblog' => array(
 			'title'       => 'Live Blog',
 			'description' => 'Live coverage that updates in every reader\'s browser as you publish.',
 			'url'         => 'https://wpsignal.io/extensions/liveblog',
 			'available'   => false,
 		),
-		'wordsocket-chat'        => array(
+		'wordsocket-chat'     => array(
 			'title'       => 'Chat',
 			'description' => 'Realtime messaging between your site\'s users.',
 			'url'         => 'https://wpsignal.io/extensions/chat',
@@ -75,7 +75,7 @@ class Extensions {
 	/**
 	 * Register an extension installed on this site.
 	 *
-	 * @param string $slug Plugin slug, for example `wordsocket-woocommerce`.
+	 * @param string $slug Plugin slug, for example `shopsocket`.
 	 * @param array  $args Extension metadata: `title`, `description`, `version`,
 	 *                     `docs_url`, and `requires` (`plugin-dir/file.php => Label`
 	 *                     pairs that must be active).

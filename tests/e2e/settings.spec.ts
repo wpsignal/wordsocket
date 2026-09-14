@@ -42,7 +42,7 @@ test.describe("WordSocket settings page", () => {
     await expect(panel.locator(".stub-extension-state")).toContainText("client online", { timeout: 15_000 });
 
     // Catalogue entries for extensions not installed here.
-    const woo = page.locator(".wpsignal-extension--catalogue[data-extension='wordsocket-woocommerce']");
+    const woo = page.locator(".wpsignal-extension--catalogue[data-extension='shopsocket']");
     await expect(woo).toBeVisible();
     await expect(woo.getByText("Coming soon")).toBeVisible();
   });
