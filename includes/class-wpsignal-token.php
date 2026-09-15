@@ -20,6 +20,14 @@ if ( ! defined( 'ABSPATH' ) ) {
  * JWT minting and REST API endpoints.
  */
 class Token {
+
+	/**
+	 * Connection-token protocol version, the `v` claim. The relay reads a
+	 * token by its version and keeps older ones working: 1 (before 0.22) has no
+	 * publish claim and publishes wherever it may subscribe; 2 carries
+	 * `allowed_publish_prefixes`. Bump it only when the claims change meaning.
+	 */
+	const TOKEN_VERSION = 2;
 	/**
 	 * Configuration accessor.
 	 *
@@ -237,13 +245,35 @@ class Token {
 			$site_id
 		);
 
+		/**
+		 * Filters the channel prefixes the JWT allows the client to publish on.
+		 *
+		 * Publishing covers `WPS.publish()`, binary frames, and presence. The
+		 * default is the site wildcard until a plugin reserves a namespace; from
+		 * then on only reserved namespaces whose publish grant the user passes
+		 * (see `Channels::reserve()`), so a channel registered for reading stays
+		 * read-only unless it is added here.
+		 *
+		 * @param string[] $prefixes  Default publish prefixes.
+		 * @param int      $user_id   Current user ID.
+		 * @param string   $site_id   Hashed site identifier from the JWT.
+		 */
+		$publish_prefixes = apply_filters(
+			'wpsignal_token_publish_prefixes',
+			$this->channels->allowed_publish_prefixes( $user->ID, $site_id ),
+			$user->ID,
+			$site_id
+		);
+
 		$payload = self::base64url_encode(
 			wp_json_encode(
 				array(
+					'v'                        => self::TOKEN_VERSION,
 					'tenant_id'                => $tenant_id,
 					'site_id'                  => $site_id,
 					'user_id'                  => (string) $user->ID,
 					'allowed_channel_prefixes' => $allowed_prefixes,
+					'allowed_publish_prefixes' => array_values( array_unique( array_map( 'strval', (array) $publish_prefixes ) ) ),
 					'iat'                      => $now,
 					'exp'                      => $exp,
 				)

@@ -19,6 +19,28 @@ final class ExtensionsTest extends WordSocketTestCase {
 			array( 'site:abc:' ),
 			$channels->allowed_prefixes( 0, self::SITE, array( 'site:abc:events', 'site:abc:livingposts' ) )
 		);
+		$this->assertSame( array( 'site:abc:' ), $channels->allowed_publish_prefixes( 0, self::SITE ), 'writing is the wildcard too' );
+	}
+
+	public function test_publish_grants_are_separate_from_subscribe_grants(): void {
+		$channels = new Channels();
+		$channels->reserve( 'woo:orders', 'manage_options' );
+		$channels->reserve( 'woo:carts', 'manage_options', '__return_true' );
+		$channels->reserve( 'woo:notes', 'manage_options', '__return_false' );
+
+		// A visitor reads nothing reserved and writes only where a publish grant says so.
+		$this->assertSame( array( 'site:abc:events' ), $channels->allowed_prefixes( 0, self::SITE, array() ) );
+		$this->assertSame( array( 'site:abc:woo:carts:' ), $channels->allowed_publish_prefixes( 0, self::SITE ) );
+
+		// An administrator reads all three; the publish grant defaults to the read
+		// grant, and an explicit false keeps even them from writing.
+		$this->as_admin();
+		$admin = get_current_user_id();
+		$this->assertSame(
+			array( 'site:abc:events', 'site:abc:woo:orders:', 'site:abc:woo:carts:', 'site:abc:woo:notes:' ),
+			$channels->allowed_prefixes( $admin, self::SITE, array() )
+		);
+		$this->assertSame( array( 'site:abc:woo:orders:', 'site:abc:woo:carts:' ), $channels->allowed_publish_prefixes( $admin, self::SITE ) );
 	}
 
 	public function test_a_reservation_switches_to_an_explicit_list_gated_by_capability(): void {
@@ -69,10 +91,12 @@ final class ExtensionsTest extends WordSocketTestCase {
 			list( , $payload ) = self::jwt_parts( WPS::instance()->token()->mint()['token'] );
 			$this->assertContains( 'site:' . $site_id . ':phpunit:private:', $payload['allowed_channel_prefixes'] );
 			$this->assertNotContains( 'site:' . $site_id . ':', $payload['allowed_channel_prefixes'], 'no wildcard once a namespace is reserved' );
+			$this->assertSame( array( 'site:' . $site_id . ':phpunit:private:' ), $payload['allowed_publish_prefixes'], 'the publish grant follows the read grant' );
 
 			wp_set_current_user( 0 );
 			list( , $payload ) = self::jwt_parts( WPS::instance()->token()->mint()['token'] );
 			$this->assertSame( array( 'site:' . $site_id . ':events' ), $payload['allowed_channel_prefixes'] );
+			$this->assertSame( array(), $payload['allowed_publish_prefixes'], 'a visitor writes nowhere in strict mode' );
 		} finally {
 			self::clear_reservations( $live );
 		}

@@ -40,11 +40,13 @@ final class TokenTest extends WordSocketTestCase {
 		list( $header, $payload, $signature ) = self::jwt_parts( $minted['token'] );
 
 		$this->assertSame( array( 'alg' => 'HS256', 'typ' => 'JWT' ), $header );
+		$this->assertSame( 2, $payload['v'], 'the protocol version the relay reads the claims by' );
 		$site_id = hash( 'sha256', 'site:abc123' );
 		$this->assertSame( hash( 'sha256', 'tenant:abc123' ), $payload['tenant_id'] );
 		$this->assertSame( $site_id, $payload['site_id'] );
 		$this->assertSame( (string) $user_id, $payload['user_id'] );
 		$this->assertSame( array( 'site:' . $site_id . ':' ), $payload['allowed_channel_prefixes'] );
+		$this->assertSame( array( 'site:' . $site_id . ':' ), $payload['allowed_publish_prefixes'] );
 		$this->assertSame( 300, $payload['exp'] - $payload['iat'] );
 		$this->assertSame( $payload['exp'], $minted['exp'] );
 		$this->assertSame( array( 'site:' . $site_id . ':events' ), $minted['channels'] );
@@ -59,17 +61,21 @@ final class TokenTest extends WordSocketTestCase {
 		$this->as_admin();
 		$add_channel = static fn( $channels ) => array_merge( $channels, array( 'chat:room-1' ) );
 		$add_prefix  = static fn( $prefixes ) => array_merge( $prefixes, array( 'chat:' ) );
+		$add_publish = static fn( $prefixes ) => array_merge( $prefixes, array( 'chat:room-1' ) );
 		add_filter( 'wpsignal_token_channels', $add_channel );
 		add_filter( 'wpsignal_token_channel_prefixes', $add_prefix );
+		add_filter( 'wpsignal_token_publish_prefixes', $add_publish );
 		try {
 			$minted = $this->token()->mint();
 		} finally {
 			remove_filter( 'wpsignal_token_channels', $add_channel );
 			remove_filter( 'wpsignal_token_channel_prefixes', $add_prefix );
+			remove_filter( 'wpsignal_token_publish_prefixes', $add_publish );
 		}
 		list( , $payload ) = self::jwt_parts( $minted['token'] );
 		$this->assertContains( 'chat:room-1', $minted['channels'] );
 		$this->assertContains( 'chat:', $payload['allowed_channel_prefixes'] );
+		$this->assertContains( 'chat:room-1', $payload['allowed_publish_prefixes'] );
 	}
 
 	public function test_mint_without_credentials_is_an_error(): void {

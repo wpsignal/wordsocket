@@ -171,6 +171,7 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 
 = 0.22.0 =
 * New: `GET /wpsignal/v1/stats` reports how many browsers are connected to the site right now and the plan's connection limit (`WPS::instance()->publisher()->stats()` in PHP), for extension dashboards
+* Security: connection tokens separate what a browser may read from what it may write. Once a plugin reserves a channel namespace, channels registered for reading are read-only unless a reservation's publish grant (`reserve( $ns, $read, $write )`) or the `wpsignal_token_publish_prefixes` filter says otherwise
 * New: `WPS.setPresence()` for connection-scoped presence (who is here right now); subscribers receive `wps.presence` join/leave/sync events, `WPS.setPresence( channel, null )` leaves at once, and a member drops the instant its connection closes
 
 = 0.21.1 =

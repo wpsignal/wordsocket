@@ -24,11 +24,18 @@ if ( ! defined( 'ABSPATH' ) ) {
  * `wpsignal_token_channels` filter, and each reserved namespace the user
  * qualifies for.
  *
+ * Reading and writing are granted separately. A reservation's grant covers
+ * subscribing, and publishing too unless a second grant is given; in strict
+ * mode a token may otherwise publish nowhere (`wpsignal_token_publish_prefixes`
+ * adds to that list). Without reservations both stay the site wildcard.
+ *
  * @usage: reserve a staff-only namespace on `wpsignal_loaded`:
  * ```php
  *     WPS::instance()->channels()->reserve( 'woo:orders', 'manage_woocommerce' );
  *     // or per user:
  *     WPS::instance()->channels()->reserve( 'woo:customer', fn( $user_id ) => $user_id > 0 );
+ *     // staff read it, every visitor may write (presence) to it:
+ *     WPS::instance()->channels()->reserve( 'woo:carts', 'manage_woocommerce', '__return_true' );
  * ```
  */
 class Channels {
@@ -41,18 +48,27 @@ class Channels {
 	private array $reservations = array();
 
 	/**
+	 * Publish grants per reserved namespace, same keys as `$reservations`.
+	 *
+	 * @var array<string, string|callable>
+	 */
+	private array $publish_grants = array();
+
+	/**
 	 * Reserve a namespace for users with a capability, or for whom a callable returns true.
 	 *
-	 * @param string          $ns    Namespace such as `woo:orders` (no `site:` prefix). A trailing colon is implied.
-	 * @param string|callable $grant Capability name, or `callable( int $user_id ): bool`.
+	 * @param string               $ns      Namespace such as `woo:orders` (no `site:` prefix). A trailing colon is implied.
+	 * @param string|callable      $grant   Who may subscribe: a capability name, or `callable( int $user_id ): bool`.
+	 * @param string|callable|null $publish Who may publish and enter presence; defaults to `$grant`.
 	 * @return void
 	 */
-	public function reserve( string $ns, string|callable $grant ): void {
+	public function reserve( string $ns, string|callable $grant, string|callable|null $publish = null ): void {
 		$ns = trim( (string) $ns, ': ' );
 		if ( '' === $ns || 'events' === $ns ) {
 			return;
 		}
-		$this->reservations[ $ns . ':' ] = $grant;
+		$this->reservations[ $ns . ':' ]   = $grant;
+		$this->publish_grants[ $ns . ':' ] = $publish ?? $grant;
 	}
 
 	/**
@@ -103,6 +119,32 @@ class Channels {
 		}
 
 		return array_values( array_unique( $prefixes ) );
+	}
+
+	/**
+	 * Prefixes a token may publish on.
+	 *
+	 * Strict mode grants nothing by default: only reserved namespaces whose
+	 * publish grant the user passes. Plugins add plain channels through the
+	 * `wpsignal_token_publish_prefixes` filter.
+	 *
+	 * @param int    $user_id User the token is minted for (0 for visitors).
+	 * @param string $site_id Hashed site identifier used in channel names.
+	 * @return string[]
+	 */
+	public function allowed_publish_prefixes( int $user_id, string $site_id ): array {
+		$site_prefix = 'site:' . $site_id . ':';
+		if ( ! $this->is_strict() ) {
+			return array( $site_prefix );
+		}
+
+		$prefixes = array();
+		foreach ( $this->publish_grants as $ns => $grant ) {
+			if ( $this->granted( $grant, $user_id ) ) {
+				$prefixes[] = $site_prefix . $ns;
+			}
+		}
+		return $prefixes;
 	}
 
 	/**
