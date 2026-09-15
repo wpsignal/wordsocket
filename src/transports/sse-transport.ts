@@ -6,13 +6,6 @@ import {
   WPSTransportStatus,
 } from "./types";
 
-const SSE_EVENT_TYPES = [
-  "post.updated",
-  "post.created",
-  "post.deleted",
-  "comment.created",
-];
-
 /**
  * How many browser-driven EventSource reconnects in a row are tolerated
  * before the transport gives up and hands the decision back to the client.
@@ -58,16 +51,20 @@ export class SseTransport implements WPSTransport {
     source.addEventListener("error", (event) => {
       this.callbacks.onError(event);
       if (source.readyState === EventSource.CLOSED) {
-        // The browser gave up (for example a 401 or 404 on the stream URL):
-        // no automatic retry will follow, so the client must decide.
+        /*
+         * The browser gave up (for example a 401 or 404 on the stream URL):
+         * no automatic retry will follow, so the client must decide.
+         */
         wpsDebug("SSE closed by the browser", null, "warn");
         this.source = null;
         this.callbacks.onClose({ wasOpen: this.didOpen });
         return;
       }
-      // CONNECTING: EventSource retries by itself and fires "open" again,
-      // every few seconds, forever. Allow a few of those (a blip), then stop
-      // it and let the client back off properly.
+      /*
+       * CONNECTING: EventSource retries by itself and fires "open" again,
+       * every few seconds, forever. Allow a few of those (a blip), then stop
+       * it and let the client back off properly.
+       */
       this.browserRetries += 1;
       if (this.browserRetries >= MAX_BROWSER_RETRIES) {
         wpsDebug(`SSE unreachable after ${this.browserRetries} browser retries, handing over to the client`, null, "warn");
@@ -82,35 +79,26 @@ export class SseTransport implements WPSTransport {
       this.callbacks.onClose({ wasOpen: this.didOpen, transient: true });
     });
 
-    SSE_EVENT_TYPES.forEach((eventType) => {
-      source.addEventListener(eventType, (event: Event) => {
-        try {
-          this.callbacks.onMessage({
-            event: eventType,
-            channel: "",
-            data: JSON.parse((event as MessageEvent).data),
-          });
-        } catch (err) {
-          wpsDebug("Failed to parse SSE data", err, "error");
-        }
-      });
-    });
-
-    source.addEventListener("encrypted", (event: MessageEvent) => {
+    /*
+     * The relay sends one unnamed frame per message with the event name inside
+     * (`{ event, channel, data }`), so every event reaches this transport with
+     * its channel, encrypted ones included; the client decrypts those.
+     */
+    source.addEventListener("message", (event: MessageEvent) => {
       try {
-        const payload = JSON.parse(event.data);
+        const frame = JSON.parse(event.data) as { event?: unknown; channel?: unknown; data?: unknown };
+        if (typeof frame.event !== "string") {
+          wpsDebug("SSE frame without an event name", event.data, "warn");
+          return;
+        }
         this.callbacks.onMessage({
-          event: "encrypted",
-          channel: "",
-          data: payload.data ?? payload,
+          event: frame.event,
+          channel: typeof frame.channel === "string" ? frame.channel : "",
+          data: (frame.data ?? {}) as Record<string, unknown>,
         });
       } catch (err) {
-        wpsDebug("Failed to parse encrypted SSE data", err, "error");
+        wpsDebug("Failed to parse SSE frame", err, "error");
       }
-    });
-
-    source.addEventListener("message", (event: MessageEvent) => {
-      wpsDebug("SSE message", event.data);
     });
   }
 

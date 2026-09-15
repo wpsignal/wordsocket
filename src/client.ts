@@ -379,8 +379,10 @@ export class WPSignalClient implements WPSApi {
    */
   private handleReconnect(): void {
     if (this._connected) {
-      // A zombie socket still reports connected; verify liveness before
-      // trusting it.
+      /*
+       * A zombie socket still reports connected; verify liveness before
+       * trusting it.
+       */
       if (this.isStale()) {
         this.forceReconnect("Stale connection detected on wake");
       }
@@ -449,7 +451,7 @@ export class WPSignalClient implements WPSApi {
         );
         this.scheduleRefresh(data.exp);
 
-        if (typeof WebSocket !== "undefined" && !this.config.forceSSE) {
+        if (this.webSocketPossible()) {
           this.connectWebSocketTransport(data.token, data.channels);
         } else {
           this.connectSseTransport(data.token, data.channels);
@@ -458,8 +460,10 @@ export class WPSignalClient implements WPSApi {
       .catch((err: unknown) => {
         wpsDebug("Token fetch failed", err, "warn");
         if (isAuthStatus(err)) {
-          // The REST endpoint refused us (logged out, or public clients
-          // disabled): retrying cannot help until the page reloads.
+          /*
+           * The REST endpoint refused us (logged out, or public clients
+           * disabled): retrying cannot help until the page reloads.
+           */
           this.halt("authentication-failed", "Token request was refused");
           return;
         }
@@ -541,6 +545,7 @@ export class WPSignalClient implements WPSApi {
       onOpen: () => {
         this.replaySubscriptions();
         this.setConnected(true);
+        this.probeWebSocket(token, channels);
       },
       onMessage: (message) => this.handleTransportMessage(message),
       onBinaryMessage: () => undefined,
@@ -549,8 +554,10 @@ export class WPSignalClient implements WPSApi {
         if (transient) {
           return; // EventSource retries on its own and will call onOpen.
         }
-        // The browser closed the stream for good (typically a rejected
-        // token): mint a fresh token and reconnect on the shared schedule.
+        /*
+         * The browser closed the stream for good (typically a rejected
+         * token): mint a fresh token and reconnect on the shared schedule.
+         */
         this.scheduleRetry(
           () => {
             this.reInit();
@@ -569,6 +576,47 @@ export class WPSignalClient implements WPSApi {
   private activateTransport(transport: WPSTransport): void {
     this.activeTransport = transport;
     this.transportName = transport.name;
+  }
+
+  /** Whether WebSocket is worth trying on this page at all. */
+  private webSocketPossible(): boolean {
+    return typeof WebSocket !== "undefined" && !this.config.forceSSE;
+  }
+
+  /**
+   * The fallback stream just opened, so the relay is reachable: try the socket
+   * once, right now. During a relay restart the socket fails while the relay
+   * is down and the browser's EventSource is the first to reconnect; this step
+   * moves the client back the moment that happens. A socket that fails while
+   * the stream is up is blocked for real, and the stream stays until the token
+   * refresh tries again.
+   */
+  private probeWebSocket(token: string, channels: string[]): void {
+    const stream = this.activeTransport;
+    if (this.halted || !this.webSocketPossible() || !stream || stream.name !== "sse") return;
+    const socket: WebSocketTransport = new WebSocketTransport(this.baseUrl, {
+      onOpen: () => {
+        if (this.activeTransport !== stream) {
+          socket.close(); // the stream moved on while the socket was opening
+          return;
+        }
+        stream.close();
+        this.activateTransport(socket);
+        this.replaySubscriptions();
+        wpsDebug("Back on WebSocket");
+        this.emitState();
+      },
+      onMessage: (message) => this.handleTransportMessage(message),
+      onBinaryMessage: (channel, data) => {
+        this.binaryHandlers.forEach((handler) => handler(channel, data));
+      },
+      onClose: (event) => {
+        if (this.activeTransport !== socket) return; // never took over: the stream carries on
+        this.handleWebSocketClose(event, token, channels);
+      },
+      onError: () => undefined,
+    });
+    socket.connect({ token, channels });
   }
 
   private fallbackToSse(token: string, channels: string[]): void {
@@ -717,6 +765,12 @@ export class WPSignalClient implements WPSApi {
       wpsDebug("Refreshing token...");
       this.fetchToken()
         .then((data) => {
+          /*
+           * A WebSocket takes the new token in place. SSE cannot, so the refresh
+           * doubles as the recovery step for a fallback stream: reconnecting
+           * prefers WebSocket, which brings presence and publishing back after
+           * the relay outage that forced the fallback.
+           */
           if (!this.activeTransport?.refreshAuth(data.token)) {
             this.reInit();
           }
