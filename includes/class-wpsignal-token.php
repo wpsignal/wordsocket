@@ -74,9 +74,11 @@ class Token {
 
 		$permission_callback = fn() => current_user_can( 'manage_options' );
 
-		// Token minting follows the same rule as the frontend client enqueue:
-		// logged-in users only unless a site opts into public clients via the
-		// `wpsignal_allow_client` filter. Anonymous callers otherwise get 401.
+		/*
+		 * Token minting follows the same rule as the frontend client enqueue:
+		 * logged-in users only unless a site opts into public clients via the
+		 * `wpsignal_allow_client` filter. Anonymous callers otherwise get 401.
+		 */
 		register_rest_route(
 			'wpsignal/v1',
 			'/token',
@@ -463,9 +465,12 @@ class Token {
 			$code = (int) wp_remote_retrieve_response_code( $response );
 			if ( $code < 200 || $code >= 300 ) {
 				$error = Publisher::remote_error( $response, 'disconnect_failed' );
-				// A site the server has already forgotten, or a key it no longer
-				// accepts (regenerated in the dashboard), cannot be disconnected
-				// any further: clearing the local copy is the whole job.
+
+				/*
+				 * A site the server has already forgotten, or a key it no longer
+				 * accepts (regenerated in the dashboard), cannot be disconnected
+				 * any further: clearing the local copy is the whole job.
+				 */
 				if ( ! in_array( $error->get_error_code(), self::GONE_ON_DISCONNECT, true ) ) {
 					return $error;
 				}

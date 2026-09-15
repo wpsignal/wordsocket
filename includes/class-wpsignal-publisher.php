@@ -176,8 +176,11 @@ class Publisher {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log( sprintf( '[WPSignal] Publish HTTP %d: %s', $code, $message ) );
 			}
-			// On quota 429, store the throttle timestamp to skip future requests for the current month.
-			// Throttle is best-effort; billing period boundaries may differ between client and server.
+
+			/*
+			 * On quota 429, store the throttle timestamp to skip future requests for the current month.
+			 * Throttle is best-effort; billing period boundaries may differ between client and server.
+			 */
 			$server_code = is_array( $error_data ) && isset( $error_data['error'] ) ? (string) $error_data['error'] : 'http_' . $code;
 			$until       = null;
 			if ( 429 === $code && 'quota_exceeded' === $server_code ) {
