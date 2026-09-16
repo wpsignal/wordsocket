@@ -32,13 +32,16 @@ export function ExtensionPanel({
   docsUrl,
   children,
 }: WordSocketExtensionPanelProps) {
+  // Split title into two parts the first part and then the "Socket" part
+  const titleParts = title.split(/(?=[A-Z])/);
+  const [firstPart, secondPart] = titleParts;
   return (
     <Panels.Fill>
       <Card className="wpsignal-extension" data-extension={name}>
         <CardHeader className="wpsignal-extension__header">
           <div className="wpsignal-extension__title">
             {icon && (typeof icon === "string" ? <Icon icon={icon as any} /> : icon)}
-            <h3>{title}</h3>
+            <h3>{firstPart}<span style={{ opacity: "0.6", color: "var(--wp-admin-theme-color, currentColor)" }}>{secondPart}</span></h3>
           </div>
           {docsUrl && (
             <a href={docsUrl} target="_blank" rel="noopener noreferrer">
