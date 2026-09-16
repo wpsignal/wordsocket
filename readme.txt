@@ -174,6 +174,7 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 * Security: connection tokens separate what a browser may read from what it may write. Once a plugin reserves a channel namespace, channels registered for reading are read-only unless a reservation's publish grant (`reserve( $ns, $read, $write )`) or the `wpsignal_token_publish_prefixes` filter says otherwise
 * Fixed: a client that fell back to SSE while the relay was restarting stayed on SSE until the page reloaded; it now returns to WebSocket as soon as the stream opens, or at its next token refresh if the socket is blocked, so presence and publishing come back; and while on SSE every event now arrives, not just four fixed names
 * New: `WPS.setPresence()` for connection-scoped presence (who is here right now); subscribers receive `wps.presence` join/leave/sync events, `WPS.setPresence( channel, null )` leaves at once, and a member drops the instant its connection closes
+* Fixed: installing an extension that reserves a channel namespace switched real-time collaboration off; the collaboration channels now stay open to users who can edit posts
 
 = 0.21.1 =
 * Changed: releases are published to WordPress.org by the GitHub release workflow after a successful build, instead of by hand

@@ -29,6 +29,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * mode a token may otherwise publish nowhere (`wpsignal_token_publish_prefixes`
  * adds to that list). Without reservations both stay the site wildcard.
  *
+ * WordSocket's own namespaces (`BUILTIN`, today just `yjs:` for the
+ * collaboration provider) are granted in strict mode the same way, read and
+ * write, without counting as a reservation: installing an extension must not
+ * switch real-time collaboration off.
+ *
  * @usage: reserve a staff-only namespace on `wpsignal_loaded`:
  * ```php
  *     WPS::instance()->channels()->reserve( 'woo:orders', 'manage_woocommerce' );
@@ -39,6 +44,16 @@ if ( ! defined( 'ABSPATH' ) ) {
  * ```
  */
 class Channels {
+
+	/**
+	 * Namespaces WordSocket uses itself, with the capability that grants both
+	 * reading and writing. Applied in strict mode only; never a reservation.
+	 *
+	 * @var array<string, string>
+	 */
+	private const BUILTIN = array(
+		'yjs:' => 'edit_posts',
+	);
 
 	/**
 	 * Reserved namespaces: normalised namespace (trailing colon) => capability or callable.
@@ -112,7 +127,7 @@ class Channels {
 			// Plugins may pass a bare name or the full site-scoped form.
 			$prefixes[] = str_starts_with( $channel, $site_prefix ) ? $channel : $site_prefix . $channel;
 		}
-		foreach ( $this->reservations as $ns => $grant ) {
+		foreach ( $this->reservations + self::BUILTIN as $ns => $grant ) {
 			if ( $this->granted( $grant, $user_id ) ) {
 				$prefixes[] = $site_prefix . $ns;
 			}
@@ -139,12 +154,12 @@ class Channels {
 		}
 
 		$prefixes = array();
-		foreach ( $this->publish_grants as $ns => $grant ) {
+		foreach ( $this->publish_grants + self::BUILTIN as $ns => $grant ) {
 			if ( $this->granted( $grant, $user_id ) ) {
 				$prefixes[] = $site_prefix . $ns;
 			}
 		}
-		return $prefixes;
+		return array_values( array_unique( $prefixes ) );
 	}
 
 	/**
