@@ -17,6 +17,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Client {
 
 	/**
+	 * Version of the browser API (`window.WPS`), bumped when it gains methods
+	 * extensions may rely on, so PHP can check for them without comparing plugin
+	 * versions. 2 (0.23): `uuid()`, `visitorId()`, `onChannel()`.
+	 *
+	 * @var int
+	 */
+	const API_VERSION = 2;
+
+	/**
 	 * Configuration accessor.
 	 *
 	 * @var Config

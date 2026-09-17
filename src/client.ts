@@ -10,6 +10,7 @@
  */
 
 import { wpsDebug } from "./utils";
+import { onChannel, uuid, visitorId } from "./utils/identity";
 import { Backoff } from "./utils/backoff";
 import WPSClientDebug from "./utils/client-debug";
 import WPSignalEvent from "./event";
@@ -246,6 +247,21 @@ export class WPSignalClient implements WPSApi {
       lastError: this.lastError,
       failures: this.backoff.failures,
     };
+  }
+
+  /** A version-4 UUID that also works on plain HTTP pages, where `crypto.randomUUID` does not exist. */
+  uuid(): string {
+    return uuid();
+  }
+
+  /** This browser's stable id, shared by every tab and extension on the site. Names a browser, not a person. */
+  visitorId(): string {
+    return visitorId();
+  }
+
+  /** Whether `channel` is `expected`, allowing the qualified `site:{id}:` spelling. Check it before trusting an event. */
+  onChannel(channel: string, expected: string): boolean {
+    return onChannel(channel, expected);
   }
 
   /** Current connection state as seen by `onStateChange` handlers. */

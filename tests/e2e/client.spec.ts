@@ -23,6 +23,47 @@ test.describe("Realtime client", () => {
     expect(state.error).toBeUndefined();
   });
 
+  test("offers ids and a channel check to extensions", async ({ page, browser, baseURL }) => {
+    await page.goto("/");
+    await waitForConnection(page, "ws");
+    const V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+    const ids = await page.evaluate(() => [window.WPS!.uuid(), window.WPS!.uuid()]);
+    expect(ids[0]).toMatch(V4);
+    expect(ids[1]).toMatch(V4);
+    expect(ids[0]).not.toBe(ids[1]);
+
+    // The visitor id is kept for the browser: the same after a reload, in storage under WordSocket's key.
+    const visitor = await page.evaluate(() => window.WPS!.visitorId());
+    expect(visitor).toMatch(V4);
+    await page.reload();
+    await waitForConnection(page, "ws");
+    expect(await page.evaluate(() => window.WPS!.visitorId())).toBe(visitor);
+    expect(await page.evaluate(() => window.localStorage.getItem("wordsocket-visitor"))).toBe(visitor);
+
+    // Another browser is another visitor (same login, its own storage once the copied id is dropped).
+    const other = await browser.newContext({ baseURL, ignoreHTTPSErrors: true, storageState: await page.context().storageState() });
+    try {
+      const otherPage = await other.newPage();
+      await otherPage.goto("/");
+      await otherPage.evaluate(() => window.localStorage.removeItem("wordsocket-visitor"));
+      await otherPage.reload();
+      await waitForConnection(otherPage, "ws");
+      expect(await otherPage.evaluate(() => window.WPS!.visitorId())).not.toBe(visitor);
+    } finally {
+      await other.close();
+    }
+
+    // An event counts only on the channel it is expected on, bare or qualified.
+    const checks = await page.evaluate(() => [
+      window.WPS!.onChannel("woo:stock", "woo:stock"),
+      window.WPS!.onChannel("site:abc123:woo:stock", "woo:stock"),
+      window.WPS!.onChannel("site:abc123:woo:activity", "woo:stock"),
+      window.WPS!.onChannel("site:abc123:notwoo:stock", "woo:stock"),
+    ]);
+    expect(checks).toEqual([true, true, false, false]);
+  });
+
   test("a published post arrives as a wpsignal:post.updated DOM event", async ({ page, requestUtils }) => {
     await page.goto("/");
     await waitForConnection(page, "ws");

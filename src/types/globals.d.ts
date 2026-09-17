@@ -156,6 +156,26 @@ interface WPSApi {
 	onStateChange( handler: ( state: WPSConnectionState ) => void ): () => void;
 	/** The current connection state, as delivered to onStateChange. */
 	readonly state: WPSConnectionState;
+	/**
+	 * A version-4 UUID. Works on plain HTTP pages too, where `crypto.randomUUID`
+	 * does not exist (it needs a secure context); use it instead of calling
+	 * `crypto.randomUUID()` directly. Needs no connection.
+	 */
+	uuid(): string;
+	/**
+	 * This browser's stable id, kept in localStorage and shared by every tab
+	 * and every extension on the site, for counting people rather than sockets
+	 * (pass it in presence state). It names a browser, not a person; when
+	 * storage is blocked it lasts for the page load only.
+	 */
+	visitorId(): string;
+	/**
+	 * Whether an event's `channel` is the `expected` one, given by its
+	 * site-relative name (`woo:stock`); the qualified `site:{id}:woo:stock`
+	 * matches too. Any tokened browser may publish on a public channel, so
+	 * check this in a handler before trusting the event's data.
+	 */
+	onChannel( channel: string, expected: string ): boolean;
 }
 
 // ---------------------------------------------------------------------------

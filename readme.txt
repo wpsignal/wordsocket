@@ -169,6 +169,11 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 
 == Changelog ==
 
+= 0.23.0 =
+* New: `WPS.uuid()` returns a v4 UUID and works on plain HTTP sites too, where browsers do not offer `crypto.randomUUID`
+* New: `WPS.visitorId()` is a stable per-browser id shared by every tab and extension on the site, for counting people rather than connections
+* New: `WPS.onChannel( channel, expected )` tells a handler whether an event arrived on the channel it claims, so events published elsewhere can be ignored
+
 = 0.22.0 =
 * New: `GET /wpsignal/v1/stats` reports how many browsers are connected to the site right now and the plan's connection limit (`WPS::instance()->publisher()->stats()` in PHP), for extension dashboards
 * Security: connection tokens separate what a browser may read from what it may write. Once a plugin reserves a channel namespace, channels registered for reading are read-only unless a reservation's publish grant (`reserve( $ns, $read, $write )`) or the `wpsignal_token_publish_prefixes` filter says otherwise
