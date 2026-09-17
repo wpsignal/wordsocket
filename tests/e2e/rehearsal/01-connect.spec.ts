@@ -28,6 +28,8 @@ test.describe("Connection lifecycle", () => {
     await disconnectViaRest(requestUtils);
 
     await admin.visitAdminPage("admin.php", "page=wordsocket");
+    // Wait for the settings request: the form re-renders when it lands and would wipe a key typed before it.
+    await expect(page.getByText("Not connected to WPSignal").first()).toBeVisible();
     await page.getByRole("tab", { name: "Manual" }).click();
     await page.getByLabel("API Key").fill("f".repeat(64));
     await page.getByRole("button", { name: "Save Settings" }).click();
