@@ -85,7 +85,7 @@ export function TabExtensions({ title }: { title: string }) {
           <h3>{__("Available extensions", "wordsocket")}</h3>
           <p>
             {__(
-              "Below extensions are comming soon.",
+              "These extensions are coming soon.",
               "wordsocket",
             )}
           </p>
