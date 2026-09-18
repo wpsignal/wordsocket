@@ -34,6 +34,7 @@ add_action(
 				'description' => 'Proves an extension can render inside WordSocket.',
 				'version'     => '1.0.0',
 				'docs_url'    => 'https://wpsignal.io/docs/js-api',
+				'file'        => plugin_basename( __FILE__ ),
 			)
 		);
 		WPS::instance()->channels()->reserve( 'stub:private', 'manage_options' );

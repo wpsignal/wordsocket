@@ -77,8 +77,10 @@ class Extensions {
 	 *
 	 * @param string $slug Plugin slug, for example `shopsocket`.
 	 * @param array  $args Extension metadata: `title`, `description`, `version`,
-	 *                     `docs_url`, and `requires` (`plugin-dir/file.php => Label`
-	 *                     pairs that must be active).
+	 *                     `docs_url`, `file` (`plugin_basename( __FILE__ )`, which
+	 *                     nests the plugin under WordSocket on the Plugins screen
+	 *                     when its directory is not the slug), and `requires`
+	 *                     (`plugin-dir/file.php => Label` pairs that must be active).
 	 * @return void
 	 */
 	public function register( string $slug, array $args = array() ): void {
@@ -93,9 +95,31 @@ class Extensions {
 				'description' => '',
 				'version'     => '',
 				'docs_url'    => '',
+				'file'        => '',
 				'requires'    => array(),
 			)
 		);
+	}
+
+	/**
+	 * The plugin file of every extension WordSocket knows, registered or
+	 * catalogued: what `Plugins_Screen` matches the Plugins list against.
+	 *
+	 * A registered extension names its own file; everything else is assumed to
+	 * sit where WordPress.org installs it, in a directory named after its slug.
+	 *
+	 * @return array<string, string> Slug => plugin file.
+	 */
+	public function plugin_files(): array {
+		$files = array();
+		foreach ( array_keys( self::CATALOGUE ) as $slug ) {
+			$files[ $slug ] = $slug . '/' . $slug . '.php';
+		}
+		foreach ( $this->registered as $slug => $ext ) {
+			$file           = (string) ( $ext['file'] ?? '' );
+			$files[ $slug ] = '' !== $file ? $file : ( $files[ $slug ] ?? $slug . '/' . $slug . '.php' );
+		}
+		return $files;
 	}
 
 	/**

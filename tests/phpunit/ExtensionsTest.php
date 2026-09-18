@@ -6,6 +6,7 @@
 
 use WPSignal\Channels;
 use WPSignal\Extensions;
+use WPSignal\Plugins_Screen;
 use WPSignal\WPS;
 
 final class ExtensionsTest extends WordSocketTestCase {
@@ -127,7 +128,11 @@ final class ExtensionsTest extends WordSocketTestCase {
 		$extensions = new Extensions();
 		$extensions->register(
 			'wordsocket-stub-extension',
-			array( 'title' => 'Stub', 'version' => '1.0.0', 'requires' => array( 'not-a-plugin/not-a-plugin.php' => 'Not A Plugin' ) )
+			array(
+				'title'    => 'Stub',
+				'version'  => '1.0.0',
+				'requires' => array( 'not-a-plugin/not-a-plugin.php' => 'Not A Plugin' ),
+			)
 		);
 		$all = $extensions->all();
 
@@ -142,6 +147,96 @@ final class ExtensionsTest extends WordSocketTestCase {
 		$catalogue_entry = $all[ array_search( 'shopsocket', $slugs, true ) ];
 		$this->assertFalse( $catalogue_entry['installed'] );
 		$this->assertArrayHasKey( 'available', $catalogue_entry );
+	}
+
+	public function test_plugin_files_prefer_a_registered_file_over_the_slug_directory(): void {
+		$extensions = new Extensions();
+		$extensions->register( 'shopsocket', array( 'file' => 'shopsocket-1.0/shopsocket.php' ) );
+		$extensions->register( 'wordsocket-stub-extension', array() );
+		$files = $extensions->plugin_files();
+
+		$this->assertSame( 'shopsocket-1.0/shopsocket.php', $files['shopsocket'], 'a declared file wins over the catalogue guess' );
+		$this->assertSame( 'wordsocket-stub-extension/wordsocket-stub-extension.php', $files['wordsocket-stub-extension'], 'a plugin that named no file sits in a directory named after its slug' );
+		$this->assertSame( 'wordsocket-chat/wordsocket-chat.php', $files['wordsocket-chat'], 'catalogue slugs are known before they are installed' );
+	}
+
+	public function test_extension_rows_are_renamed_to_sort_under_wordsocket(): void {
+		$extensions = new Extensions();
+		$extensions->register(
+			'shopsocket',
+			array(
+				'title' => 'ShopSocket',
+				'file'  => 'shopsocket/shopsocket.php',
+			)
+		);
+		$screen = new Plugins_Screen( $extensions );
+
+		$ours = plugin_basename( \WPSignal\DIR . 'wordsocket.php' );
+		$rows = $screen->rename_rows(
+			array(
+				$ours                                 => array( 'Name' => 'WordSocket' ),
+				'shopsocket/shopsocket.php'           => array( 'Name' => 'ShopSocket' ),
+				'wordsocket-chat/wordsocket-chat.php' => array(
+					'Name'            => 'ChatSocket',
+					'RequiresPlugins' => 'wordsocket',
+				),
+				'wordsocket-liveblog/wordsocket-liveblog.php' => array(
+					'Name'            => 'WordSocket Live Blog',
+					'RequiresPlugins' => 'woocommerce, wordsocket',
+				),
+				'woocommerce/woocommerce.php'         => array( 'Name' => 'WooCommerce' ),
+			)
+		);
+
+		$this->assertSame( 'WordSocket', $rows[ $ours ]['Name'], 'the parent row keeps its name' );
+		$this->assertSame( 'WordSocket: ShopSocket', $rows['shopsocket/shopsocket.php']['Name'] );
+		$this->assertSame( 'WordSocket: ChatSocket', $rows['wordsocket-chat/wordsocket-chat.php']['Name'], 'a catalogued extension nests while it is inactive' );
+		$this->assertSame( 'WordSocket Live Blog', $rows['wordsocket-liveblog/wordsocket-liveblog.php']['Name'], 'a name that already leads with WordSocket is left alone' );
+		$this->assertSame( 'WooCommerce', $rows['woocommerce/woocommerce.php']['Name'], 'plugins outside the family are untouched' );
+
+		// The point of the rename: the list table sorts these names with strcasecmp.
+		$names = array_column( $rows, 'Name' );
+		usort( $names, 'strcasecmp' );
+		$this->assertSame(
+			array( 'WooCommerce', 'WordSocket', 'WordSocket Live Blog', 'WordSocket: ChatSocket', 'WordSocket: ShopSocket' ),
+			$names
+		);
+	}
+
+	public function test_a_plugin_that_never_asked_is_left_alone(): void {
+		$screen = new Plugins_Screen( new Extensions() );
+
+		$ours = plugin_basename( \WPSignal\DIR . 'wordsocket.php' );
+		$rows = $screen->rename_rows(
+			array(
+				$ours                                 => array( 'Name' => 'WordSocket' ),
+				// A catalogued slug, but this plugin is somebody else's: no
+				// registration, and its header names no dependency on us.
+				'wordsocket-chat/wordsocket-chat.php' => array( 'Name' => 'Some Other Chat' ),
+			)
+		);
+
+		$this->assertSame( 'Some Other Chat', $rows['wordsocket-chat/wordsocket-chat.php']['Name'] );
+	}
+
+	public function test_nesting_can_be_switched_off_with_a_filter(): void {
+		$extensions = new Extensions();
+		$extensions->register( 'shopsocket', array( 'file' => 'shopsocket/shopsocket.php' ) );
+		$screen = new Plugins_Screen( $extensions );
+
+		add_filter( 'wordsocket_nested_plugin_rows', '__return_empty_array' );
+		try {
+			$ours = plugin_basename( \WPSignal\DIR . 'wordsocket.php' );
+			$rows = $screen->rename_rows(
+				array(
+					$ours                       => array( 'Name' => 'WordSocket' ),
+					'shopsocket/shopsocket.php' => array( 'Name' => 'ShopSocket' ),
+				)
+			);
+			$this->assertSame( 'ShopSocket', $rows['shopsocket/shopsocket.php']['Name'] );
+		} finally {
+			remove_filter( 'wordsocket_nested_plugin_rows', '__return_empty_array' );
+		}
 	}
 
 	public function test_extensions_route_requires_manage_options(): void {

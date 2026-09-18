@@ -127,6 +127,13 @@ class WPS {
 	private $extensions_instance;
 
 	/**
+	 * Plugins list table presentation (extensions nested under WordSocket).
+	 *
+	 * @var Plugins_Screen
+	 */
+	private $plugins_screen_instance;
+
+	/**
 	 * Get the singleton instance.
 	 *
 	 * @return WPS
@@ -204,6 +211,9 @@ class WPS {
 		// Admin pages.
 		if ( is_admin() ) {
 			$this->admin_instance->init();
+
+			$this->plugins_screen_instance = new Plugins_Screen( $this->extensions_instance );
+			$this->plugins_screen_instance->init();
 		}
 
 		// Register the "WordSocket" block category so example/third-party blocks

@@ -169,6 +169,9 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 
 == Changelog ==
 
+= 0.24.0 =
+* New: extensions are listed with WordSocket on the Plugins screen, renamed "WordSocket: <name>" (the name that screen sorts by) and indented under it, so the family stays together; `wordsocket_nested_plugin_rows` filters the rows and an empty array switches it off
+
 = 0.23.0 =
 * New: `WPS.uuid()` returns a v4 UUID and works on plain HTTP sites too, where browsers do not offer `crypto.randomUUID`
 * New: `WPS.visitorId()` is a stable per-browser id shared by every tab and extension on the site, for counting people rather than connections
