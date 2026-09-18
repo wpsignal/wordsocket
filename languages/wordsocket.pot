@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: WordSocket 0.21.0\n"
+"Project-Id-Version: WordSocket 0.23.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wordsocket\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-12T19:54:55+00:00\n"
+"POT-Creation-Date: 2026-09-18T04:10:48+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 3.0.0-alpha-01b1b10\n"
 "X-Domain: wordsocket\n"
@@ -105,7 +105,8 @@ msgid "The WPSignal server refused the last publish."
 msgstr ""
 
 #: includes/class-wpsignal-publisher.php:98
-#: includes/class-wpsignal-token.php:161
+#: includes/class-wpsignal-publisher.php:206
+#: includes/class-wpsignal-token.php:192
 msgid "WordSocket is not configured."
 msgstr ""
 
@@ -113,35 +114,35 @@ msgstr ""
 msgid "Monthly message quota reached."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:152
+#. translators: %d: HTTP status code
+#: includes/class-wpsignal-publisher.php:256
+#, php-format
+msgid "HTTP %d"
+msgstr ""
+
+#: includes/class-wpsignal-token.php:183
 msgid "JWT secret not configured."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:273
+#: includes/class-wpsignal-token.php:326
 msgid "Channel and event are required."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:300
+#: includes/class-wpsignal-token.php:353
 msgid "API Key is empty, please include it and try again."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:312
+#: includes/class-wpsignal-token.php:365
 #: build/settings.js:1
 msgid "API Key is invalid, please include a valid API Key and try again."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:352
+#: includes/class-wpsignal-token.php:405
 msgid "Invalid response from server."
 msgstr ""
 
-#: includes/class-wpsignal-token.php:362
+#: includes/class-wpsignal-token.php:415
 msgid "Connection settings validated!"
-msgstr ""
-
-#. translators: %d: HTTP status code
-#: includes/class-wpsignal-token.php:572
-#, php-format
-msgid "HTTP %d"
 msgstr ""
 
 #: includes/class-wpsignal-triggers-rest.php:127
@@ -560,7 +561,11 @@ msgid "Could not load extensions."
 msgstr ""
 
 #: build/settings.js:4
-msgid "Extensions are plugins built on WordSocket. Installed extensions add their settings here; the rest are available or on their way."
+msgid "Extensions are WordPress plugins built on WordSocket."
+msgstr ""
+
+#: build/settings.js:4
+msgid "Installed extensions"
 msgstr ""
 
 #: build/settings.js:4
@@ -573,6 +578,10 @@ msgstr ""
 
 #: build/settings.js:4
 msgid "Available extensions"
+msgstr ""
+
+#: build/settings.js:4
+msgid "These extensions are coming soon."
 msgstr ""
 
 #: build/settings.js:4
