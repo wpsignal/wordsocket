@@ -193,7 +193,7 @@ export function TabConnection({ title }: { title: string }) {
                 )}
               </Notice>
             )}
-            <ConnectionStatusSlot />
+            {/* <ConnectionStatusSlot /> */}
             {!isConnected && ["idle", "disconnected"].includes(fetchStatus) && (
               <Notice status="error" isDismissible={false}>
                 {__("Not connected to WPSignal. Try connecting.", "wordsocket")}
