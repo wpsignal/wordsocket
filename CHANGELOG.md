@@ -1,3 +1,5 @@
+**0.23.1** - Hide future slot fill.
+
 **0.24.0** - Extensions now sit with WordSocket on the Plugins screen: an extension's row is renamed "WordSocket: <name>", which is what that screen sorts by, and indented under it, so the family stays together however many plugins a site has. Only plugins that asked are touched: an extension either names its plugin file when it registers (`file` in `WPS::extensions()->register()`) or declares `Requires Plugins: wordsocket` in its header. The `wordsocket_nested_plugin_rows` filter picks the rows, and an empty array leaves every name alone.
 
 **0.23.0** - Three helpers on `window.WPS` so extensions stop writing their own: `WPS.uuid()`, a v4 UUID that also works on plain HTTP pages (where `crypto.randomUUID` does not exist); `WPS.visitorId()`, a stable per-browser id shared by every tab and extension on the site, for counting people rather than sockets; and `WPS.onChannel( channel, expected )`, the check that an event arrived on the channel it claims, bare or `site:{id}:` qualified.
