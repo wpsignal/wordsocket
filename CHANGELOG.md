@@ -1,4 +1,4 @@
-**0.23.1** - Hide future slot fill.
+**0.24.1** - Hide future slot fill.
 
 **0.24.0** - Extensions now sit with WordSocket on the Plugins screen: an extension's row is renamed "WordSocket: <name>", which is what that screen sorts by, and indented under it, so the family stays together however many plugins a site has. Only plugins that asked are touched: an extension either names its plugin file when it registers (`file` in `WPS::extensions()->register()`) or declares `Requires Plugins: wordsocket` in its header. The `wordsocket_nested_plugin_rows` filter picks the rows, and an empty array leaves every name alone.
 
