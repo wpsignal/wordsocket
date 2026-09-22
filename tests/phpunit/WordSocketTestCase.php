@@ -102,6 +102,38 @@ abstract class WordSocketTestCase extends TestCase {
 		wp_set_current_user( (int) $admins[0] );
 	}
 
+	/**
+	 * A publish body as the relay's subscribers see it: `channel`, `event` and
+	 * `data`, with the encrypted envelope opened. Every publish is encrypted
+	 * whatever the scheme, so tests that care about the event read it here
+	 * rather than off the wire.
+	 *
+	 * @param string $body JSON body of a `/publish` request.
+	 * @return array{channel: string, event: string, data: array}
+	 */
+	protected function open_publish( string $body ): array {
+		$decoded = json_decode( $body, true );
+		if ( 'encrypted' === ( $decoded['event'] ?? '' ) ) {
+			$raw   = base64_decode( $decoded['data']['p'] );
+			$plain = openssl_decrypt(
+				substr( $raw, 12, -16 ),
+				'aes-256-gcm',
+				WPSignal\WPS::instance()->config()->encryption_key(),
+				OPENSSL_RAW_DATA,
+				substr( $raw, 0, 12 ),
+				substr( $raw, -16 )
+			);
+			$this->assertNotFalse( $plain, 'the envelope decrypts with the site key' );
+			$inner   = json_decode( $plain, true );
+			$decoded = array(
+				'channel' => $decoded['channel'],
+				'event'   => $inner['event'],
+				'data'    => $inner['data'],
+			);
+		}
+		return $decoded;
+	}
+
 	/** Decode a JWT payload without verifying (tests verify separately). */
 	protected static function jwt_parts( string $token ): array {
 		list( $h, $p, $s ) = explode( '.', $token );

@@ -21,10 +21,10 @@ import {
  */
 import { useSettings } from "../context";
 import { getToken, publishEvent } from "../api";
+import { relayEndpoints, withQuery } from "../../utils/relay";
 
 const settings = window.wpsignalSettings ?? { triggers: [], baseUrl: "" };
 
-const { isSsl = false } = window.wpSignalConfig ?? {};
 
 interface LogEntry {
   text: string;
@@ -142,12 +142,8 @@ function PanelEventLog({
 
     getToken()
       .then(({ token }) => {
-        const baseUrl = new URL(settings?.baseUrl ?? "");
-        const proto = isSsl ? "wss" : "ws";
-        const host = baseUrl.host;
-        const ws = new WebSocket(
-          `${proto}://${host}/ws?token=${encodeURIComponent(token)}`,
-        );
+        // The endpoint comes from PHP, so an http:// admin still talks to a wss:// relay.
+        const ws = new WebSocket(withQuery(relayEndpoints(settings).ws, { token }));
         wsRef.current = ws;
 
         addLog(__("Connecting...", "wordsocket"), "#72aee6");

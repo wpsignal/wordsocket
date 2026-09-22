@@ -1,8 +1,9 @@
 <?php
 /**
- * Publisher: HMAC signing, encryption on SSL, failure handling.
+ * Publisher: HMAC signing, encryption on every site, failure handling.
  */
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use WPSignal\Notices;
 use WPSignal\WPS;
 
@@ -34,11 +35,10 @@ final class PublisherTest extends WordSocketTestCase {
 			$headers['X-WP-Signal-Sign']
 		);
 
-		// Plain HTTP: event and data travel in the clear.
+		// The signature covers the body as sent, which is the encrypted envelope.
 		$decoded = json_decode( $body, true );
 		$this->assertSame( 'events', $decoded['channel'] );
-		$this->assertSame( 'demo.event', $decoded['event'] );
-		$this->assertSame( array( 'n' => 1 ), $decoded['data'] );
+		$this->assertSame( 'encrypted', $decoded['event'] );
 	}
 
 	public function test_stats_is_a_signed_get_over_an_empty_body(): void {
@@ -69,16 +69,41 @@ final class PublisherTest extends WordSocketTestCase {
 		$this->assertSame( 'unknown site key', $data['message'] );
 	}
 
-	public function test_publish_encrypts_over_ssl_and_the_ciphertext_round_trips(): void {
+	/**
+	 * Plain HTTP used to publish in the clear, because the browser had no way to
+	 * decrypt there. The client now carries a pure-JS cipher for that case, so
+	 * both schemes encrypt, and only the channel (which the relay routes on)
+	 * stays readable.
+	 *
+	 * @return array<string, array{0: bool}>
+	 */
+	public static function schemes(): array {
+		return array(
+			'https'      => array( true ),
+			'plain http' => array( false ),
+		);
+	}
+
+	#[DataProvider( 'schemes' )]
+	public function test_publish_encrypts_on_every_scheme_and_the_ciphertext_round_trips( bool $https ): void {
 		$this->connect_site();
-		$_SERVER['HTTPS'] = 'on';
+		if ( $https ) {
+			$_SERVER['HTTPS'] = 'on';
+		} else {
+			unset( $_SERVER['HTTPS'] );
+		}
+		$this->assertSame( $https, is_ssl() );
 		$this->fake_http( static fn() => array( 200, array( 'ok' => true ) ) );
 
 		WPS::publish( 'events', 'secret.event', array( 'answer' => 42 ) );
 
-		$decoded = json_decode( $this->requests[0]['args']['body'], true );
+		$body    = $this->requests[0]['args']['body'];
+		$decoded = json_decode( $body, true );
+		$this->assertSame( 'events', $decoded['channel'], 'the relay still needs the channel to route' );
 		$this->assertSame( 'encrypted', $decoded['event'] );
 		$this->assertSame( 1, $decoded['data']['v'] );
+		$this->assertStringNotContainsString( 'secret.event', $body );
+		$this->assertStringNotContainsString( '42', $body );
 
 		$raw = base64_decode( $decoded['data']['p'] );
 		$iv  = substr( $raw, 0, 12 );

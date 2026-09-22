@@ -26,10 +26,10 @@ final class TriggersTest extends WordSocketTestCase {
 		parent::tearDown();
 	}
 
-	/** Bodies of every publish made so far, decoded. */
+	/** Every publish made so far, as subscribers see it (envelope opened). */
 	private function published(): array {
 		return array_map(
-			static fn( $r ) => json_decode( $r['args']['body'], true ),
+			fn( $r ) => $this->open_publish( $r['args']['body'] ),
 			array_filter( $this->requests, static fn( $r ) => str_ends_with( $r['url'], '/publish' ) )
 		);
 	}

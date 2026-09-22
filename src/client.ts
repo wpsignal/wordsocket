@@ -12,6 +12,8 @@
 import { wpsDebug } from "./utils";
 import { onChannel, uuid, visitorId } from "./utils/identity";
 import { Backoff } from "./utils/backoff";
+import { createDecryptor, type Decryptor } from "./utils/crypto";
+import { relayEndpoints } from "./utils/relay";
 import WPSClientDebug from "./utils/client-debug";
 import WPSignalEvent from "./event";
 import { SseTransport, WebSocketTransport } from "./transports";
@@ -56,7 +58,8 @@ const STALE_CHECK_INTERVAL_MS = 10000;
 
 export class WPSignalClient implements WPSApi {
   private readonly config: WpSignalConfig;
-  private readonly baseUrl: string;
+  /** Relay endpoints from PHP; the transports append the token. */
+  private readonly endpoints: WpSignalEndpoints;
 
   private activeTransport: WPSTransport | null = null;
   private transportName: WPSTransportName | null = null;
@@ -109,14 +112,12 @@ export class WPSignalClient implements WPSApi {
    */
   private readonly desiredPresence = new Map<string, Record<string, unknown>>();
 
-  /** Cached import of the AES-256-GCM key; resolved once and reused for every message. */
-  private cryptoKeyPromise: Promise<CryptoKey | null> | null = null;
-  /** True when SubtleCrypto is unavailable (HTTP context); suppresses per-message warnings. */
-  private noSubtleCrypto = false;
+  /** Cached AES-256-GCM decryptor; built once and reused for every message. */
+  private decryptorPromise: Promise<Decryptor | null> | null = null;
 
   constructor(config: WpSignalConfig) {
     this.config = config;
-    this.baseUrl = config.baseUrl.replace(/\/+$/, "");
+    this.endpoints = relayEndpoints(config);
   }
 
   /**
@@ -489,7 +490,7 @@ export class WPSignalClient implements WPSApi {
 
   private connectWebSocketTransport(token: string, channels: string[]): void {
     channels.forEach((ch) => this.subscribedChannels.add(ch));
-    const transport = new WebSocketTransport(this.baseUrl, {
+    const transport = new WebSocketTransport(this.endpoints.ws, {
       onOpen: () => {
         /*
          * Subscribe before announcing the connection: onConnectionChange
@@ -557,7 +558,7 @@ export class WPSignalClient implements WPSApi {
 
   private connectSseTransport(token: string, channels: string[]): void {
     channels.forEach((ch) => this.subscribedChannels.add(ch));
-    const transport = new SseTransport(this.baseUrl, {
+    const transport = new SseTransport(this.endpoints.sse, {
       onOpen: () => {
         this.replaySubscriptions();
         this.setConnected(true);
@@ -610,7 +611,7 @@ export class WPSignalClient implements WPSApi {
   private probeWebSocket(token: string, channels: string[]): void {
     const stream = this.activeTransport;
     if (this.halted || !this.webSocketPossible() || !stream || stream.name !== "sse") return;
-    const socket: WebSocketTransport = new WebSocketTransport(this.baseUrl, {
+    const socket: WebSocketTransport = new WebSocketTransport(this.endpoints.ws, {
       onOpen: () => {
         if (this.activeTransport !== stream) {
           socket.close(); // the stream moved on while the socket was opening
@@ -834,7 +835,7 @@ export class WPSignalClient implements WPSApi {
       this.decryptMessage(message.data.p).then((plain) => {
         if (plain) {
           this.dispatchEvent(plain.event, message.channel, plain.data ?? {});
-        } else if (!this.noSubtleCrypto) {
+        } else {
           wpsDebug(
             "Could not decrypt message on channel",
             message.channel,
@@ -859,55 +860,35 @@ export class WPSignalClient implements WPSApi {
   }
 
   /**
-   * Import the AES-256-GCM key from `wpSignalConfig.encryptionKey` (base64).
-   * The result is cached: the key is imported once and reused for every message.
-   * Returns `null` if no key is configured or SubtleCrypto is unavailable.
+   * Build the AES-256-GCM decryptor from `wpSignalConfig.encryptionKey` (base64),
+   * once, and reuse it for every message. SubtleCrypto where the page has it, a
+   * pure-JS cipher on plain HTTP (see `utils/crypto.ts`). `null` only when no key
+   * is configured.
    */
-  private getCryptoKey(): Promise<CryptoKey | null> {
-    if (!this.cryptoKeyPromise) {
+  private getDecryptor(): Promise<Decryptor | null> {
+    if (!this.decryptorPromise) {
       const b64 = this.config.encryptionKey;
-      if (!b64) {
-        this.cryptoKeyPromise = Promise.resolve(null);
-      } else if (typeof crypto === "undefined" || !crypto.subtle) {
-        this.noSubtleCrypto = true;
-        wpsDebug(
-          "SubtleCrypto unavailable",
-          "Encrypted messages cannot be decrypted on HTTP. Use HTTPS to enable decryption.",
-          "warn",
-        );
-        this.cryptoKeyPromise = Promise.resolve(null);
-      } else {
-        const raw = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-        this.cryptoKeyPromise = crypto.subtle
-          .importKey("raw", raw, { name: "AES-GCM" }, false, ["decrypt"])
-          .catch(() => null);
-      }
+      this.decryptorPromise = b64
+        ? createDecryptor(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))).catch(() => null)
+        : Promise.resolve(null);
     }
-    return this.cryptoKeyPromise;
+    return this.decryptorPromise;
   }
 
   /**
    * Decrypt an encrypted message payload produced by the PHP Publisher.
    *
-   * Wire format (base64-encoded): `IV[12] || ciphertext[N] || auth-tag[16]`
-   * SubtleCrypto expects `ciphertext || tag` as the data argument, which is `buf[12:]`.
+   * Wire format (base64-encoded): `IV[12] || ciphertext[N] || auth-tag[16]`.
    *
    * Returns the parsed `{ event, data }` object, or `null` on failure.
    */
   private async decryptMessage(
     p: string,
   ): Promise<{ event: string; data: Record<string, unknown> } | null> {
-    const key = await this.getCryptoKey();
-    if (!key) return null;
+    const decrypt = await this.getDecryptor();
+    if (!decrypt) return null;
     try {
-      const buf = Uint8Array.from(atob(p), (c) => c.charCodeAt(0));
-      const iv = buf.slice(0, 12);
-      const cipherWithTag = buf.slice(12);
-      const plain = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv },
-        key,
-        cipherWithTag,
-      );
+      const plain = await decrypt(Uint8Array.from(atob(p), (c) => c.charCodeAt(0)));
       return JSON.parse(new TextDecoder().decode(plain));
     } catch {
       wpsDebug("Decryption failed", null, "warn");

@@ -1,4 +1,5 @@
 import { wpsDebug } from "../utils";
+import { withQuery } from "../utils/relay";
 import {
   WPSTransport,
   WPSTransportCallbacks,
@@ -20,14 +21,14 @@ export class WebSocketTransport implements WPSTransport {
   private lastMessageAt: number | null = null;
 
   constructor(
-    private readonly baseUrl: string,
+    private readonly socketUrl: string,
     private readonly callbacks: WPSTransportCallbacks,
   ) {}
 
   connect({ token }: WPSTransportConnectOptions): void {
     this.didOpen = false;
     this.isClosing = false;
-    this.ws = new WebSocket(this.wsUrl(token));
+    this.ws = new WebSocket(withQuery(this.socketUrl, { token }));
     this.ws.binaryType = "arraybuffer";
 
     this.ws.addEventListener("open", () => {
@@ -122,11 +123,7 @@ export class WebSocketTransport implements WPSTransport {
     };
   }
 
-  private wsUrl(token: string): string {
-    const wsProto = this.baseUrl.startsWith("https") ? "wss" : "ws";
-    const wsHost = this.baseUrl.replace(/^https?:\/\//, "");
-    return `${wsProto}://${wsHost}/ws?token=${encodeURIComponent(token)}`;
-  }
+
 
   private isOpen(): boolean {
     return this.ws?.readyState === WebSocket.OPEN;

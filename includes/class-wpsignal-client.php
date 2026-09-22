@@ -120,6 +120,7 @@ class Client {
 		 */
 		$localize = array(
 			'baseUrl'          => esc_url( $base_url ),
+			'endpoints'        => $this->config->endpoints(),
 			'isSsl'            => is_ssl(),
 			'wpVersion'        => (float) wp_get_wp_version(),
 			'isConstant'       => $this->config->credential_source() === 'constant',

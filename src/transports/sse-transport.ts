@@ -1,4 +1,5 @@
 import { wpsDebug } from "../utils";
+import { withQuery } from "../utils/relay";
 import {
   WPSTransport,
   WPSTransportCallbacks,
@@ -29,7 +30,7 @@ export class SseTransport implements WPSTransport {
   private readonly channels = new Set<string>();
 
   constructor(
-    private readonly baseUrl: string,
+    private readonly sseUrl: string,
     private readonly callbacks: WPSTransportCallbacks,
   ) {}
 
@@ -37,7 +38,7 @@ export class SseTransport implements WPSTransport {
     this.token = token;
     channels.forEach((channel) => this.channels.add(channel));
 
-    const url = `${this.baseUrl}/sse?token=${encodeURIComponent(token)}&channels=${encodeURIComponent([...this.channels].join(","))}`;
+    const url = withQuery(this.sseUrl, { token, channels: [...this.channels].join(",") });
     const source = new EventSource(url);
     this.source = source;
 

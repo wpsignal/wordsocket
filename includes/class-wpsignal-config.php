@@ -72,6 +72,37 @@ class Config {
 	}
 
 	/**
+	 * The relay endpoints the browser connects to, derived from the base URL.
+	 *
+	 * The browser takes these as given rather than building them, so it never
+	 * picks a socket scheme from its own page: the relay is `wss` whenever its
+	 * base URL is `https`, even on a plain `http` WordPress site. The connection
+	 * token is appended in the browser, since it is minted and refreshed at
+	 * runtime. `ws` and `wss` are passed to `sanitize_url()` explicitly: they are
+	 * not in `wp_allowed_protocols()`, which would reduce the socket URL to an
+	 * empty string.
+	 *
+	 * @return array{ws: string, sse: string} e.g. `wss://api.wpsignal.io/ws` and `https://api.wpsignal.io/sse`.
+	 */
+	public function endpoints(): array {
+		return self::endpoints_for( $this->base_url() );
+	}
+
+	/**
+	 * The endpoints for a given relay base URL (see `endpoints()`).
+	 *
+	 * @param string $base Relay base URL, `http` or `https`.
+	 * @return array{ws: string, sse: string}
+	 */
+	public static function endpoints_for( string $base ): array {
+		$base = untrailingslashit( $base );
+		return array(
+			'ws'  => sanitize_url( preg_replace( '#^http(s?)://#', 'ws$1://', $base ) . '/ws', array( 'ws', 'wss' ) ),
+			'sse' => sanitize_url( $base . '/sse' ),
+		);
+	}
+
+	/**
 	 * Get the server connect URL.
 	 *
 	 * @return string Connect URL.

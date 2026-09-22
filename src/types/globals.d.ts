@@ -1,3 +1,11 @@
+/** The relay endpoints, built in PHP by `Config::endpoints()`; the browser only appends the query. */
+interface WpSignalEndpoints {
+	/** WebSocket endpoint, e.g. `wss://api.wpsignal.io/ws`. */
+	ws: string;
+	/** Server-Sent Events endpoint, e.g. `https://api.wpsignal.io/sse`. */
+	sse: string;
+}
+
 /** Localized by class-wpsignal-client.php */
 interface WpSignalConfig {
 	/** WordPress version. */
@@ -20,6 +28,8 @@ interface WpSignalConfig {
 	nonce: string;
 	/** WPSignal server URL. */
 	baseUrl: string;
+	/** Relay endpoints from PHP. Absent only on a page cached before 0.25 (see `relayEndpoints`). */
+	endpoints?: WpSignalEndpoints;
 	/** Server-side minted token (present on first load; absent on refresh calls). */
 	token?: string;
 	channels?: string[];
@@ -44,6 +54,8 @@ interface WpSignalSettings {
 	postTypes: Array< { value: string; label: string } >;
 	/** WPSignal server base URL. */
 	baseUrl: string;
+	/** Relay endpoints from PHP, for the Explorer's socket. */
+	endpoints?: WpSignalEndpoints;
 	/** WPSignal dashboard URL, derived from baseUrl. */
 	dashboardUrl: string;
 	/** Stored site key (set after either connection flow completes). */
