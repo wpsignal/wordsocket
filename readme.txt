@@ -174,6 +174,9 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 
 == Changelog ==
 
+= 0.26.0 =
+* Keeps collaboration working when Gutenberg stops exposing the `wp.sync` global. The provider now takes the editor's Yjs instance from the `Y` option Gutenberg passes it, and still reads the global on older versions
+
 = 0.25.0 =
 * Events are now encrypted on plain HTTP sites too. The browser client decrypts with a bundled AES-256-GCM implementation where SubtleCrypto is unavailable, so the relay reads ciphertext on every site, not only HTTPS ones
 * Fixed: the Explorer tab could not connect on a plain HTTP site. It chose `ws://` from the page's scheme instead of the relay's, so the TLS handshake failed (close 1006)

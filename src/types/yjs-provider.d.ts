@@ -23,6 +23,12 @@ interface ProviderCreatorOptions {
    * for collection-level providers (e.g. the comments/notes collection).
    */
   awareness?: Awareness;
+  /**
+   * The editor's Yjs instance (Gutenberg 23.9+, WordPress/gutenberg#82621).
+   * Absent on older builds, which expose it as the `wp.sync.Y` global instead;
+   * `resolveYjs()` in yjs-runtime.ts takes whichever is there.
+   */
+  Y?: import("../yjs-runtime").YjsModule;
 }
 
 /** Contract @wordpress/sync expects every provider to satisfy. */

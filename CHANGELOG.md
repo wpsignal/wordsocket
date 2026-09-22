@@ -1,3 +1,5 @@
+**0.26.0** - Works with Gutenberg once it stops exposing `wp.sync` (WordPress/gutenberg#81999): the provider takes the editor's Yjs instance from the `Y` provider option added in #82621, falling back to the `wp.sync.Y` global on older Gutenberg, and the bundled y-protocols resolves `yjs` to that same instance.
+
 **0.25.0** - Events are encrypted on plain HTTP sites too: where SubtleCrypto is unavailable the client decrypts with a bundled AES-256-GCM implementation (`@noble/ciphers`), so the relay reads ciphertext on every site rather than only HTTPS ones. Also fixes the Explorer tab on plain HTTP sites, which chose `ws://` from the page's scheme instead of the relay's and failed with close 1006. And fixes the Plugins screen, where extension rows sorted to the top of the list instead of under WordSocket, because their renamed titles began with markup.
 
 **0.24.1** - Hide future slot fill.
