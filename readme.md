@@ -2,7 +2,16 @@
 
 # WordSocket
 
+[![WordPress.org version](https://img.shields.io/wordpress/plugin/v/wordsocket?label=wordpress.org&color=21759b)](https://wordpress.org/plugins/wordsocket/)
+[![Downloads](https://img.shields.io/wordpress/plugin/dt/wordsocket?color=21759b)](https://wordpress.org/plugins/wordsocket/advanced/)
+[![Tested up to](https://img.shields.io/wordpress/plugin/tested/wordsocket?color=21759b)](https://wordpress.org/plugins/wordsocket/)
+[![Requires PHP](https://img.shields.io/wordpress/plugin/required-php/wordsocket)](https://wordpress.org/plugins/wordsocket/)
+[![Build](https://img.shields.io/github/actions/workflow/status/wpsignal/wordsocket/release.yml)](https://github.com/wpsignal/wordsocket/actions/workflows/release.yml)
+[![License](https://img.shields.io/github/license/wpsignal/wordsocket)](LICENSE.md)
+
 The official WordPress plugin for [WPSignal](https://wpsignal.io). WordSocket enables developers to connect their site to a secure WebSocket relay.
+
+Events are published over one WebSocket per browser, with an SSE fallback, and their contents are AES-256-GCM encrypted before they leave WordPress with a key derived from the site's own salts, so the relay carries ciphertext it cannot read. WordSocket also registers a Yjs sync provider, so Gutenberg's real-time collaboration runs over the same connection instead of HTTP polling.
 
 ## Install:
 
@@ -45,9 +54,19 @@ const on = WPS.on( 'comment.posted', (comment: Comment) => {
 
 Full documentation, API reference, and guides are at <a href="https://wpsignal.io/docs" target="_blank">wpsignal.io/docs</a>.
 
+## Extensions
+
+Plugins built on WordSocket, each one installed alongside it and rendering its own panel on WordSocket's Extensions tab. Source for all of them: [wpsignal/wordsocket-extensions](https://github.com/wpsignal/wordsocket-extensions).
+
+| Extension | What it does |
+|-----------|--------------|
+| [ShopSocket](https://wpsignal.io/extensions/shopsocket) | A live orders board for WooCommerce teams, and live stock on product pages. |
+
+Building your own is [documented here](https://wpsignal.io/docs): register it with `WPS::extensions()->register()`, reserve a channel namespace, and share the connection WordSocket already holds.
+
 ## Showcase
 
-https://github.com/wpsignal/wordsocket-examples
+Example plugins built on WordSocket, made to read rather than to install: [wpsignal/wordsocket-examples](https://github.com/wpsignal/wordsocket-examples).
 
 ## Changelog
 
