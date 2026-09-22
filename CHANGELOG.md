@@ -1,3 +1,5 @@
+**0.25.0** - Events are encrypted on plain HTTP sites too: where SubtleCrypto is unavailable the client decrypts with a bundled AES-256-GCM implementation (`@noble/ciphers`), so the relay reads ciphertext on every site rather than only HTTPS ones. Also fixes the Explorer tab on plain HTTP sites, which chose `ws://` from the page's scheme instead of the relay's and failed with close 1006.
+
 **0.24.1** - Hide future slot fill.
 
 **0.24.0** - Extensions now sit with WordSocket on the Plugins screen: an extension's row is renamed "WordSocket: <name>", which is what that screen sorts by, and indented under it, so the family stays together however many plugins a site has. Only plugins that asked are touched: an extension either names its plugin file when it registers (`file` in `WPS::extensions()->register()`) or declares `Requires Plugins: wordsocket` in its header. The `wordsocket_nested_plugin_rows` filter picks the rows, and an empty array leaves every name alone.

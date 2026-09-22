@@ -15,7 +15,7 @@ WebSocket relay for WordPress. Realtime events plus a Yjs sync provider for Gute
 WordSocket sends realtime events from your WordPress site to connected browsers.
 When content changes: a post is published, a comment is approved, an option is updated: the plugin pushes the event to subscribers instantly via WebSocket (with SSE fallback).
 
-When real-time collaboration is available (currently via the Gutenberg plugin, ahead of its arrival in WordPress core), WordSocket also registers as a WebSocket-based Yjs sync provider for realtime collaborative editing in the block editor, replacing the default HTTP polling transport with a low-latency WebSocket connection.
+When real-time collaboration is available (currently through the Gutenberg plugin), WordSocket also registers as a WebSocket-based Yjs sync provider for realtime collaborative editing in the block editor, replacing the default HTTP polling transport with a low-latency WebSocket connection.
 
 WPSignal is an independent service and is not affiliated with or endorsed by the WordPress project.
 
@@ -26,8 +26,8 @@ WPSignal is an independent service and is not affiliated with or endorsed by the
 * Disconnect button with inline confirmation: the site is archived on the server, its usage history is kept, and reconnecting the same URL restores it
 * WebSocket-first with automatic SSE fallback
 * Per-site JWT signing secrets: each site's connection tokens are cryptographically isolated
-* AES-256-GCM encrypted event payloads: the WPSignal relay receives ciphertext only and never has access to plaintext message content
-* Admin toggle to disable the collaboration provider and fall back to WordPress HTTP polling
+* AES-256-GCM encrypted event payloads: the WPSignal relay never has access to their plaintext
+* Admin toggle to disable the collaboration provider and fall back to Gutenberg's HTTP polling
 * Built-in triggers for post updates and custom post types
 * Custom trigger builder: map any WordPress action hook to a realtime event
 * Public JavaScript API (`window.WPS`) for themes and plugins to share the connection
@@ -40,18 +40,18 @@ WPSignal is an independent service and is not affiliated with or endorsed by the
 1. Install the plugin and connect to the WPSignal service.
 2. When content changes in WordPress, the plugin encrypts and publishes an HMAC-signed event to the WPSignal server.
 3. The server pushes the ciphertext to all browsers subscribed to that channel.
-4. The browser decrypts the payload and dispatches `wpsignal:*` DOM events. The relay never sees plaintext content.
+4. The browser decrypts the payload and dispatches `wpsignal:*` DOM events. The relay never sees the payload's plaintext.
 5. When real-time collaboration is available on the site, the block editor uses the same WebSocket connection for collaborative editing with no extra configuration.
 
 = Real-Time Collaboration =
 
 WordSocket ships a WebSocket sync provider for the block editor's real-time collaboration feature. Three things need to be true for it to activate:
 
-1. **The Gutenberg plugin is active.** Real-time collaboration was removed from WordPress core before the 7.0 release; until it ships in core, the feature is only available through the Gutenberg plugin.
+1. **The Gutenberg plugin is active.** Real-time collaboration was removed from WordPress core before the 7.0 release and is only available through the Gutenberg plugin.
 2. **Real-time collaboration is enabled** under **Gutenberg > Experiments > Enable real-time collaboration** (Gutenberg 23.8 and later; earlier versions used Settings > Writing).
 3. **The site is connected to WPSignal**, since the provider shares the plugin's WebSocket connection.
 
-The WordSocket Settings tab shows a "Gutenberg detected" badge when the feature is available on your site. Once active, everything collaboration syncs travels over the WebSocket instead of HTTP polling: document updates, cursors and presence, and collaborative notes. If the connection drops, the provider reconnects with increasing delays; after repeated failures the editor shows its standard "connection lost" dialog, and documents re-sync when the connection returns. If a site's credentials are revoked, the editor reports an authentication error instead of retrying forever. The site editor does not use sync providers (core disables collaboration there). Disabling the provider from the Settings tab restores WordPress HTTP polling for all editors.
+The WordSocket Settings tab shows a "Gutenberg detected" badge when the feature is available on your site. Once active, everything collaboration syncs travels over the WebSocket instead of HTTP polling: document updates, cursors and presence, and collaborative notes. If the connection drops, the provider reconnects with increasing delays; after repeated failures the editor shows its standard "connection lost" dialog, and documents re-sync when the connection returns. If a site's credentials are revoked, the editor reports an authentication error instead of retrying forever. The site editor does not use sync providers (core disables collaboration there). Disabling the provider from the Settings tab restores Gutenberg's HTTP polling for all editors.
 
 = Third-Party Service =
 
@@ -60,8 +60,9 @@ This plugin connects to the **WPSignal service** at api.wpsignal.io for the foll
 * **Site registration**: when you connect in the admin (via the automatic one-click flow or by entering an API key manually), the plugin registers your site with the server and receives credentials.
 * **Event publishing**: when a trigger fires (e.g. a post is saved), the plugin sends an encrypted, HMAC-signed HTTP request to the server.
 * **Realtime connections**: logged-in users' browsers connect to the server via WebSocket or SSE to receive events.
+* **Collaborative editing**: when real-time collaboration is enabled through the Gutenberg plugin, editors' browsers relay Yjs document updates (binary diffs of the post being edited), cursors and presence to each other through the server, over the same WebSocket.
 
-Event payloads are AES-256-GCM encrypted before leaving WordPress. The WPSignal server relays ciphertext and never has access to plaintext message content. Data is delivered in realtime and is **not persisted** on the server.
+Event payloads are AES-256-GCM encrypted before leaving WordPress, so the WPSignal server relays ciphertext and never has access to their plaintext. Collaborative editing updates are **not** encrypted: the server could read them, though it only forwards them and never parses or stores them. Data is delivered in realtime and is **not persisted** on the server.
 
 * [Terms of Service](https://wpsignal.io/terms)
 * [Privacy Policy](https://wpsignal.io/privacy)
@@ -104,6 +105,10 @@ To create an account, visit [wpsignal.io](https://wpsignal.io).
 
 [https://github.com/wpsignal/wordsocket](https://github.com/wpsignal/wordsocket)
 
+= Third-party libraries =
+
+The browser client bundles [@noble/ciphers](https://github.com/paulmillr/noble-ciphers) (MIT, audited) for AES-256-GCM decryption on plain HTTP pages, where browsers do not offer SubtleCrypto. It is compiled into `build/client.js` by `npm run build`.
+
 == Frequently Asked Questions ==
 
 = What is WPSignal? =
@@ -116,7 +121,7 @@ Yes. The plugin requires a WPSignal account to relay events. Create a free accou
 
 = What data is sent to the WPSignal server? =
 
-During registration: your site URL and name. During normal operation: AES-256-GCM encrypted event payloads (the server never sees plaintext content). When real-time collaboration is enabled, Yjs document updates (binary diffs of block editor content) are also relayed. All data is delivered in realtime and is not stored on the server. See our [Privacy Policy](https://wpsignal.io/privacy) for full details.
+During registration: your site URL and name. During normal operation: event payloads, AES-256-GCM encrypted on every site including plain HTTP ones, with a key derived from your site's WordPress salts that the server never receives, so it never sees their contents. Channel names stay readable because the server routes on them. When real-time collaboration is enabled, Yjs document updates (binary diffs of block editor content) are also relayed. These are **not** encrypted, so the server could read them; it forwards them by channel and never parses or stores them. All data is delivered in realtime and is not stored on the server. See our [Privacy Policy](https://wpsignal.io/privacy) for full details.
 
 = Are my event payloads private? =
 
@@ -156,7 +161,7 @@ Each plan has a monthly message quota. When it is reached the server answers pub
 
 = What happens if WebSocket is unavailable? =
 
-The client falls back to SSE for receiving events. `window.WPS.subscribe()` and `window.WPS.unsubscribe()` work on SSE connections: channel changes are tracked and applied immediately via a lightweight SSE reconnect (50 ms debounce). For collaborative editing, the plugin detects the fallback and emits a "not synced" status so WordPress can surface the appropriate indicator. You can also disable the collaboration provider entirely from the **WordSocket Settings tab** to restore WordPress HTTP polling for all editors.
+The client falls back to SSE for receiving events. `window.WPS.subscribe()` and `window.WPS.unsubscribe()` work on SSE connections: channel changes are tracked and applied immediately via a lightweight SSE reconnect (50 ms debounce). Collaborative editing needs WebSocket, because SSE is receive-only: if the editor opens while the client is on SSE, collaboration stays off for that editor until the page is reloaded with WebSocket available. You can also disable the collaboration provider from the **WordSocket Settings tab** to use Gutenberg's HTTP polling for all editors instead.
 
 == Screenshots ==
 
@@ -168,6 +173,10 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 6. Explorer tab (connected): live Event Log showing an active WebSocket connection and an incoming encrypted event, with a test event published successfully.
 
 == Changelog ==
+
+= 0.25.0 =
+* Events are now encrypted on plain HTTP sites too. The browser client decrypts with a bundled AES-256-GCM implementation where SubtleCrypto is unavailable, so the relay reads ciphertext on every site, not only HTTPS ones
+* Fixed: the Explorer tab could not connect on a plain HTTP site. It chose `ws://` from the page's scheme instead of the relay's, so the TLS handshake failed (close 1006)
 
 = 0.24.1 =
 * Hide future slot fill
