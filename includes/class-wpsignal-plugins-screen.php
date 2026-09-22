@@ -83,9 +83,10 @@ class Plugins_Screen {
 			if ( '' === $name || str_starts_with( $name, $parent ) ) {
 				continue;
 			}
+			// Plain text only: the list table sorts the raw name, so markup would sort ahead of every row.
 			$plugins[ $file ]['Name'] = sprintf(
 				/* translators: 1: WordSocket, the parent plugin. 2: the extension's own name. */
-				'<span class="wps-text-muted">%1$s:</span> %2$s',
+				'%1$s: %2$s',
 				$parent,
 				$name
 			);

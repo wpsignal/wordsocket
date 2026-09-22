@@ -177,6 +177,7 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 = 0.25.0 =
 * Events are now encrypted on plain HTTP sites too. The browser client decrypts with a bundled AES-256-GCM implementation where SubtleCrypto is unavailable, so the relay reads ciphertext on every site, not only HTTPS ones
 * Fixed: the Explorer tab could not connect on a plain HTTP site. It chose `ws://` from the page's scheme instead of the relay's, so the TLS handshake failed (close 1006)
+* Fixed: extension rows on the Plugins screen sorted to the top of the list instead of under WordSocket
 
 = 0.24.1 =
 * Hide future slot fill
