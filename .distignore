@@ -22,3 +22,6 @@ vendor
 phpunit.xml.dist
 playwright.config.ts
 .npmrc
+/artifacts
+AGENTS.md
+.phpunit.result.cache
