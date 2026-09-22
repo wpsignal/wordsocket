@@ -1,19 +1,5 @@
 /*
  * The editor's Yjs instance, held for whatever needs it.
- *
- * Gutenberg used to expose Yjs as the global `wp.sync.Y`. Since Gutenberg
- * 23.9 (WordPress/gutenberg#82621) it passes the instance to the provider
- * creator as `options.Y`, and WordPress/gutenberg#81999 removes the global
- * altogether: `wp.sync` is not in WordPress core, so the plugin is dropping it
- * to match. `resolveYjs()` takes whichever of the two a site offers, and
- * `setYjs()` stores it before the provider runs.
- *
- * Everything reads it back through the forwarding functions below, at call
- * time rather than at import time, because the instance only arrives when the
- * editor creates a provider. Webpack also resolves the bare `yjs` specifier to
- * this module (see webpack.config.js), so the bundled y-protocols shares the
- * editor's copy: a second copy of Yjs has its own class identities and would
- * sync nothing.
  */
 
 /** The part of the Yjs module surface this plugin and y-protocols use. */

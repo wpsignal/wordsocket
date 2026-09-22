@@ -17,10 +17,8 @@ module.exports = {
 		alias: {
 			...defaultConfig.resolve?.alias,
 			/*
-			 * The bundled y-protocols imports `yjs`; point it at the editor's
-			 * instance (held in src/yjs-runtime.ts) rather than a second copy
-			 * of Yjs, which would share no class identities and sync nothing.
-			 * It used to be the `wp.sync.Y` global, which Gutenberg is
+			 * The bundled y-protocols imports `yjs`; point it at the editor's instance (held in src/yjs-runtime.ts) rather than a second copy
+			 * of Yjs, which would share no class identities and sync nothing.  It used to be the `wp.sync.Y` global, which Gutenberg is
 			 * removing (WordPress/gutenberg#81999).
 			 */
 			yjs: path.resolve( __dirname, 'src/yjs-runtime.ts' ),
