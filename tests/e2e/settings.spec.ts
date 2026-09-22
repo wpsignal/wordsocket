@@ -26,9 +26,11 @@ test.describe("WordSocket settings page", () => {
   });
 
   test("Extensions tab renders the stub extension's panel and the catalogue", async ({ admin, page }) => {
-    await admin.visitAdminPage("admin.php", "page=wordsocket");
-    // The stub's status line lands in the Connect tab through ConnectionStatusFill.
-    await expect(page.locator(".stub-extension-status")).toHaveText("Stub extension is active.");
+    /*
+     * The Connect tab's ConnectionStatusSlot is hidden since 0.24.1, so the
+     * stub's ConnectionStatusFill renders nowhere. Restore the check with it:
+     * expect(page.locator(".stub-extension-status")).toHaveText("Stub extension is active.")
+     */
 
     // Tabs are linkable: &tab=extensions opens the tab, and selecting one writes it back.
     await admin.visitAdminPage("admin.php", "page=wordsocket&tab=extensions");
