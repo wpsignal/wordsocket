@@ -37,9 +37,11 @@
  */
 
 /**
- * WordPress dependencies.
+ * Internal dependencies: the editor's Yjs instance, which arrives with the
+ * provider options (Gutenberg 23.9+) or as the `wp.sync.Y` global before that.
  */
-import { Y } from "@wordpress/sync";
+import * as Y from "./yjs-runtime";
+import { resolveYjs, setYjs } from "./yjs-runtime";
 
 /**
  * External dependencies.
@@ -527,6 +529,28 @@ function statusFromState(state: WPSConnectionState): SyncConnectionStatus {
 export async function wpsignalProviderCreator(
   options: ProviderCreatorOptions,
 ): Promise<ProviderCreatorResult> {
+  const yjs = resolveYjs(options.Y);
+  if (!yjs) {
+    debug(
+      "No Yjs instance",
+      "the editor passed none and wp.sync.Y is gone; real-time collaboration is unavailable through WordSocket.",
+      "error",
+    );
+    return {
+      destroy() {},
+      on(_event: "status", handler: StatusHandler) {
+        handler({
+          status: "disconnected",
+          error: new WPSConnectionError(
+            "protocol-mismatch",
+            "WordSocket could not obtain the editor's Yjs instance.",
+          ),
+        });
+      },
+    };
+  }
+  setYjs(yjs);
+
   if (window.WPS?.transport === "sse") {
     debug(
       "WebSocket unavailable",
