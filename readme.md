@@ -60,7 +60,7 @@ Plugins built on WordSocket, each one installed alongside it and rendering its o
 
 | Extension | What it does |
 |-----------|--------------|
-| [ShopSocket](https://wpsignal.io/extensions/shopsocket) | A live orders board for WooCommerce teams, and live stock on product pages. |
+| [ShopSocket](https://wpsignal.io/extensions/shopsocket) | A live orders board for WooCommerce teams, and live stock on product pages. [On WordPress.org](https://wordpress.org/plugins/shopsocket/). |
 
 Building your own is [documented here](https://wpsignal.io/docs): register it with `WPS::extensions()->register()`, reserve a channel namespace, and share the connection WordSocket already holds.
 
