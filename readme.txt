@@ -1,5 +1,5 @@
 === WordSocket ===
-Contributors: wpsignal
+Contributors: wpsignal, jaredrethman
 Tags: realtime, websocket, collaboration, events, woocommerce
 Requires at least: 6.7
 Tested up to: 7.1
