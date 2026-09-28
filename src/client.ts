@@ -327,6 +327,16 @@ export class WPSignalClient implements WPSApi {
         },
       });
     }
+    /*
+     * A prerendered page (Chrome's speculative loading) runs scripts before
+     * anyone is looking at it. Connecting there would count a socket for a
+     * page that may never be shown, so wait until the document is activated.
+     */
+    const doc = document as Document & { prerendering?: boolean };
+    if (doc.prerendering) {
+      document.addEventListener("prerenderingchange", () => this.start(), { once: true });
+      return;
+    }
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", () => this.init());
     } else {
@@ -344,6 +354,18 @@ export class WPSignalClient implements WPSApi {
       }
     });
     window.addEventListener("online", () => this.handleReconnect());
+    /*
+     * Close cleanly when the page goes away. Without this the browser tears
+     * the document down around the socket: on a plain navigation the relay
+     * only learns of it from the transport closing underneath, and a page
+     * parked in the back/forward cache keeps its socket open, so a site's
+     * connection count climbs by one per page visited. A cached page that
+     * comes back gets a fresh connection on pageshow.
+     */
+    window.addEventListener("pagehide", () => this.cleanup());
+    window.addEventListener("pageshow", (event) => {
+      if (event.persisted) this.init();
+    });
     this.startWatchdog();
   }
 

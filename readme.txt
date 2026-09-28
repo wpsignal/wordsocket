@@ -1,6 +1,6 @@
 === WordSocket ===
 Contributors: wpsignal, jaredrethman
-Tags: realtime, websocket, collaboration, events, woocommerce
+Tags: realtime, websocket, server-sent events, events, wordsocket
 Requires at least: 6.7
 Tested up to: 7.1
 Stable tag: 0.26.0
@@ -174,6 +174,10 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 
 == Changelog ==
 
+= 0.27.0 =
+* The browser client closes its connection when a page is left and opens a new one when a page comes back from the browser's back/forward cache, so a site's connection count follows open tabs rather than pages visited
+* The client waits for a prerendered page to be shown before connecting
+
 = 0.26.0 =
 * Keeps collaboration working when Gutenberg stops exposing the `wp.sync` global. The provider now takes the editor's Yjs instance from the `Y` option Gutenberg passes it, and still reads the global on older versions
 
@@ -343,6 +347,9 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 * Initial release.
 
 == Upgrade Notice ==
+
+= 0.27.0 =
+Connection counts now follow open tabs. Update, then reload any storefront pages you keep open.
 
 = 0.26.0 =
 See changelog for details.
