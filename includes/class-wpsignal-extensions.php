@@ -40,7 +40,9 @@ class Extensions {
 
 	/**
 	 * Extensions WPSignal offers, shown with an install or "coming soon" state
-	 * when they are not registered on this site.
+	 * when they are not registered on this site. `url` is either an absolute
+	 * URL or a path inside wp-admin, which `all()` resolves with `admin_url()`
+	 * so the link also works on a site installed in a subdirectory.
 	 *
 	 * @var array<string, array{title: string, description: string, url: string, available: bool}>
 	 */
@@ -48,7 +50,7 @@ class Extensions {
 		'shopsocket'          => array(
 			'title'       => 'ShopSocket',
 			'description' => 'A live orders board for your team and live stock on product pages.',
-			'url'         => '/wp-admin/plugin-install.php?s=ShopSocket&tab=search&type=term',
+			'url'         => 'plugin-install.php?s=ShopSocket&tab=search&type=term',
 			'available'   => true,
 		),
 		'wordsocket-liveblog' => array(
@@ -169,13 +171,27 @@ class Extensions {
 				'title'       => $entry['title'],
 				'description' => $entry['description'],
 				'version'     => '',
-				'docs_url'    => $entry['url'],
+				'docs_url'    => self::catalogue_url( $entry['url'] ),
 				'installed'   => false,
 				'available'   => $entry['available'],
 				'missing'     => array(),
 			);
 		}
 		return $items;
+	}
+
+	/**
+	 * A catalogue link as the browser should follow it: an absolute URL passes
+	 * through, anything else is a wp-admin path resolved with `admin_url()`.
+	 *
+	 * @param string $url Absolute URL, or a path inside wp-admin.
+	 * @return string
+	 */
+	private static function catalogue_url( string $url ): string {
+		if ( preg_match( '#^https?://#i', $url ) ) {
+			return $url;
+		}
+		return admin_url( ltrim( $url, '/' ) );
 	}
 
 	/**

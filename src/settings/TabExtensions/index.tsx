@@ -19,6 +19,18 @@ import { useSettings } from "../context";
 import { ExtensionPanelSlot } from "../extensions/api";
 
 /**
+ * Whether a link leaves this site. The installer lives in this wp-admin and
+ * opens in place; wpsignal.io pages open in a new tab.
+ */
+function isExternal(url: string): boolean {
+  try {
+    return new URL(url, window.location.href).origin !== window.location.origin;
+  } catch {
+    return true;
+  }
+}
+
+/**
  * Extensions tab: cards rendered by installed extensions (through the slot),
  * followed by the catalogue of extensions not installed here.
  */
@@ -40,6 +52,7 @@ export function TabExtensions({ title }: { title: string }) {
   }, []);
 
   const catalogue = (extensions ?? []).filter((ext) => !ext.installed);
+  const comingSoon = catalogue.some((ext) => !ext.available);
   const needing = (extensions ?? []).filter(
     (ext) => ext.installed && ext.missing.length > 0,
   );
@@ -83,7 +96,14 @@ export function TabExtensions({ title }: { title: string }) {
       {catalogue.length > 0 && (
         <div className="wpsignal-extensions-catalogue">
           <h3>{__("Available extensions", "wordsocket")}</h3>
-          <p>{__("These extensions are coming soon.", "wordsocket")}</p>
+          <p>
+            {comingSoon
+              ? __(
+                  "Install the ones that are ready now. The rest are coming soon.",
+                  "wordsocket",
+                )
+              : __("Install any of these from WordPress.org.", "wordsocket")}
+          </p>
           <div className="wpsignal-extensions-grid">
             {catalogue.map((ext) => (
               <Card
@@ -96,8 +116,9 @@ export function TabExtensions({ title }: { title: string }) {
                   {ext.available ? (
                     <a
                       href={ext.docs_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      {...(isExternal(ext.docs_url)
+                        ? { target: "_blank", rel: "noopener noreferrer" }
+                        : {})}
                       className="wpsignal-extension__button"
                     >
                       {__("Get it", "wordsocket")}

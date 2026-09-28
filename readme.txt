@@ -177,6 +177,7 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 = 0.27.0 =
 * The browser client closes its connection when a page is left and opens a new one when a page comes back from the browser's back/forward cache, so a site's connection count follows open tabs rather than pages visited
 * The client waits for a prerendered page to be shown before connecting
+* The Extensions tab offers ShopSocket, now on WordPress.org, with a button that opens the plugin installer in place
 
 = 0.26.0 =
 * Keeps collaboration working when Gutenberg stops exposing the `wp.sync` global. The provider now takes the editor's Yjs instance from the `Y` option Gutenberg passes it, and still reads the global on older versions

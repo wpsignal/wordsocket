@@ -149,6 +149,14 @@ final class ExtensionsTest extends WordSocketTestCase {
 		$this->assertArrayHasKey( 'available', $catalogue_entry );
 	}
 
+	public function test_catalogue_links_resolve_admin_paths_and_keep_absolute_urls(): void {
+		$links = array_column( ( new Extensions() )->all(), 'docs_url', 'slug' );
+
+		// A wp-admin path goes through admin_url(), so a subdirectory install gets the right link.
+		$this->assertSame( admin_url( 'plugin-install.php?s=ShopSocket&tab=search&type=term' ), $links['shopsocket'] );
+		$this->assertSame( 'https://wpsignal.io/extensions/postsocket', $links['wordsocket-liveblog'] );
+	}
+
 	public function test_plugin_files_prefer_a_registered_file_over_the_slug_directory(): void {
 		$extensions = new Extensions();
 		$extensions->register( 'shopsocket', array( 'file' => 'shopsocket-1.0/shopsocket.php' ) );
