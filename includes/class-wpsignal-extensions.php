@@ -48,8 +48,8 @@ class Extensions {
 		'shopsocket'          => array(
 			'title'       => 'ShopSocket',
 			'description' => 'A live orders board for your team and live stock on product pages.',
-			'url'         => 'https://wpsignal.io/extensions/shopsocket',
-			'available'   => false,
+			'url'         => '/wp-admin/plugin-install.php?s=ShopSocket&tab=search&type=term',
+			'available'   => true,
 		),
 		'wordsocket-liveblog' => array(
 			'title'       => 'PostSocket',

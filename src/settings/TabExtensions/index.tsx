@@ -83,12 +83,7 @@ export function TabExtensions({ title }: { title: string }) {
       {catalogue.length > 0 && (
         <div className="wpsignal-extensions-catalogue">
           <h3>{__("Available extensions", "wordsocket")}</h3>
-          <p>
-            {__(
-              "These extensions are coming soon.",
-              "wordsocket",
-            )}
-          </p>
+          <p>{__("These extensions are coming soon.", "wordsocket")}</p>
           <div className="wpsignal-extensions-grid">
             {catalogue.map((ext) => (
               <Card
@@ -103,6 +98,7 @@ export function TabExtensions({ title }: { title: string }) {
                       href={ext.docs_url}
                       target="_blank"
                       rel="noopener noreferrer"
+                      className="wpsignal-extension__button"
                     >
                       {__("Get it", "wordsocket")}
                     </a>
