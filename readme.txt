@@ -3,7 +3,7 @@ Contributors: wpsignal, jaredrethman
 Tags: realtime, websocket, server-sent events, events, wordsocket
 Requires at least: 6.7
 Tested up to: 7.1
-Stable tag: 0.26.0
+Stable tag: 0.27.0
 Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
