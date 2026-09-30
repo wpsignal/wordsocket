@@ -28,6 +28,15 @@ interface WordSocketConnection {
 	lastError: { code: string; message: string; detail: string; time: number } | null;
 }
 
+/** A tab an extension adds to WordSocket's settings page, after the built-in ones. */
+interface WordSocketExtensionTab {
+	/** Lowercase slug, unique across extensions; becomes `&tab=<name>` and the `wpsignal-tab-<name>` class. */
+	name: string;
+	title: string;
+	/** Renders the tab's content. May use the hooks below and `wp.components`. */
+	render: React.ComponentType;
+}
+
 interface WordSocketExtensionsApi {
 	/** API version, bumped on breaking changes. */
 	version: number;
@@ -35,6 +44,8 @@ interface WordSocketExtensionsApi {
 	ExtensionPanel: React.ComponentType< WordSocketExtensionPanelProps >;
 	/** One line rendered in the Connect tab's status area (for example "Live stock paused"). */
 	ConnectionStatusFill: React.ComponentType< { children?: React.ReactNode } >;
+	/** Add a tab to the settings page. */
+	registerTab: ( tab: WordSocketExtensionTab ) => void;
 	/** The settings app's view of the WordSocket connection. */
 	useConnection: () => WordSocketConnection;
 	/** `window.WPS.state`, subscribed through `onStateChange`. */

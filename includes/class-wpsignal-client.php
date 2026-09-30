@@ -19,11 +19,13 @@ class Client {
 	/**
 	 * Version of the browser API (`window.WPS`), bumped when it gains methods
 	 * extensions may rely on, so PHP can check for them without comparing plugin
-	 * versions. 2 (0.23): `uuid()`, `visitorId()`, `onChannel()`.
+	 * versions. 
+	 * - 2 (0.23): `uuid()`, `visitorId()`, `onChannel()`. 
+	 * - 3 (0.28): `window.wordsocket.registerTab()`, a settings tab per extension.
 	 *
 	 * @var int
 	 */
-	const API_VERSION = 2;
+	const API_VERSION = 3;
 
 	/**
 	 * Configuration accessor.

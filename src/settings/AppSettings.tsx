@@ -15,6 +15,7 @@ import { TabConnection } from "./TabConnection";
 import { TabExplorer } from "./TabExplorer";
 import { TabExtensions } from "./TabExtensions";
 import { SettingsProvider, useSettings } from "./context";
+import { useExtensionTabs } from "./extensions/api";
 
 /**
  * Settings App Tabs.
@@ -55,9 +56,9 @@ const TABS = [
 const ALWAYS_ENABLED = ["connection", "extensions"];
 
 /** The `tab` query parameter, so a tab can be linked to (admin.php?page=wordsocket&tab=extensions). */
-function tabFromUrl(): string | undefined {
+function tabFromUrl(names: string[]): string | undefined {
   const name = new URLSearchParams(window.location.search).get("tab");
-  return TABS.some((tab) => tab.name === name) ? (name as string) : undefined;
+  return name && names.includes(name) ? name : undefined;
 }
 
 function rememberTabInUrl(name: string): void {
@@ -85,11 +86,23 @@ function TabsSettings() {
     }
   }, [loaded, fetchStatus]);
   const loading = !loaded;
+  /*
+   * Extension tabs come after the built-in ones and need a connected site.
+   */
+  const extensionTabs = useExtensionTabs();
+  const allTabs = [
+    ...TABS,
+    ...extensionTabs.map((tab) => ({
+      name: tab.name,
+      title: tab.title,
+      className: `wpsignal-tab-${tab.name}`,
+    })),
+  ];
   const allowedTabs =
     loading || isConnected
-      ? TABS
-      : TABS.map((tab) => ({ ...tab, disabled: !ALWAYS_ENABLED.includes(tab.name) }));
-  const requested = tabFromUrl();
+      ? allTabs
+      : allTabs.map((tab) => ({ ...tab, disabled: !ALWAYS_ENABLED.includes(tab.name) }));
+  const requested = tabFromUrl(allTabs.map((tab) => tab.name));
 
   useEffect(() => {
     if (!loading && !isConnected && requested && !ALWAYS_ENABLED.includes(requested)) {
@@ -111,6 +124,11 @@ function TabsSettings() {
           {tab.name === "triggers" && <TabTriggers title={tab.title} />}
           {tab.name === "explorer" && <TabExplorer title={tab.title} />}
           {tab.name === "extensions" && <TabExtensions title={tab.title} />}
+          {extensionTabs
+            .filter((ext) => ext.name === tab.name)
+            .map((ext) => (
+              <ext.render key={ext.name} />
+            ))}
         </div>
       )}
     </TabPanel>
