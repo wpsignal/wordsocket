@@ -44,11 +44,7 @@ interface WordSocketExtensionsApi {
 	ExtensionPanel: React.ComponentType< WordSocketExtensionPanelProps >;
 	/** One line rendered in the Connect tab's status area (for example "Live stock paused"). */
 	ConnectionStatusFill: React.ComponentType< { children?: React.ReactNode } >;
-	/**
-	 * Add a tab to the settings page. Call it at module evaluation, right
-	 * after the `wpsignal-settings` script: the app mounts then. Extension tabs
-	 * are disabled while the site is disconnected, like Settings and Triggers.
-	 */
+	/** Add a tab to the settings page. */
 	registerTab: ( tab: WordSocketExtensionTab ) => void;
 	/** The settings app's view of the WordSocket connection. */
 	useConnection: () => WordSocketConnection;

@@ -68,11 +68,7 @@ export function useConnection(): WordSocketConnection {
 }
 
 /*
- * Tabs extensions add to the settings page. A registry rather than a slot:
- * TabPanel wants its tab list up front, and an extension script runs right
- * after this bundle, before React's first render, so registering at module
- * evaluation is early enough. Listeners cover the late case by re-rendering
- * the app when a tab arrives after mount.
+ * Tabs extensions add to the settings page.
  */
 const tabs = new Map<string, WordSocketExtensionTab>();
 const tabListeners = new Set<() => void>();

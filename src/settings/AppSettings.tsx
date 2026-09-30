@@ -87,9 +87,7 @@ function TabsSettings() {
   }, [loaded, fetchStatus]);
   const loading = !loaded;
   /*
-   * Extension tabs come after the built-in ones and need a connected site,
-   * like Settings and Triggers: an extension's settings act on a live
-   * connection, and its script may read the connection state.
+   * Extension tabs come after the built-in ones and need a connected site.
    */
   const extensionTabs = useExtensionTabs();
   const allTabs = [
