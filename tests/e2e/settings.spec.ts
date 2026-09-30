@@ -43,10 +43,21 @@ test.describe("WordSocket settings page", () => {
     await expect(panel.locator(".stub-extension-state")).toContainText("Site connected");
     await expect(panel.locator(".stub-extension-state")).toContainText("client online", { timeout: 15_000 });
 
-    // Catalogue entries for extensions not installed here.
+    // Catalogue entries for extensions not installed here: ShopSocket is on
+    // WordPress.org (0.27), the others are still coming.
     const woo = page.locator(".wpsignal-extension--catalogue[data-extension='shopsocket']");
     await expect(woo).toBeVisible();
-    await expect(woo.getByText("Coming soon")).toBeVisible();
+    await expect(woo.getByRole("link", { name: "Get it" })).toBeVisible();
+    await expect(page.locator(".wpsignal-extension--catalogue .wpsignal-extension__soon").first()).toHaveText("Coming soon");
+  });
+
+  test("an extension can add its own tab through wordsocket.registerTab", async ({ admin, page }) => {
+    // The stub registers "Stub" (name stub-extension); it is linkable like the built-in tabs.
+    await admin.visitAdminPage("admin.php", "page=wordsocket&tab=stub-extension");
+    await expect(page.getByRole("tab", { name: "Stub" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator(".stub-extension-tab")).toContainText("Site connected");
+    await page.getByRole("tab", { name: "Extensions" }).click();
+    await expect.poll(() => new URL(page.url()).searchParams.get("tab")).toBe("extensions");
   });
 
   test("Explorer tab shows a live connection", async ({ admin, page }) => {

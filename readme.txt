@@ -149,7 +149,7 @@ The WPSignal dashboard refuses to authorize a site when your plan's site limit i
 
 = How do extensions plug in? =
 
-An extension is a separate plugin built on WordSocket (WooCommerce, Live Blog, and Chat are on the way). Its settings appear on the WordSocket settings page under the Extensions tab, which also lists what is available. Developers: register on `wpsignal_loaded` with `WPS::instance()->extensions()->register()`, enqueue a settings script on the `wordsocket_settings_enqueue` action with `wpsignal-settings` as a dependency, and render `window.wordsocket.ExtensionPanel` from a plugin registered with `wp.plugins.registerPlugin( slug, { scope: 'wordsocket', render } )`.
+An extension is a separate plugin built on WordSocket (WooCommerce, Live Blog, and Chat are on the way). Its settings appear on the WordSocket settings page under the Extensions tab, which also lists what is available. Developers: register on `wpsignal_loaded` with `WPS::instance()->extensions()->register()`, enqueue a settings script on the `wordsocket_settings_enqueue` action with `wpsignal-settings` as a dependency, and render `window.wordsocket.ExtensionPanel` from a plugin registered with `wp.plugins.registerPlugin( slug, { scope: 'wordsocket', render } )`. An extension with settings of its own adds a tab to this page with `window.wordsocket.registerTab( { name, title, render } )` (0.28).
 
 = Can I make a channel private? =
 
@@ -173,6 +173,9 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 6. Explorer tab (connected): live Event Log showing an active WebSocket connection and an incoming encrypted event, with a test event published successfully.
 
 == Changelog ==
+
+= 0.28.0 =
+* New: extensions can add their own tab to the WordSocket settings page (`window.wordsocket.registerTab()`); ShopSocket's settings live there
 
 = 0.27.0 =
 * The browser client closes its connection when a page is left and opens a new one when a page comes back from the browser's back/forward cache, so a site's connection count follows open tabs rather than pages visited
@@ -348,6 +351,9 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 * Initial release.
 
 == Upgrade Notice ==
+
+= 0.28.0 =
+Adds the settings tab slot extensions use. Update WordSocket before ShopSocket 0.5.
 
 = 0.27.0 =
 Connection counts now follow open tabs. Update, then reload any storefront pages you keep open.

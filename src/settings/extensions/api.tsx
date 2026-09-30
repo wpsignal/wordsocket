@@ -67,6 +67,40 @@ export function useConnection(): WordSocketConnection {
   return { isConnected, siteKey, fetchStatus, lastError };
 }
 
+/*
+ * Tabs extensions add to the settings page. A registry rather than a slot:
+ * TabPanel wants its tab list up front, and an extension script runs right
+ * after this bundle, before React's first render, so registering at module
+ * evaluation is early enough. Listeners cover the late case by re-rendering
+ * the app when a tab arrives after mount.
+ */
+const tabs = new Map<string, WordSocketExtensionTab>();
+const tabListeners = new Set<() => void>();
+
+export function registerTab(tab: WordSocketExtensionTab): void {
+  if (!tab || typeof tab.name !== "string" || !/^[a-z][a-z0-9-]*$/.test(tab.name)) {
+    throw new Error("wordsocket.registerTab: name must be a lowercase slug");
+  }
+  if (typeof tab.render !== "function") {
+    throw new Error("wordsocket.registerTab: render must be a component");
+  }
+  tabs.set(tab.name, { ...tab, title: tab.title || tab.name });
+  tabListeners.forEach((fn) => fn());
+}
+
+/** The registered extension tabs, in registration order; re-renders on change. */
+export function useExtensionTabs(): WordSocketExtensionTab[] {
+  const [, setVersion] = useState(0);
+  useEffect(() => {
+    const bump = () => setVersion((n) => n + 1);
+    tabListeners.add(bump);
+    return () => {
+      tabListeners.delete(bump);
+    };
+  }, []);
+  return Array.from(tabs.values());
+}
+
 export function useClientState(): WPSConnectionState | null {
   const [state, setState] = useState<WPSConnectionState | null>(window.WPS?.state ?? null);
   useEffect(() => {
@@ -87,6 +121,7 @@ export function installExtensionsApi(): void {
     version: API_VERSION,
     ExtensionPanel,
     ConnectionStatusFill,
+    registerTab,
     useConnection,
     useClientState,
   };
