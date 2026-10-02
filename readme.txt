@@ -73,6 +73,12 @@ https://www.youtube.com/watch?v=yS1roK49HEQ
 
 = Showcase =
 
+**ShopSocket for WooCommerce**
+
+A live orders board, live and abandoned carts, and live stock on product pages, built on WordSocket. [On WordPress.org](https://wordpress.org/plugins/shopsocket/).
+
+https://www.youtube.com/watch?v=BKwID6t_kpQ
+
 Below are a few examples showcasing the possibilities with WP Signal + WordSocket. Repository https://github.com/wpsignal/wordsocket-examples
 
 **Living Posts - Interactivity API** 
