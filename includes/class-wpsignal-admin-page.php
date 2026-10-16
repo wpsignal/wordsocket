@@ -178,36 +178,39 @@ class Admin_Page {
 
 		$dashboard_url = trailingslashit( $this->config->base_url() ) . 'dashboard';
 
-		wp_localize_script(
+		wp_add_inline_script(
 			'wpsignal-settings',
-			'wpsignalSettings',
-			array(
-				'connectUrl'    => rest_url( 'wpsignal/v1/connect' ),
-				'oauthStartUrl' => wp_nonce_url(
-					admin_url( 'admin-post.php?action=wpsignal_oauth_start' ),
-					'wpsignal_oauth_start'
-				),
-				'restUrl'       => rest_url( 'wpsignal/v1/' ),
-				'nonce'         => wp_create_nonce( 'wp_rest' ),
-				'postTypes'     => $types_list,
-				'baseUrl'       => $this->config->base_url(),
-				'endpoints'     => $this->config->endpoints(),
-				'dashboardUrl'  => $dashboard_url,
-				'siteKey'       => $this->config->site_key(),
-				'triggers'      => $triggers,
+			'window.wpsignalSettings = ' . wp_json_encode(
+				array(
+					'connectUrl'    => rest_url( 'wpsignal/v1/connect' ),
+					'oauthStartUrl' => wp_nonce_url(
+						admin_url( 'admin-post.php?action=wpsignal_oauth_start' ),
+						'wpsignal_oauth_start'
+					),
+					'restUrl'       => rest_url( 'wpsignal/v1/' ),
+					'nonce'         => wp_create_nonce( 'wp_rest' ),
+					'postTypes'     => $types_list,
+					'baseUrl'       => $this->config->base_url(),
+					'endpoints'     => $this->config->endpoints(),
+					'dashboardUrl'  => $dashboard_url,
+					'siteKey'       => $this->config->site_key(),
+					'triggers'      => $triggers,
 
-				/*
-				 * Read here, not from the frontend client's config: that script
-				 * is skipped on an unconfigured or rejected site, and the
-				 * Settings tab then waited for data that never came.
-				 */
-				'rtc'           => array(
-					'available' => $this->config->is_wp_sync_available(),
-					'enabled'   => $this->config->is_wp_rtc_enabled(),
+					/*
+					 * Read here, not from the frontend client's config: that script
+					 * is skipped on an unconfigured or rejected site, and the
+					 * Settings tab then waited for data that never came.
+					 */
+					'rtc'           => array(
+						'available' => $this->config->is_wp_sync_available(),
+						'enabled'   => $this->config->is_wp_rtc_enabled(),
+					),
+					// Known before the first render, so a link to a developer tab opens it.
+					'developerMode' => $this->config->developer_mode(),
 				),
-				// Known before the first render, so a link to a developer tab opens it.
-				'developerMode' => $this->config->developer_mode(),
-			)
+				JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+			) . ';',
+			'before'
 		);
 
 		wp_add_inline_script(
