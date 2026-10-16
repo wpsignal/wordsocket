@@ -15,8 +15,10 @@ export interface PostTypeOption {
   label: string;
 }
 
+/** Each switch saves on its own; send only what changed. */
 export interface SettingsPost {
-  yjs_provider_enabled: boolean;
+  yjs_provider_enabled?: boolean;
+  developer_mode?: boolean;
 }
 export interface Settings {
   // base_url: string;
@@ -24,6 +26,7 @@ export interface Settings {
   site_key: string;
   is_connected: boolean;
   yjs_provider_enabled: boolean;
+  developer_mode: boolean;
   is_rtc_enabled: boolean;
   wp_version: number;
   credential_source?: "constant" | "database";

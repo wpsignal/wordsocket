@@ -180,6 +180,13 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 
 == Changelog ==
 
+= 0.29.0 =
+* New: developer mode. The Triggers and Explorer tabs are shown only when "Show the Triggers and Explorer tabs" is on (Settings tab, Developer tools), so site owners see Connect, Settings and Extensions only
+* Changed: the Settings tab shows its real-time collaboration section only while Gutenberg's collaboration experiment is on
+* Fixed: the Settings tab could show "Loading real-time collaboration settings..." indefinitely
+* Changed: saves, connects and test publishes report as toasts at the bottom of the screen (red for an error) instead of notices in the page
+* New for extensions: `window.wordsocket.useTask` runs a request and reports it in the same toasts
+
 = 0.28.0 =
 * New: extensions can add their own tab to the WordSocket settings page (`window.wordsocket.registerTab()`); ShopSocket's settings live there
 
@@ -357,6 +364,9 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 * Initial release.
 
 == Upgrade Notice ==
+
+= 0.29.0 =
+The Triggers and Explorer tabs are now hidden until "Show the Triggers and Explorer tabs" is switched on under Settings > Developer tools; your triggers keep running. Update WordSocket before ShopSocket 0.6.
 
 = 0.28.0 =
 Adds the settings tab slot extensions use. Update WordSocket before ShopSocket 0.5.

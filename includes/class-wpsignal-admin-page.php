@@ -195,6 +195,18 @@ class Admin_Page {
 				'dashboardUrl'  => $dashboard_url,
 				'siteKey'       => $this->config->site_key(),
 				'triggers'      => $triggers,
+
+				/*
+				 * Read here, not from the frontend client's config: that script
+				 * is skipped on an unconfigured or rejected site, and the
+				 * Settings tab then waited for data that never came.
+				 */
+				'rtc'           => array(
+					'available' => $this->config->is_wp_sync_available(),
+					'enabled'   => $this->config->is_wp_rtc_enabled(),
+				),
+				// Known before the first render, so a link to a developer tab opens it.
+				'developerMode' => $this->config->developer_mode(),
 			)
 		);
 

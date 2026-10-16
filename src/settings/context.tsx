@@ -18,6 +18,7 @@ import type { ReactNode } from "react";
 /**
  * Internal dependencies.
  */
+import { useTask } from "./useTask";
 import type { NoticeState } from "./types";
 import { disconnect, getSettings } from "./api";
 
@@ -51,6 +52,8 @@ type SettingsState = {
   /** The Connect tab is showing the "are you sure" row for Disconnect. */
   confirmDisconnect: boolean;
   yjsProviderEnabled: boolean;
+  /** The Triggers and Explorer tabs are shown. */
+  developerMode: boolean;
   tabsCache: TabsCached;
   setTabsCache: (tabs: TabsCached) => void;
   setSetting: (
@@ -74,6 +77,8 @@ const DEFAULT_STATE: SettingsState = {
   lastError: null,
   confirmDisconnect: false,
   yjsProviderEnabled: false,
+  // Seeded from PHP so a link to a developer tab is honoured on first render.
+  developerMode: window.wpsignalSettings?.developerMode === true,
   tabsCache: {
     connection: null,
     rtc: null,
@@ -123,6 +128,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setSetting("siteKey", res.site_key);
         setSetting("isConnected", res.is_connected);
         setSetting("yjsProviderEnabled", res.yjs_provider_enabled);
+        setSetting("developerMode", res.developer_mode);
         setSetting("lastError", res.last_error ?? null);
       } catch (error: any) {
         setSetting("noticeMessage", {
@@ -144,29 +150,27 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setSettings((prev) => ({ ...prev, [key]: value }));
   }
 
+  const disconnectTask = useTask(disconnect, {
+    success: __("Disconnected from WPSignal.", "wordsocket"),
+    error: __("Disconnect failed. Please try again.", "wordsocket"),
+    onSuccess: () => {
+      setSetting("apiKey", "");
+      setSetting("siteKey", "");
+      setSetting("isConnected", false);
+      setSetting("fetchStatus", "disconnected");
+    },
+    // The server refused or was unreachable: credentials are still stored,
+    // so the site stays connected and the user can retry.
+    onError: () => setSetting("fetchStatus", "idle"),
+  });
+
   const handleDisconnect = async (): Promise<void> => {
     // The confirmation row has served its purpose once Disconnect is clicked;
     // clearing it here means a later reconnect starts from the plain button.
     setSetting("confirmDisconnect", false);
     setSetting("fetchStatus", "disconnecting");
     setSetting("noticeMessage", null);
-    try {
-      await disconnect();
-      setSetting("apiKey", "");
-      setSetting("siteKey", "");
-      setSetting("isConnected", false);
-      setSetting("fetchStatus", "disconnected");
-    } catch (error: any) {
-      // The server refused or was unreachable: credentials are still stored,
-      // so the site stays connected and the user can retry.
-      setSetting("noticeMessage", {
-        type: "error",
-        message:
-          error?.message ||
-          __("Disconnect failed. Please try again.", "wordsocket"),
-      });
-      setSetting("fetchStatus", "idle");
-    }
+    await disconnectTask.run();
   };
 
   return (

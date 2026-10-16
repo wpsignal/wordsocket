@@ -135,8 +135,10 @@ class Token {
 					'callback'            => array( $this, 'handle_post_settings' ),
 					'args'                => array(
 						'yjs_provider_enabled' => array(
-							'type'     => 'boolean',
-							'required' => true,
+							'type' => 'boolean',
+						),
+						'developer_mode'       => array(
+							'type' => 'boolean',
 						),
 					),
 					'permission_callback' => $permission_callback,
@@ -506,6 +508,7 @@ class Token {
 				'site_key'             => $is_connected ? $this->config->site_key() : '',
 				'is_connected'         => $is_connected,
 				'yjs_provider_enabled' => $this->config->yjs_provider_enabled(),
+				'developer_mode'       => $this->config->developer_mode(),
 				'credential_source'    => $this->config->credential_source(),
 				'last_error'           => $this->last_publish_error(),
 			)
@@ -519,12 +522,25 @@ class Token {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function handle_post_settings( WP_REST_Request $request ) {
-		$yjs_provider_enabled = rest_sanitize_boolean( $request->get_param( 'yjs_provider_enabled' ) );
-		update_option( 'wpsignal_yjs_provider_enabled', $yjs_provider_enabled );
+		// Each switch saves on its own; a request carrying neither has nothing to do.
+		$switches = array_intersect_key(
+			$request->get_params(),
+			array(
+				'yjs_provider_enabled' => true,
+				'developer_mode'       => true,
+			)
+		);
+		if ( empty( $switches ) ) {
+			return new WP_Error( 'wpsignal_no_settings', __( 'No settings to save.', 'wordsocket' ), array( 'status' => 400 ) );
+		}
+		foreach ( $switches as $name => $value ) {
+			update_option( 'wpsignal_' . $name, rest_sanitize_boolean( $value ) );
+		}
 
 		return rest_ensure_response(
 			array(
-				'yjs_provider_enabled' => $yjs_provider_enabled,
+				'yjs_provider_enabled' => $this->config->yjs_provider_enabled(),
+				'developer_mode'       => $this->config->developer_mode(),
 			)
 		);
 	}
