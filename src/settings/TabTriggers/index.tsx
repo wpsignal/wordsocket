@@ -22,6 +22,7 @@ import { TriggerRow } from "./TriggerRow";
 import { getTriggers, saveTriggers } from "../api";
 import type { Trigger, PostTypeOption } from "../types";
 import { useSettings } from "../context";
+import { useTask } from "../useTask";
 
 const EMPTY_TRIGGER: Trigger = {
   type: "post_type",
@@ -41,7 +42,6 @@ interface NoticeState {
  */
 export function TabTriggers({ title }: { title: string }) {
   const { tabsCache, setTabsCache } = useSettings();
-  const [saving, setSaving] = useState(false);
   // Saved triggers are fetched once; until they arrive the buttons stay
   // disabled so a row added early is not overwritten by the response.
   const [loading, setLoading] = useState(tabsCache.triggers.length === 0);
@@ -104,26 +104,16 @@ export function TabTriggers({ title }: { title: string }) {
     });
   };
 
-  async function handleSave(): Promise<void> {
-    setSaving(true);
-    setNotice(null);
+  const save = useTask(() => saveTriggers(tabsCache.triggers), {
+    success: (res) => res.message || __("Triggers saved.", "wordsocket"),
+    error: __("Failed to save triggers.", "wordsocket"),
+    onSuccess: (res) => setTabsCache({ ...tabsCache, triggers: res.triggers }),
+  });
 
-    try {
-      const res = await saveTriggers(tabsCache.triggers);
-      setTabsCache({ ...tabsCache, triggers: res.triggers });
-      setNotice({
-        type: "success",
-        message: res.message || __("Saved.", "wordsocket"),
-      });
-    } catch {
-      setNotice({
-        type: "error",
-        message: __("Failed to save triggers.", "wordsocket"),
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
+  function handleSave(): void {
+    setNotice(null);
+    save.run();
+  }
 
   const isTriggersEmpty = tabsCache.triggers.length === 0;
 
@@ -205,8 +195,8 @@ export function TabTriggers({ title }: { title: string }) {
         <Button
           variant="primary"
           onClick={handleSave}
-          isBusy={saving}
-          disabled={loading || saving || !isTriggersValid()}
+          isBusy={save.isPending}
+          disabled={loading || save.isPending || !isTriggersValid()}
         >
           {__("Save Triggers", "wordsocket")}
         </Button>

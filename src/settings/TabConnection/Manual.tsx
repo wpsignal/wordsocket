@@ -10,6 +10,7 @@ import { createInterpolateElement } from "@wordpress/element";
  */
 import { useSettings } from "../context";
 import { connectWithApiKey } from "../api";
+import { useTask } from "../useTask";
 
 const { isSsl = false, dashboardUrl = "https://api.wpsignal.io/dashboard" } =
   window.wpSignalConfig ?? {};
@@ -25,39 +26,38 @@ export default function Manual({ title = null }: { title?: string | null }) {
   // Context
   const { setSetting, apiKey, fetchStatus } = useSettings();
 
-  async function handleApiKeyConnect(): Promise<void> {
-    setSetting("noticeMessage", null);
-    if (!isValidKey(apiKey)) {
-      setSetting("noticeMessage", {
-        type: "error",
-        message: __(
-          "API Key is invalid, please include a valid API Key and try again.",
-          "wordsocket",
-        ),
-      });
-      return;
-    }
-    setSetting("fetchStatus", "connecting");
-    let connected = false;
-    try {
-      const res = await connectWithApiKey(apiKey);
-      setSetting("siteKey", res.site_key);
-      setSetting("isConnected", true);
-      connected = true;
-    } catch (error: any) {
-      setSetting("noticeMessage", {
-        type: "error",
-        message:
-          error?.message ||
+  const connect = useTask(
+    async (key: string) => {
+      if (!isValidKey(key)) {
+        throw new Error(
           __(
-            "Connection failed. Make sure your Server URL and API Key are saved.",
+            "API Key is invalid, please include a valid API Key and try again.",
             "wordsocket",
           ),
-      });
-    } finally {
+        );
+      }
+      return connectWithApiKey(key);
+    },
+    {
+      success: __("Connected to WPSignal.", "wordsocket"),
+      error: __(
+        "Connection failed. Make sure your Server URL and API Key are saved.",
+        "wordsocket",
+      ),
+      onSuccess: (res) => {
+        setSetting("siteKey", res.site_key);
+        setSetting("isConnected", true);
+      },
       // Never leave the form stuck in "connecting": a failed attempt must be retryable.
-      setSetting("fetchStatus", connected ? "connected" : "idle");
-    }
+      onSettled: (outcome) =>
+        setSetting("fetchStatus", outcome.ok ? "connected" : "idle"),
+    },
+  );
+
+  function handleApiKeyConnect(): void {
+    setSetting("noticeMessage", null);
+    setSetting("fetchStatus", "connecting");
+    connect.run(apiKey);
   }
 
   return (

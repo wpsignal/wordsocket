@@ -12,6 +12,7 @@ import { useEffect, useState } from "@wordpress/element";
  * Internal dependencies.
  */
 import { useSettings } from "../context";
+import { useTask } from "../useTask";
 
 /** Bumped on breaking changes to the API below. */
 export const API_VERSION = 1;
@@ -120,6 +121,7 @@ export function installExtensionsApi(): void {
     registerTab,
     useConnection,
     useClientState,
+    useTask,
   };
   window.wordsocket = api;
 }

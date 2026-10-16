@@ -278,6 +278,26 @@
   margin-top: 1rem;
 }
 
+/* Toasts (SnackbarList): bottom centre of the content area, offset by half the admin menu. */
+.wpsignal-snackbars.components-snackbar-list {
+  position: fixed;
+  bottom: 24px;
+  left: calc(50% + calc(160px / 2));
+  transform: translateX(-50%);
+  /* right: calc(160px + 24px); */
+  width: auto;
+  z-index: 100000;
+
+  .folded & {
+    left: calc(50% + calc(36px / 2));
+  }
+
+  /* Core styles every snackbar dark; useTask errors carry `is-error` (see Snackbars.tsx). */
+  .components-snackbar.is-error {
+    background: #cc1818;
+  }
+}
+
 /* Explorer tab */
 .wpsignal-explorer-output {
   max-height: 300px;
@@ -343,12 +363,12 @@
     font-size: 12px;
     padding: 0.5rem 1rem;
   }
-  
+
   .wpsignal-extension__soon {
     border: 1px solid #c3c4c7;
     color: #50575e;
   }
-  
+
   .wpsignal-extension__button {
     background-color: var(--wp-admin-theme-color);
     border: 1px solid transparent;
