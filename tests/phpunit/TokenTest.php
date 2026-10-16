@@ -252,9 +252,18 @@ final class TokenTest extends WordSocketTestCase {
 		$this->assertSame( 200, $status );
 		$this->assertTrue( WPS::instance()->config()->yjs_provider_enabled() );
 
+		// Developer mode saves on its own and leaves the other switch alone.
+		list( $status, $data ) = $this->rest( 'POST', 'settings', array( 'developer_mode' => true ) );
+		$this->assertSame( 200, $status );
+		$this->assertTrue( $data['developer_mode'] );
+		$this->assertTrue( WPS::instance()->config()->developer_mode() );
+		$this->assertTrue( $data['yjs_provider_enabled'] );
+		list( , $settings ) = $this->rest( 'GET', 'settings' );
+		$this->assertTrue( $settings['developer_mode'] );
+
 		list( $status, $data ) = $this->rest( 'POST', 'settings' );
 		$this->assertSame( 400, $status );
-		$this->assertSame( 'rest_missing_callback_param', $data['code'] );
+		$this->assertSame( 'wpsignal_no_settings', $data['code'], 'neither switch sent' );
 	}
 
 	public function test_mask_api_key(): void {

@@ -14,6 +14,7 @@ import { TabTriggers } from "./TabTriggers";
 import { TabConnection } from "./TabConnection";
 import { TabExplorer } from "./TabExplorer";
 import { TabExtensions } from "./TabExtensions";
+import { Snackbars } from "./Snackbars";
 import { SettingsProvider, useSettings } from "./context";
 import { useExtensionTabs } from "./extensions/api";
 
@@ -55,6 +56,9 @@ const TABS = [
  */
 const ALWAYS_ENABLED = ["connection", "extensions"];
 
+/** Tabs for people writing code against the site: listed only in developer mode (the Settings tab's switch). */
+const DEVELOPER_TABS = ["triggers", "explorer"];
+
 /** The `tab` query parameter, so a tab can be linked to (admin.php?page=wordsocket&tab=extensions). */
 function tabFromUrl(names: string[]): string | undefined {
   const name = new URLSearchParams(window.location.search).get("tab");
@@ -72,7 +76,7 @@ function rememberTabInUrl(name: string): void {
 }
 
 function TabsSettings() {
-  const { isConnected, fetchStatus } = useSettings();
+  const { isConnected, fetchStatus, developerMode } = useSettings();
   // Until the first settings load answers, every tab is enabled so a linked
   // tab is selected straight away. If the site then turns out to be
   // disconnected, the tabs become disabled and TabPanel moves to Connect on
@@ -91,7 +95,7 @@ function TabsSettings() {
    */
   const extensionTabs = useExtensionTabs();
   const allTabs = [
-    ...TABS,
+    ...TABS.filter((tab) => developerMode || !DEVELOPER_TABS.includes(tab.name)),
     ...extensionTabs.map((tab) => ({
       name: tab.name,
       title: tab.title,
@@ -109,6 +113,14 @@ function TabsSettings() {
       rememberTabInUrl(TABS[0].name);
     }
   }, [loading, isConnected, requested]);
+
+  useEffect(() => {
+    // A link to a developer tab while developer mode is off lands on Connect; the URL follows.
+    const linked = new URLSearchParams(window.location.search).get("tab");
+    if (!developerMode && linked && DEVELOPER_TABS.includes(linked)) {
+      rememberTabInUrl(TABS[0].name);
+    }
+  }, [developerMode]);
 
   return (
     <TabPanel
@@ -146,6 +158,7 @@ export function SettingsApp() {
         {/* Extensions registered with `scope: "wordsocket"` render here, in
             every tab, so their fills reach the Extensions and Connect tabs. */}
         <PluginArea scope="wordsocket" />
+        <Snackbars />
       </SettingsProvider>
     </SlotFillProvider>
   );

@@ -21,6 +21,7 @@ import {
  */
 import { useSettings } from "../context";
 import { getToken, publishEvent } from "../api";
+import { useTask } from "../useTask";
 import { relayEndpoints, withQuery } from "../../utils/relay";
 
 const settings = window.wpsignalSettings ?? { triggers: [], baseUrl: "" };
@@ -288,38 +289,24 @@ function PanelPublish({ isConnected }: { isConnected: boolean }) {
   const [channel, setChannel] = useState("events");
   const [event, setEvent] = useState("test.event");
   const [data, setData] = useState('{"message":"Hello from Explorer!"}');
-  const [statusText, setStatusText] = useState("");
-  const [statusOk, setStatusOk] = useState(true);
-
-  function publish() {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(data);
-    } catch (err) {
-      setStatusOk(false);
-      setStatusText(
-        `${__("Invalid JSON:", "wordsocket")} ${(err as Error).message}`,
-      );
-      return;
-    }
-    setStatusOk(true);
-    setStatusText(__("Publishing...", "wordsocket"));
-    publishEvent(channel, event, parsed)
-      .then(() => {
-        setStatusOk(true);
-        setStatusText(__("Published!", "wordsocket"));
-      })
-      .catch((err: Error) => {
-        setStatusOk(false);
-        setStatusText(`${__("Failed:", "wordsocket")} ${err.message}`);
-      });
-  }
-
-  useEffect(() => {
-    if (!isConnected) {
-      setStatusText("");
-    }
-  }, [isConnected, statusText]);
+  const publishTask = useTask(
+    async () => {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(data);
+      } catch (err) {
+        throw new Error(
+          `${__("Invalid JSON:", "wordsocket")} ${(err as Error).message}`,
+        );
+      }
+      return publishEvent(channel, event, parsed);
+    },
+    {
+      pending: __("Publishing...", "wordsocket"),
+      success: __("Published.", "wordsocket"),
+      error: (err) => `${__("Failed:", "wordsocket")} ${(err as Error).message}`,
+    },
+  );
 
   return (
     <Card.Root className="wpsignal-card">
@@ -363,19 +350,14 @@ function PanelPublish({ isConnected }: { isConnected: boolean }) {
               </Notice>
             ) : (
               <>
-                <Button variant="primary" onClick={publish}>
+                <Button
+                  variant="primary"
+                  onClick={() => publishTask.run()}
+                  isBusy={publishTask.isPending}
+                  disabled={publishTask.isPending}
+                >
                   {__("Publish Event", "wordsocket")}
                 </Button>
-                {statusText && (
-                  <span
-                    style={{
-                      marginLeft: 10,
-                      color: statusOk ? "#46b450" : "#dc3232",
-                    }}
-                  >
-                    {statusText}
-                  </span>
-                )}
               </>
             )}
           </FlexItem>

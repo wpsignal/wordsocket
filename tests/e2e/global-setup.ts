@@ -44,6 +44,8 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   if (wp("plugin", "list", "--name=wordsocket-stub-extension", "--status=active", "--field=name") !== "wordsocket-stub-extension") {
     wp("plugin", "activate", "wordsocket-stub-extension");
   }
+  // The specs open the Explorer tab, which only developer mode lists.
+  wp("option", "update", "wpsignal_developer_mode", "1");
 
   if (wp("user", "list", `--login=${WP_USERNAME}`, "--field=user_login") !== WP_USERNAME) {
     wp("user", "create", WP_USERNAME, `${WP_USERNAME}@example.com`, "--role=administrator", `--user_pass=${WP_PASSWORD}`);

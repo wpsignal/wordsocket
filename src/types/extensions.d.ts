@@ -28,6 +28,38 @@ interface WordSocketConnection {
 	lastError: { code: string; message: string; detail: string; time: number } | null;
 }
 
+/** Where an async task is, as `useTask` reports it. */
+type WordSocketTaskPhase = "idle" | "pending" | "success" | "error";
+
+/** How a task ended. `run()` answers with this instead of throwing. */
+type WordSocketTaskOutcome< Result > =
+	| { ok: true; value: Result }
+	| { ok: false; error: unknown };
+
+interface WordSocketTaskOptions< Args extends unknown[], Result > {
+	/** Toast held open while the task runs. None by default: a quick save needs no "Saving...". */
+	pending?: string;
+	/** Toast on success; a function sees the result. None when omitted. */
+	success?: string | ( ( value: Result ) => string );
+	/**
+	 * Toast on failure (always shown, in red). A string is the fallback when the
+	 * error carries no message of its own; a function replaces the message entirely.
+	 */
+	error?: string | ( ( error: unknown ) => string );
+	onSuccess?: ( value: Result, ...args: Args ) => void;
+	onError?: ( error: unknown, ...args: Args ) => void;
+	onSettled?: ( outcome: WordSocketTaskOutcome< Result >, ...args: Args ) => void;
+}
+
+interface WordSocketTask< Args extends unknown[], Result > {
+	run: ( ...args: Args ) => Promise< WordSocketTaskOutcome< Result > >;
+	phase: WordSocketTaskPhase;
+	isPending: boolean;
+	/** The latest run's error, until the next run or `reset()`. */
+	error: unknown;
+	reset: () => void;
+}
+
 /** A tab an extension adds to WordSocket's settings page, after the built-in ones. */
 interface WordSocketExtensionTab {
 	/** Lowercase slug, unique across extensions; becomes `&tab=<name>` and the `wpsignal-tab-<name>` class. */
@@ -50,6 +82,15 @@ interface WordSocketExtensionsApi {
 	useConnection: () => WordSocketConnection;
 	/** `window.WPS.state`, subscribed through `onStateChange`. */
 	useClientState: () => WPSConnectionState | null;
+	/**
+	 * Run a save (or any request) and report it as toasts in WordSocket's
+	 * snackbar list: success, a red error, and optionally a held "pending" toast.
+	 * Every tab on the page, WordSocket's own included, saves through this.
+	 */
+	useTask: < Args extends unknown[], Result >(
+		task: ( ...args: Args ) => Promise< Result >,
+		options?: WordSocketTaskOptions< Args, Result >,
+	) => WordSocketTask< Args, Result >;
 }
 
 interface WordSocketExtensionInfo {

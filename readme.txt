@@ -3,7 +3,7 @@ Contributors: wpsignal, jaredrethman
 Tags: realtime, websocket, server-sent events, events, wordsocket
 Requires at least: 6.7
 Tested up to: 7.1
-Stable tag: 0.27.0
+Stable tag: 0.28.0
 Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -72,6 +72,12 @@ Event payloads are AES-256-GCM encrypted before leaving WordPress, so the WPSign
 https://www.youtube.com/watch?v=yS1roK49HEQ
 
 = Showcase =
+
+**ShopSocket for WooCommerce**
+
+A live orders board, live and abandoned carts, and live stock on product pages, built on WordSocket. [On WordPress.org](https://wordpress.org/plugins/shopsocket/).
+
+https://www.youtube.com/watch?v=BKwID6t_kpQ
 
 Below are a few examples showcasing the possibilities with WP Signal + WordSocket. Repository https://github.com/wpsignal/wordsocket-examples
 
@@ -173,6 +179,13 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 6. Explorer tab (connected): live Event Log showing an active WebSocket connection and an incoming encrypted event, with a test event published successfully.
 
 == Changelog ==
+
+= 0.29.0 =
+* New: developer mode. The Triggers and Explorer tabs are shown only when "Show the Triggers and Explorer tabs" is on (Settings tab, Developer tools), so site owners see Connect, Settings and Extensions only
+* Changed: the Settings tab shows its real-time collaboration section only while Gutenberg's collaboration experiment is on
+* Fixed: the Settings tab could show "Loading real-time collaboration settings..." indefinitely
+* Changed: saves, connects and test publishes report as toasts at the bottom of the screen (red for an error) instead of notices in the page
+* New for extensions: `window.wordsocket.useTask` runs a request and reports it in the same toasts
 
 = 0.28.0 =
 * New: extensions can add their own tab to the WordSocket settings page (`window.wordsocket.registerTab()`); ShopSocket's settings live there
@@ -351,6 +364,9 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 * Initial release.
 
 == Upgrade Notice ==
+
+= 0.29.0 =
+The Triggers and Explorer tabs are now hidden until "Show the Triggers and Explorer tabs" is switched on under Settings > Developer tools; your triggers keep running. Update WordSocket before ShopSocket 0.6.
 
 = 0.28.0 =
 Adds the settings tab slot extensions use. Update WordSocket before ShopSocket 0.5.

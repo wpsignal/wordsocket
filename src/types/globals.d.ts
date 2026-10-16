@@ -62,6 +62,10 @@ interface WpSignalSettings {
 	siteKey: string;
 	/** Array of registered trigger instances. */
 	triggers: WpSignalTriggerRow[];
+	/** Real-time collaboration on this site: Gutenberg present, and its experiment switched on. */
+	rtc?: { available: boolean; enabled: boolean };
+	/** Whether the Triggers and Explorer tabs are shown (the Settings tab's "Developer tools" switch). */
+	developerMode?: boolean;
 }
 
 /** Localized by class-wpsignal-client.php (enqueue_yjs_provider) */
