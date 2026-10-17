@@ -180,6 +180,9 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 
 == Changelog ==
 
+= 0.29.1 =
+* Fixed: "Connect with WPSignal" on the Connect tab led to "The link you followed has expired" since 0.29.0, because the authorization link's nonce was HTML-escaped. Manual connection with an API key was unaffected
+
 = 0.29.0 =
 * New: developer mode. The Triggers and Explorer tabs are shown only when "Show the Triggers and Explorer tabs" is on (Settings tab, Developer tools), so site owners see Connect, Settings and Extensions only
 * Changed: the Settings tab shows its real-time collaboration section only while Gutenberg's collaboration experiment is on
@@ -364,6 +367,9 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 * Initial release.
 
 == Upgrade Notice ==
+
+= 0.29.1 =
+Fixes the "Connect with WPSignal" button on the Connect tab, which led to "The link you followed has expired" in 0.29.0. Update if you still need to connect a site; connected sites are unaffected.
 
 = 0.29.0 =
 The Triggers and Explorer tabs are now hidden until "Show the Triggers and Explorer tabs" is switched on under Settings > Developer tools; your triggers keep running. Update WordSocket before ShopSocket 0.6.

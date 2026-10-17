@@ -183,9 +183,12 @@ class Admin_Page {
 			'window.wpsignalSettings = ' . wp_json_encode(
 				array(
 					'connectUrl'    => rest_url( 'wpsignal/v1/connect' ),
-					'oauthStartUrl' => wp_nonce_url(
-						admin_url( 'admin-post.php?action=wpsignal_oauth_start' ),
-						'wpsignal_oauth_start'
+					'oauthStartUrl' => add_query_arg(
+						array(
+							'action'   => 'wpsignal_oauth_start',
+							'_wpnonce' => wp_create_nonce( 'wpsignal_oauth_start' ),
+						),
+						admin_url( 'admin-post.php' )
 					),
 					'restUrl'       => rest_url( 'wpsignal/v1/' ),
 					'nonce'         => wp_create_nonce( 'wp_rest' ),
