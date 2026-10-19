@@ -180,6 +180,11 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 
 == Changelog ==
 
+= 0.30.0 =
+* New for extensions: `WPS.presence.track( channel )` follows a visitor's journey across the site over relay presence (the pages they open, with times, and when the tab is hidden) and reports each visit and leave to WordPress, where the `wpsignal_visitor_visit` and `wpsignal_visitor_leave` actions let a plugin store it. WordSocket stores nothing itself
+* New: the `wpsignal_page_step` filter names the step a page is in a journey
+* Fixed: a visitor page served from a full-page cache could fail to refresh its connection token because it carried a stale REST nonce; the nonce is now printed for logged-in visitors only
+
 = 0.29.1 =
 * Fixed: "Connect with WPSignal" on the Connect tab led to "The link you followed has expired" since 0.29.0, because the authorization link's nonce was HTML-escaped. Manual connection with an API key was unaffected
 

@@ -11,6 +11,7 @@
 
 import { wpsDebug } from "./utils";
 import { onChannel, uuid, visitorId } from "./utils/identity";
+import { createTracker } from "./presence/track";
 import { Backoff } from "./utils/backoff";
 import { createDecryptor, type Decryptor } from "./utils/crypto";
 import { relayEndpoints } from "./utils/relay";
@@ -114,6 +115,13 @@ export class WPSignalClient implements WPSApi {
 
   /** Cached AES-256-GCM decryptor; built once and reused for every message. */
   private decryptorPromise: Promise<Decryptor | null> | null = null;
+
+  /**
+   * Visitor tracking over presence (0.30).
+   */
+  readonly presence: WPSPresenceApi = {
+    track: (channel, options) => createTracker(this, this.config.presence, this.config.nonce, channel, options),
+  };
 
   constructor(config: WpSignalConfig) {
     this.config = config;
@@ -745,7 +753,10 @@ export class WPSignalClient implements WPSApi {
     this.emitState();
   }
 
-  /** Mint a fresh token, channel list, and expiry from the REST endpoint. */
+  /*
+   * Mint a fresh token, channel list, and expiry from the REST endpoint. The
+   * nonce is only printed for logged-in visitors.
+   */
   private async fetchToken(): Promise<{
     token: string;
     channels: string[];
@@ -756,7 +767,7 @@ export class WPSignalClient implements WPSApi {
       credentials: "same-origin",
       headers: {
         "Content-Type": "application/json",
-        "X-WP-Nonce": this.config.nonce,
+        ...(this.config.nonce ? { "X-WP-Nonce": this.config.nonce } : {}),
       },
     });
     if (!res.ok) {

@@ -24,8 +24,8 @@ interface WpSignalConfig {
 	isDebug: boolean;
 	/** WordPress REST URL. */
 	restUrl: string;
-	/** WordPress REST nonce. */
-	nonce: string;
+	/** WordPress REST nonce. Printed for logged-in visitors only: a cached guest page must carry none. */
+	nonce?: string;
 	/** WPSignal server URL. */
 	baseUrl: string;
 	/** Relay endpoints from PHP. Absent only on a page cached before 0.25 (see `relayEndpoints`). */
@@ -38,6 +38,20 @@ interface WpSignalConfig {
 	encryptionKey?: string;
 	/** Force use of SSE instead of WebSocket. */
 	forceSSE?: boolean;
+	/** This page's step and the report routes, for `WPS.presence.track()` (0.30). Absent on a page cached before it. */
+	presence?: WpSignalPresenceConfig;
+}
+
+/** Printed by class-wpsignal-client.php from `Presence::config()`. */
+interface WpSignalPresenceConfig {
+	/** The page's kind: a post type, a taxonomy, or `home`, `search`, `archive`, `other`, `admin` (the `wpsignal_page_step` filter). */
+	kind: string;
+	/** The post or term id, 0 when the kind has none. */
+	id: number;
+	/** `POST /wpsignal/v1/visit`. */
+	visitUrl: string;
+	/** `POST /wpsignal/v1/leave`. */
+	leaveUrl: string;
 }
 
 /** Localized by class-wpsignal-admin-page.php (Settings React app) */
@@ -132,6 +146,38 @@ interface WPSConnectionState {
 	failures: number;
 }
 
+/** Options for `WPS.presence.track()`. */
+interface WPSTrackOptions {
+	/** The plugin's own fields, carried in presence state and in every report (ShopSocket's cart id). */
+	state?: Record< string, unknown >;
+	/** Whether to report visits and leaves to WordPress. Default true; false for a live-only board. */
+	report?: boolean;
+}
+
+/** What `WPS.presence.track()` returns. */
+interface WPSPresenceTracker {
+	/** This browser's visitor id, the same `WPS.visitorId()` gives. */
+	readonly visitor: string;
+	/** This visit's journey id, a v4 UUID; a new one after 30 minutes without an arrival. */
+	journeyId(): string;
+	/** The journey so far: `kind:id:ms` steps joined by `>`, the open step's time included. */
+	journey(): string;
+	/** Replace the plugin's fields; presence is announced again at once. */
+	update( state: Record< string, unknown > ): void;
+	/** Called after every change to the journey (a step, away, back, a new visit). Returns the unsubscribe. */
+	onChange( handler: ( journey: string, journeyId: string ) => void ): () => void;
+	/** Leave presence and stop listening. The journey in storage is kept. */
+	stop(): void;
+}
+
+interface WPSPresenceApi {
+	/**
+	 * Track this visitor on a channel the token may write presence to (0.30): presence as `{ v, n, j, ...state }`,
+	 * the journey kept across pages, visits and leaves reported to the `wpsignal_visitor_visit` and `wpsignal_visitor_leave` actions.
+	 */
+	track( channel: string, options?: WPSTrackOptions ): WPSPresenceTracker;
+}
+
 /** Public API exposed by the WordSocket client on window.WPS */
 interface WPSApi {
 	/** Subscribe to additional channels on the shared connection. */
@@ -192,6 +238,8 @@ interface WPSApi {
 	 * check this in a handler before trusting the event's data.
 	 */
 	onChannel( channel: string, expected: string ): boolean;
+	/** Visitor tracking over presence: `WPS.presence.track( channel, options )`. */
+	readonly presence: WPSPresenceApi;
 }
 
 // ---------------------------------------------------------------------------
