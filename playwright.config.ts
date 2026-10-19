@@ -10,6 +10,7 @@ export default defineConfig({
   ...baseConfig,
   testDir: "tests/e2e",
   globalSetup: require.resolve("./tests/e2e/global-setup.ts"),
+  globalTeardown: require.resolve("./tests/e2e/global-teardown.ts"),
   // The rehearsal server and its metrics sidecar are owned by the run: started
   // here (pinning the E2E site and seeding the dashboard user on the way) and
   // killed, process tree included, when the run ends. A stack started by hand
