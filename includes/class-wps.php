@@ -141,6 +141,13 @@ class WPS {
 	private $presence_instance;
 
 	/**
+	 * The rules registry, store and routes (0.31).
+	 *
+	 * @var Rules
+	 */
+	private $rules_instance;
+
+	/**
 	 * Get the singleton instance.
 	 *
 	 * @return WPS
@@ -173,9 +180,12 @@ class WPS {
 		$this->token_instance            = new Token( $this->config_instance, $this->publisher_instance, $this->channels_instance );
 		$this->trigger_registry_instance = new Trigger_Registry( $this->publisher_instance );
 		$this->presence_instance         = new Presence();
-		$this->client_instance           = new Client( $this->config_instance, $this->token_instance, $this->presence_instance );
-		$this->admin_instance            = new Admin_Page( $this->config_instance );
-		$this->connect_instance          = new Connect( $this->config_instance );
+		$this->rules_instance            = new Rules( $this->config_instance, $this->publisher_instance );
+		// The built-in vocabulary carries translated labels, so it registers on `init`; extensions may register earlier.
+		add_action( 'init', array( $this->rules_instance, 'register_defaults' ), 5 );
+		$this->client_instance  = new Client( $this->config_instance, $this->token_instance, $this->presence_instance, $this->rules_instance );
+		$this->admin_instance   = new Admin_Page( $this->config_instance );
+		$this->connect_instance = new Connect( $this->config_instance );
 		$this->connect_instance->init();
 
 		// Register built-in triggers.
@@ -211,6 +221,10 @@ class WPS {
 		add_action( 'rest_api_init', array( $this->token_instance, 'register_routes' ) );
 		add_action( 'rest_api_init', array( $this->extensions_instance, 'register_routes' ) );
 		add_action( 'rest_api_init', array( $this->presence_instance, 'register_routes' ) );
+		add_action( 'rest_api_init', array( $this->rules_instance, 'register_routes' ) );
+		// A synced pattern a live moment shows was edited or removed: browsers must fetch it again.
+		add_action( 'save_post_wp_block', array( $this->rules_instance, 'on_pattern_changed' ), 10, 2 );
+		add_action( 'deleted_post', array( $this->rules_instance, 'on_pattern_changed' ), 10, 2 );
 		$this->triggers_rest = new Triggers_REST();
 		add_action( 'rest_api_init', array( $this->triggers_rest, 'register_routes' ) );
 
@@ -305,6 +319,15 @@ class WPS {
 	 */
 	public function presence() {
 		return $this->presence_instance;
+	}
+
+	/**
+	 * The rules registry (see `Rules`): `WPS::rules()->condition( $key, $args )` and `->action( $key, $args )` on `wpsignal_loaded`.
+	 *
+	 * @return Rules
+	 */
+	public static function rules() {
+		return self::instance()->rules_instance;
 	}
 
 	/**

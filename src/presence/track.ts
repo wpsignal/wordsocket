@@ -1,21 +1,10 @@
 /*
- * `WPS.presence.track( channel, options )`: who is on the site and where they
- * went, with no heartbeat and no job.
- *
- * - Opens this page's journey step (PHP seeds the page's kind and id).
- * - Enters relay presence on the channel as `{ v, n, j, ...state }`: the
- *   visitor id, the journey id, the journey, the plugin's own fields.
- * - Reports the visit to WordPress, and the leave on `pagehide`.
- * - Keeps the journey honest: `away` on `visibilitychange`, a fresh step and
- *   visit when the page returns from the back/forward cache, a new journey
- *   (old one reported once more) when the visitor returns after the gap.
- * - WordSocket stores none of it: the visit and leave routes hand each report
- *   to the `wpsignal_visitor_visit` and `wpsignal_visitor_leave` actions.
- * - Proven in `examples/wordsocket-presence-lab` (Phase 60 stage 1) before it
- *   moved here; the lab's eight Playwright cases are its tests.
+ * `WPS.presence.track( channel, options )`: enters relay presence as `{ v, n, j, ...state }`,
+ * announces again on every journey change, and reports visits and leaves to WordPress, which stores
+ * none of it. The lab in `examples/wordsocket-presence-lab` is its test.
  */
 
-import { createJourney, type Journey } from "./journey";
+import { pageJourney } from "./page-journey";
 import { sendReport } from "./report";
 import { visitorId } from "../utils/identity";
 
@@ -25,9 +14,13 @@ export interface PresenceClient {
 }
 
 export interface TrackOptions {
-  /** The plugin's own fields, carried in presence state and in every report (ShopSocket's cart id). */
+  /**
+   * The plugin's own fields, carried in presence state and in every report (ShopSocket's cart id).
+   */
   state?: Record<string, unknown>;
-  /** Whether to report visits and leaves to WordPress. Default true; false for a live-only board. */
+  /**
+   * Whether to report visits and leaves to WordPress. Default true; false for a live-only board.
+   */
   report?: boolean;
 }
 
@@ -40,7 +33,10 @@ export interface PresenceTracker {
   journey(): string;
   /** Replace the plugin's fields: presence is announced again at once. */
   update(state: Record<string, unknown>): void;
-  /** Called after every change to the journey (a step, away, back, a new visit). Returns the unsubscribe. */
+  /**
+   * Called after every change to the journey (a step, away, back, a new visit). Returns the
+   * unsubscribe.
+   */
   onChange(handler: (journey: string, journeyId: string) => void): () => void;
   /** Leave presence and stop listening. The journey in storage is kept. */
   stop(): void;
@@ -53,14 +49,9 @@ export function createTracker(
   channel: string,
   options: TrackOptions = {},
 ): PresenceTracker {
-  const journey: Journey = createJourney();
+  const page = pageJourney();
+  const { journey } = page;
   const v = visitorId();
-  /*
-   * No step from PHP (an admin page, a page cached before this version) is
-   * still a tracked page, just one nobody can name.
-   */
-  const kind = config?.kind ?? "other";
-  const id = config?.id ?? 0;
   const report = options.report !== false && !!config;
   let state = options.state ?? {};
   let stopped = false;
@@ -68,53 +59,68 @@ export function createTracker(
 
   const announce = () => {
     if (stopped) return;
-    client.setPresence(channel, { ...state, v, n: journey.id(), j: journey.current() });
+    client.setPresence(channel, {
+      ...state,
+      v,
+      n: journey.id(),
+      j: journey.current(),
+    });
     const current = journey.current();
     handlers.forEach((fn) => fn(current, journey.id()));
   };
 
-  const send = (url: string | undefined, n: string, j: string, keepalive: boolean) => {
+  const send = (
+    url: string | undefined,
+    n: string,
+    j: string,
+    keepalive: boolean,
+  ) => {
     if (!report || !url) return;
-    const body = { v, n, journey: j, ...(Object.keys(state).length ? { data: state } : {}) };
+    const body = {
+      v,
+      n,
+      journey: j,
+      ...(Object.keys(state).length ? { data: state } : {}),
+    };
     sendReport(url, body, nonce, keepalive);
   };
-  const visit = () => send(config?.visitUrl, journey.id(), journey.current(), false);
+  const visit = () =>
+    send(config?.visitUrl, journey.id(), journey.current(), false);
 
-  const onVisibility = () => {
-    if (stopped) return;
-    if (document.hidden) {
-      journey.away();
-    } else {
-      /*
-       * Back after the gap: the old visit is over, and this return is the
-       * first step of a new one.
-       */
-      const ended = journey.back();
-      if (ended) {
-        send(config?.leaveUrl, ended.n, ended.journey, false);
-        visit();
-      }
-    }
-    announce();
-  };
-  const onPageHide = () => {
-    if (stopped) return;
-    send(config?.leaveUrl, journey.id(), journey.close(), true);
-  };
-  // Restored from the back/forward cache: the page is live again.
-  const onPageShow = (event: PageTransitionEvent) => {
-    if (stopped || !event.persisted) return;
-    journey.step(kind, id);
-    announce();
-    visit();
-  };
-
-  journey.step(kind, id);
+  // The page's step has already been opened by `pageJourney()`: announce and report it.
   announce();
   visit();
-  document.addEventListener("visibilitychange", onVisibility);
-  window.addEventListener("pagehide", onPageHide);
-  window.addEventListener("pageshow", onPageShow);
+  const off = page.onChange((event) => {
+    if (stopped) return;
+    switch (event.type) {
+      case "step":
+        announce();
+        visit();
+        break;
+      case "away":
+        announce();
+        break;
+      case "back":
+        /*
+         * Back after the gap: the old journey gets its leave with the away capped at the gap, and
+         * this return is the first step of a new one.
+         */
+        if (event.ended) {
+          send(config?.leaveUrl, event.ended.n, event.ended.journey, false);
+          visit();
+        }
+        announce();
+        break;
+      case "close":
+        send(
+          config?.leaveUrl,
+          journey.id(),
+          event.closed ?? journey.current(),
+          true,
+        );
+        break;
+    }
+  });
 
   return {
     visitor: v,
@@ -133,9 +139,7 @@ export function createTracker(
     stop() {
       if (stopped) return;
       stopped = true;
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("pagehide", onPageHide);
-      window.removeEventListener("pageshow", onPageShow);
+      off();
       handlers.clear();
       client.setPresence(channel, null);
     },

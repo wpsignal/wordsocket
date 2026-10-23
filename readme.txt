@@ -169,6 +169,10 @@ Each plan has a monthly message quota. When it is reached the server answers pub
 
 The client falls back to SSE for receiving events. `window.WPS.subscribe()` and `window.WPS.unsubscribe()` work on SSE connections: channel changes are tracked and applied immediately via a lightweight SSE reconnect (50 ms debounce). Collaborative editing needs WebSocket, because SSE is receive-only: if the editor opens while the client is on SSE, collaboration stays off for that editor until the page is reloaded with WebSocket available. You can also disable the collaboration provider from the **WordSocket Settings tab** to use Gutenberg's HTTP polling for all editors instead.
 
+= What are moments? =
+
+A moment watches each visitor in their own browser and steps in when its conditions come true: show text or a synced pattern as a modal, banner, bar, toast or panel, and, with "Flash the tab title" switched on, follow the visitor to a hidden tab (the title flashes and the favicon is badged until they return; the prompt is already there when they do). A synced pattern a switched-on moment shows is served to any visitor who asks for it. Conditions cover the page (its kind, a page id, a term id, a taxonomy archive), time on it while visible or while hidden, pages so far, what was seen earlier, the time of day on the site's clock or the visitor's, the day of the week, new or returning, logged in, and the device. Extensions add their own, and ShopSocket adds the cart.
+
 == Screenshots ==
 
 1. Connect tab (Automatic): one-click connection flow. Log in to your WPSignal dashboard and authorize the site with a single button.
@@ -179,6 +183,10 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 6. Explorer tab (connected): live Event Log showing an active WebSocket connection and an incoming encrypted event, with a test event published successfully.
 
 == Changelog ==
+
+= 0.31.0 =
+* New for extensions: `WPS.recovery` shows a prompt as a modal, banner, bar, toast or slide-in panel, flashes the tab title, badges the favicon or plays a chime, and `WPS.attention` says whether the visitor is on the page, in another window or on a hidden tab. Nothing shows until a moment or an extension asks
+* New: moments. A moment names conditions about the visitor (the page, a page or term id, a taxonomy archive, time on the page while visible or while hidden, pages so far, what was seen earlier, the time of day by the site's clock or the visitor's, the day of the week, new or returning, logged in, the device) and shows text or a synced pattern as a modal, banner, bar, toast or panel. "Flash the tab title" makes a moment that fires on a hidden tab flash the title and badge the favicon until the visitor returns; the prompt opens when its action runs and is there on the return. Only enabled moments reach browsers, and nothing shows until one is on.
 
 = 0.30.0 =
 * New for extensions: `WPS.presence.track( channel )` follows a visitor's journey across the site over relay presence (the pages they open, with times, and when the tab is hidden) and reports each visit and leave to WordPress, where the `wpsignal_visitor_visit` and `wpsignal_visitor_leave` actions let a plugin store it. WordSocket stores nothing itself

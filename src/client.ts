@@ -1,17 +1,15 @@
-/**
- * WordSocket Client
- *
- * Prefers WebSocket for bidirectional communication, falls back to SSE.
- * Dispatches `wpsignal:<event>` DOM custom events regardless of transport.
- *
- * Exposes `window.WPS`: the public JS API so any theme or plugin can
- * subscribe/unsubscribe channels, publish messages, and listen for events
- * on the shared connection. Enqueue with `'wpsignal'` as a script dependency.
+/*
+ * WordSocket client: WebSocket with SSE fallback, dispatching `wpsignal:<event>` DOM events and
+ * exposing the public `window.WPS` API. Enqueue with `'wpsignal'` as a script dependency.
  */
 
 import { wpsDebug } from "./utils";
 import { onChannel, uuid, visitorId } from "./utils/identity";
 import { createTracker } from "./presence/track";
+import { createAttention } from "./attention/attention";
+import { createRecovery } from "./recovery/recovery";
+import { createRulesApi } from "./rules";
+import "./recovery/recovery.css";
 import { Backoff } from "./utils/backoff";
 import { createDecryptor, type Decryptor } from "./utils/crypto";
 import { relayEndpoints } from "./utils/relay";
@@ -40,17 +38,13 @@ const CLOSE_CONNECTION_LIMIT = 4029;
 
 /**
  * A socket that stays open this long counts as established, and only then is
- * the retry state (backoff, one-time re-mint) reset. 
+ * the retry state (backoff, one-time re-mint) reset.
  */
 const STABLE_CONNECTION_MS = 3000;
 
 /**
- * The server sends a `{"type":"ping"}` frame every 20s, so an open WebSocket
- * that has been silent longer than this is a zombie: the OS/browser kept the
- * socket object alive through a sleep or background suspension, but the server
- * has already dropped the connection. Sized to tolerate two missed pings plus
- * scheduling slack so a single delayed frame cannot trigger a spurious
- * reconnect. y-websocket uses the same technique (messageReconnectTimeout).
+ * An open socket silent for longer than this (two missed 20 s server pings plus slack) is a zombie
+ * left by a sleep, so it is reconnected.
  */
 const STALE_CONNECTION_TIMEOUT_MS = 45000;
 
@@ -70,8 +64,10 @@ export class WPSignalClient implements WPSApi {
   private watchdogTimer: ReturnType<typeof setInterval> | null = null;
   private visibilityListenerAttached = false;
   private _connected = false;
-  /** Debug-only: when true the WS close handler skips the automatic 5s reconnect,
-   * letting `window.wpsTest.drop()` mimic a dead-after-sleep socket until `wake()`. */
+  /**
+   * Debug only: skips the automatic reconnect so `window.wpsTest.drop()` can mimic a
+   * dead-after-sleep socket until `wake()`.
+   */
   private debugSuppressReconnect = false;
 
   private readonly messageHandlers = new Set<WPSMessageHandler>();
@@ -81,8 +77,7 @@ export class WPSignalClient implements WPSApi {
   private readonly binaryHandlers = new Set<WPSBinaryHandler>();
 
   /**
-   * Retry schedule shared by every path that re-enters `init()` (socket
-   * close, token fetch failure, refresh failure). Reset on a successful open.
+   * Retry schedule shared by every path that re-enters `init()`, reset on a successful open.
    */
   private readonly backoff = new Backoff();
   /** Last connection error, kept until the next successful open. */
@@ -100,16 +95,13 @@ export class WPSignalClient implements WPSApi {
   private stableTimer: ReturnType<typeof setTimeout> | null = null;
 
   /**
-   * Authoritative set of channels the client wants subscribed. Persists across
-   * reconnects, fallbacks, and token refreshes, and is replayed to every new
-   * transport on open so subscriptions are never lost when a transport restarts.
+   * The channels the client wants subscribed, replayed to every new transport so a restart never
+   * loses them.
    */
   private readonly subscribedChannels = new Set<string>();
 
   /**
-   * Presence this client wants held per channel, replayed on every (re)connect
-   * so a member is back the moment the socket returns. Setting a channel to
-   * `null` leaves it and stops the replay.
+   * Presence held per channel, re-sent on every reconnect; `null` leaves and stops the replay.
    */
   private readonly desiredPresence = new Map<string, Record<string, unknown>>();
 
@@ -120,19 +112,37 @@ export class WPSignalClient implements WPSApi {
    * Visitor tracking over presence (0.30).
    */
   readonly presence: WPSPresenceApi = {
-    track: (channel, options) => createTracker(this, this.config.presence, this.config.nonce, channel, options),
+    track: (channel, options) =>
+      createTracker(
+        this,
+        this.config.presence,
+        this.config.nonce,
+        channel,
+        options,
+      ),
   };
+
+  /** Where the visitor's attention is (0.31): `page`, `window` or `hidden`. */
+  readonly attention: WPSAttentionApi = createAttention();
+
+  /** The surfaces a prompt reaches the visitor through (0.31). */
+  readonly recovery: WPSRecoveryApi = createRecovery(this.attention);
+
+  /**
+   * The rules engine and the registration API for plugins (0.31); built in the constructor, since
+   * it reads the config.
+   */
+  readonly rules: WPSRulesApi;
 
   constructor(config: WpSignalConfig) {
     this.config = config;
     this.endpoints = relayEndpoints(config);
+    this.rules = createRulesApi(this, config, this.attention, this.recovery);
   }
 
   /**
-   * Subscribe to one or more channels. Channels are tracked in an authoritative
-   * set and forwarded to the active transport when connected; either way they
-   * are replayed on every (re)connect, so a subscription made while connecting
-   * (or while on a transport that later restarts) is never dropped.
+   * Subscribe to one or more channels; the set is replayed on every reconnect, so a subscription
+   * made while connecting is never dropped.
    */
   subscribe(channels: string[]): void {
     const added = channels.filter((ch) => !this.subscribedChannels.has(ch));
@@ -155,11 +165,8 @@ export class WPSignalClient implements WPSApi {
   }
 
   /**
-   * Enter (or update) connection-scoped presence on a channel. The relay drops
-   * the membership automatically when the socket closes, and this client
-   * re-sends it on reconnect. Pass `null` to leave: the relay announces the
-   * leave to subscribers at once. Presence needs the WebSocket transport; on
-   * SSE it is a no-op.
+   * Enter or update connection-scoped presence on a channel, re-sent on reconnect; `null` leaves at
+   * once. A no-op on SSE.
    */
   setPresence(channel: string, state: Record<string, unknown> | null): void {
     if (state === null) {
@@ -229,8 +236,8 @@ export class WPSignalClient implements WPSApi {
   }
 
   /**
-   * Register a handler for incoming binary WebSocket frames (e.g. Yjs updates).
-   * Returns an unsubscribe function.
+   * Register a handler for incoming binary WebSocket frames (Yjs updates); returns an unsubscribe
+   * function.
    */
   onBinaryMessage(handler: WPSBinaryHandler): () => void {
     this.binaryHandlers.add(handler);
@@ -258,17 +265,25 @@ export class WPSignalClient implements WPSApi {
     };
   }
 
-  /** A version-4 UUID that also works on plain HTTP pages, where `crypto.randomUUID` does not exist. */
+  /**
+   * A version-4 UUID that also works on plain HTTP pages, where `crypto.randomUUID` does not exist.
+   */
   uuid(): string {
     return uuid();
   }
 
-  /** This browser's stable id, shared by every tab and extension on the site. Names a browser, not a person. */
+  /**
+   * This browser's stable id, shared by every tab and extension on the site. Names a browser, not a
+   * person.
+   */
   visitorId(): string {
     return visitorId();
   }
 
-  /** Whether `channel` is `expected`, allowing the qualified `site:{id}:` spelling. Check it before trusting an event. */
+  /**
+   * Whether `channel` is `expected`, allowing the qualified `site:{id}:` spelling. Check it before
+   * trusting an event.
+   */
   onChannel(channel: string, expected: string): boolean {
     return onChannel(channel, expected);
   }
@@ -296,10 +311,8 @@ export class WPSignalClient implements WPSApi {
   }
 
   /**
-   * Like `onConnectionChange` but with the full state: why the connection is
-   * down, whether and when a retry is scheduled, and how many attempts have
-   * failed. Fires on every change, including retry scheduling while offline.
-   * Returns an unsubscribe function.
+   * Like `onConnectionChange` but with the full state (why it is down, the scheduled retry, failed
+   * attempts), firing on every change. Returns an unsubscribe function.
    */
   onStateChange(handler: (s: WPSConnectionState) => void): () => void {
     this.stateHandlers.add(handler);
@@ -336,13 +349,14 @@ export class WPSignalClient implements WPSApi {
       });
     }
     /*
-     * A prerendered page (Chrome's speculative loading) runs scripts before
-     * anyone is looking at it. Connecting there would count a socket for a
-     * page that may never be shown, so wait until the document is activated.
+     * A prerendered page runs scripts before anyone looks at it, so connecting waits until the
+     * document is activated.
      */
     const doc = document as Document & { prerendering?: boolean };
     if (doc.prerendering) {
-      document.addEventListener("prerenderingchange", () => this.start(), { once: true });
+      document.addEventListener("prerenderingchange", () => this.start(), {
+        once: true,
+      });
       return;
     }
     if (document.readyState === "loading") {
@@ -363,12 +377,8 @@ export class WPSignalClient implements WPSApi {
     });
     window.addEventListener("online", () => this.handleReconnect());
     /*
-     * Close cleanly when the page goes away. Without this the browser tears
-     * the document down around the socket: on a plain navigation the relay
-     * only learns of it from the transport closing underneath, and a page
-     * parked in the back/forward cache keeps its socket open, so a site's
-     * connection count climbs by one per page visited. A cached page that
-     * comes back gets a fresh connection on pageshow.
+     * Close cleanly when the page goes away, or a page parked in the back/forward cache keeps its
+     * socket and the site's count climbs; a restored page reconnects on `pageshow`.
      */
     window.addEventListener("pagehide", () => this.cleanup());
     window.addEventListener("pageshow", (event) => {
@@ -378,11 +388,8 @@ export class WPSignalClient implements WPSApi {
   }
 
   /**
-   * A WebSocket that reports OPEN but has received nothing (not even the
-   * server's 20s keepalive ping) for STALE_CONNECTION_TIMEOUT_MS is a zombie
-   * left behind by a sleep or background suspension; the server has already
-   * dropped its side, so frames sent on it go nowhere and no close event will
-   * arrive for minutes, if ever.
+   * A socket that reports OPEN but has received nothing for STALE_CONNECTION_TIMEOUT_MS was dropped
+   * by the server during a sleep, and no close event will arrive for minutes.
    */
   private isStale(): boolean {
     const status = this.activeTransport?.getStatus();
@@ -398,10 +405,8 @@ export class WPSignalClient implements WPSApi {
   }
 
   /**
-   * Periodically force-reconnect zombie sockets. Background tabs clamp the
-   * interval to about once a minute, which still catches stale connections;
-   * the visibilitychange handler covers the return-to-foreground case
-   * immediately.
+   * Periodically force-reconnect zombie sockets; background tabs clamp the interval to about a
+   * minute, and the visibility handler covers the return at once.
    */
   private startWatchdog(): void {
     if (this.watchdogTimer !== null) return;
@@ -420,9 +425,8 @@ export class WPSignalClient implements WPSApi {
   }
 
   /**
-   * Reconnect immediately rather than waiting for the scheduled retry. No-ops if
-   * already connected (and not stale), mid-handshake, or if an init() is
-   * already in flight.
+   * Reconnect now rather than at the scheduled retry; a no-op when already connected, mid-handshake
+   * or with an `init()` in flight.
    */
   private handleReconnect(): void {
     if (this._connected) {
@@ -464,7 +468,7 @@ export class WPSignalClient implements WPSApi {
   /**
    * Obtain a token (reused from config on first load, otherwise fetched) and
    * open a transport. Retries after 30s if the token fetch fails.
-   * 
+   *
    */
   private init(): void {
     this.attachVisibilityListeners();
@@ -523,10 +527,8 @@ export class WPSignalClient implements WPSApi {
     const transport = new WebSocketTransport(this.endpoints.ws, {
       onOpen: () => {
         /*
-         * Subscribe before announcing the connection: onConnectionChange
-         * handlers (e.g. the Yjs provider) publish immediately, and replies to
-         * those frames are only delivered once the server has processed our
-         * subscriptions.
+         * Subscribe before announcing the connection, since `onConnectionChange` handlers publish
+         * at once and replies only arrive after the subscriptions are processed.
          */
         this.replaySubscriptions();
         this.setConnected(true);
@@ -552,14 +554,24 @@ export class WPSignalClient implements WPSApi {
       case CLOSE_INVALID_TOKEN:
         if (!this.remintedAfterAuthFailure) {
           this.remintedAfterAuthFailure = true;
-          wpsDebug("Token rejected, minting a fresh one", reason ?? null, "warn");
+          wpsDebug(
+            "Token rejected, minting a fresh one",
+            reason ?? null,
+            "warn",
+          );
           this.reInit();
         } else {
-          this.halt("authentication-failed", reason ?? "Token rejected by the relay");
+          this.halt(
+            "authentication-failed",
+            reason ?? "Token rejected by the relay",
+          );
         }
         return;
       case CLOSE_SITE_NOT_FOUND:
-        this.halt("authentication-failed", reason ?? "Site is no longer registered");
+        this.halt(
+          "authentication-failed",
+          reason ?? "Site is no longer registered",
+        );
         return;
       case CLOSE_CONNECTION_LIMIT:
         this.scheduleRetry(
@@ -631,38 +643,43 @@ export class WPSignalClient implements WPSApi {
   }
 
   /**
-   * The fallback stream just opened, so the relay is reachable: try the socket
-   * once, right now. During a relay restart the socket fails while the relay
-   * is down and the browser's EventSource is the first to reconnect; this step
-   * moves the client back the moment that happens. A socket that fails while
-   * the stream is up is blocked for real, and the stream stays until the token
-   * refresh tries again.
+   * The fallback stream just opened, so the relay is reachable: try the socket once now, which
+   * moves the client back the moment a relay restart ends.
    */
   private probeWebSocket(token: string, channels: string[]): void {
     const stream = this.activeTransport;
-    if (this.halted || !this.webSocketPossible() || !stream || stream.name !== "sse") return;
-    const socket: WebSocketTransport = new WebSocketTransport(this.endpoints.ws, {
-      onOpen: () => {
-        if (this.activeTransport !== stream) {
-          socket.close(); // the stream moved on while the socket was opening
-          return;
-        }
-        stream.close();
-        this.activateTransport(socket);
-        this.replaySubscriptions();
-        wpsDebug("Back on WebSocket");
-        this.emitState();
+    if (
+      this.halted ||
+      !this.webSocketPossible() ||
+      !stream ||
+      stream.name !== "sse"
+    )
+      return;
+    const socket: WebSocketTransport = new WebSocketTransport(
+      this.endpoints.ws,
+      {
+        onOpen: () => {
+          if (this.activeTransport !== stream) {
+            socket.close(); // the stream moved on while the socket was opening
+            return;
+          }
+          stream.close();
+          this.activateTransport(socket);
+          this.replaySubscriptions();
+          wpsDebug("Back on WebSocket");
+          this.emitState();
+        },
+        onMessage: (message) => this.handleTransportMessage(message),
+        onBinaryMessage: (channel, data) => {
+          this.binaryHandlers.forEach((handler) => handler(channel, data));
+        },
+        onClose: (event) => {
+          if (this.activeTransport !== socket) return; // never took over: the stream carries on
+          this.handleWebSocketClose(event, token, channels);
+        },
+        onError: () => undefined,
       },
-      onMessage: (message) => this.handleTransportMessage(message),
-      onBinaryMessage: (channel, data) => {
-        this.binaryHandlers.forEach((handler) => handler(channel, data));
-      },
-      onClose: (event) => {
-        if (this.activeTransport !== socket) return; // never took over: the stream carries on
-        this.handleWebSocketClose(event, token, channels);
-      },
-      onError: () => undefined,
-    });
+    );
     socket.connect({ token, channels });
   }
 
@@ -722,11 +739,14 @@ export class WPSignalClient implements WPSApi {
   }
 
   /**
-   * Schedule `action` after the next backoff delay, recording why. Every
-   * automatic retry in the client goes through here so the schedule (and the
-   * countdown consumers display) is consistent.
+   * Schedule `action` after the next backoff delay, recording why; every automatic retry goes
+   * through here so the countdown consumers see one schedule.
    */
-  private scheduleRetry(action: () => void, code: WPSConnectionErrorCode, message: string): void {
+  private scheduleRetry(
+    action: () => void,
+    code: WPSConnectionErrorCode,
+    message: string,
+  ): void {
     if (this.halted) return;
     if (this.reconnectTimer !== null) {
       clearTimeout(this.reconnectTimer);
@@ -734,7 +754,11 @@ export class WPSignalClient implements WPSApi {
     const delay = this.backoff.next();
     this.lastError = { code, message };
     this.retryInMs = delay;
-    wpsDebug(`Retrying in ${Math.round(delay / 1000)}s`, { code, message, failures: this.backoff.failures }, "warn");
+    wpsDebug(
+      `Retrying in ${Math.round(delay / 1000)}s`,
+      { code, message, failures: this.backoff.failures },
+      "warn",
+    );
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.retryInMs = null;
@@ -801,8 +825,8 @@ export class WPSignalClient implements WPSApi {
   }
 
   /**
-   * Schedule a token refresh at 80% of its lifetime (min 10s). Refreshes in
-   * place over an open WebSocket, otherwise reconnects with the new token.
+   * Schedule a token refresh at 80% of its lifetime (at least 10 s): in place over an open
+   * WebSocket, otherwise by reconnecting.
    */
   private scheduleRefresh(exp: number): void {
     if (this.refreshTimer) {
@@ -816,10 +840,8 @@ export class WPSignalClient implements WPSApi {
       this.fetchToken()
         .then((data) => {
           /*
-           * A WebSocket takes the new token in place. SSE cannot, so the refresh
-           * doubles as the recovery step for a fallback stream: reconnecting
-           * prefers WebSocket, which brings presence and publishing back after
-           * the relay outage that forced the fallback.
+           * A WebSocket takes the new token in place; SSE cannot, so the refresh reconnects and
+           * prefers WebSocket, which brings presence and publishing back after the outage.
            */
           if (!this.activeTransport?.refreshAuth(data.token)) {
             this.reInit();
@@ -845,9 +867,8 @@ export class WPSignalClient implements WPSApi {
   }
 
   /**
-   * Subscribe the active transport to every channel the client wants. Called on
-   * each (re)connect so subscriptions survive transport restarts, SSE fallback,
-   * and the token-refresh reconnect.
+   * Subscribe the active transport to every wanted channel, on each reconnect, fallback and
+   * token-refresh reconnect.
    */
   private replaySubscriptions(): void {
     if (!this.activeTransport?.getStatus().connected) return;
@@ -893,27 +914,24 @@ export class WPSignalClient implements WPSApi {
   }
 
   /**
-   * Build the AES-256-GCM decryptor from `wpSignalConfig.encryptionKey` (base64),
-   * once, and reuse it for every message. SubtleCrypto where the page has it, a
-   * pure-JS cipher on plain HTTP (see `utils/crypto.ts`). `null` only when no key
-   * is configured.
+   * Build the AES-256-GCM decryptor from `wpSignalConfig.encryptionKey` once: SubtleCrypto where
+   * available, a pure-JS cipher on plain HTTP. `null` when no key is configured.
    */
   private getDecryptor(): Promise<Decryptor | null> {
     if (!this.decryptorPromise) {
       const b64 = this.config.encryptionKey;
       this.decryptorPromise = b64
-        ? createDecryptor(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))).catch(() => null)
+        ? createDecryptor(
+            Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)),
+          ).catch(() => null)
         : Promise.resolve(null);
     }
     return this.decryptorPromise;
   }
 
   /**
-   * Decrypt an encrypted message payload produced by the PHP Publisher.
-   *
-   * Wire format (base64-encoded): `IV[12] || ciphertext[N] || auth-tag[16]`.
-   *
-   * Returns the parsed `{ event, data }` object, or `null` on failure.
+   * Decrypt a payload from the PHP Publisher (`IV[12] || ciphertext[N] || auth-tag[16]`, base64),
+   * returning `{ event, data }` or `null`.
    */
   private async decryptMessage(
     p: string,
@@ -921,7 +939,9 @@ export class WPSignalClient implements WPSApi {
     const decrypt = await this.getDecryptor();
     if (!decrypt) return null;
     try {
-      const plain = await decrypt(Uint8Array.from(atob(p), (c) => c.charCodeAt(0)));
+      const plain = await decrypt(
+        Uint8Array.from(atob(p), (c) => c.charCodeAt(0)),
+      );
       return JSON.parse(new TextDecoder().decode(plain));
     } catch {
       wpsDebug("Decryption failed", null, "warn");
@@ -946,7 +966,10 @@ class TokenRequestError extends Error {
 }
 
 function isAuthStatus(err: unknown): boolean {
-  return err instanceof TokenRequestError && (err.status === 401 || err.status === 403);
+  return (
+    err instanceof TokenRequestError &&
+    (err.status === 401 || err.status === 403)
+  );
 }
 
 function messageOf(err: unknown): string {

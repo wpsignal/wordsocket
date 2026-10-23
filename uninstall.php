@@ -19,6 +19,7 @@ delete_option( 'wpsignal_jwt_secret' );
 delete_option( 'wpsignal_custom_triggers' );
 delete_option( 'wpsignal_yjs_provider_enabled' );
 delete_option( 'wpsignal_developer_mode' );
+delete_option( 'wpsignal_rules' );
 delete_option( 'wpsignal_limits' );
 delete_option( 'wpsignal_last_publish_error' );
 delete_transient( 'wpsignal_oauth_state' );

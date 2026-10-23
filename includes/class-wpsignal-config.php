@@ -247,6 +247,33 @@ class Config {
 	}
 
 	/**
+	 * The saved rules (0.31): `{ version, rules, removed }`, in shape whatever is stored.
+	 *
+	 * @return array{version: int, rules: array, removed: string[]}
+	 */
+	public function rules(): array {
+		$saved = get_option( 'wpsignal_rules', array() );
+		$saved = is_array( $saved ) ? $saved : array();
+		return array(
+			'version' => (int) ( $saved['version'] ?? 0 ),
+			'rules'   => array_values( array_filter( (array) ( $saved['rules'] ?? array() ), 'is_array' ) ),
+			'removed' => array_values( array_map( 'strval', (array) ( $saved['removed'] ?? array() ) ) ),
+		);
+	}
+
+	/**
+	 * Write the rules option.
+	 *
+	 * @param array $saved `{ version, rules, removed }`.
+	 * @return void
+	 */
+	public function save_rules( array $saved ): void {
+		// Autoloaded: `Rules::config()` reads it on every front-end page view.
+		update_option( 'wpsignal_rules', $saved, true );
+	}
+
+
+	/**
 	 * Check whether the WordPress sync engine (real-time collaboration) is
 	 * available on this site.
 	 *

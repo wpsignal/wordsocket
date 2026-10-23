@@ -38,7 +38,56 @@ add_action(
 			)
 		);
 		WPS::instance()->channels()->reserve( 'stub:private', 'manage_options' );
+
+		/*
+		 * 1b. A condition and an action for the rules engine (0.31): the PHP
+		 * half describes them to the builder; `stub-client.js` does the work.
+		 */
+		if ( method_exists( WPS::class, 'rules' ) ) {
+			WPS::rules()->condition(
+				'stub_flag',
+				array(
+					'label'     => 'Stub flag',
+					'operators' => array( 'is' ),
+					'value'     => 'boolean',
+					'source'    => SLUG,
+				)
+			);
+			WPS::rules()->action(
+				'stub_log',
+				array(
+					'label'       => 'Log to the stub',
+					'description' => 'Appends the firing to window.__stubFired.',
+					'params'      => array(
+						'message' => array(
+							'type'  => 'text',
+							'label' => 'Message',
+						),
+					),
+					'source'      => SLUG,
+				)
+			);
+		}
 	}
+);
+
+// Where a firing goes: a transient the test suites read.
+add_action(
+	'wpsignal_rule_fired',
+	function ( array $report ) {
+		set_transient( 'stub_rule_fired', $report, MINUTE_IN_SECONDS );
+	}
+);
+
+// The browser halves, on every page the client is on.
+add_action(
+	'wp_enqueue_scripts',
+	function () {
+		if ( wp_script_is( 'wpsignal', 'enqueued' ) ) {
+			wp_enqueue_script( SLUG . '-client', plugins_url( 'stub-client.js', __FILE__ ), array( 'wpsignal' ), '1.0.0', true );
+		}
+	},
+	20
 );
 
 /**

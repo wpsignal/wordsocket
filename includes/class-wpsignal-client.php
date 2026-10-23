@@ -23,10 +23,11 @@ class Client {
 	 * - 2 (0.23): `uuid()`, `visitorId()`, `onChannel()`.
 	 * - 3 (0.28): `window.wordsocket.registerTab()`, a settings tab per extension.
 	 * - 4 (0.30): `WPS.presence.track()`, visitor journeys over presence.
+	 * - 5 (0.31): `WPS.attention` and `WPS.recovery`, the surfaces behind rules.
 	 *
 	 * @var int
 	 */
-	const API_VERSION = 4;
+	const API_VERSION = 5;
 
 	/**
 	 * Configuration accessor.
@@ -50,16 +51,25 @@ class Client {
 	private $presence;
 
 	/**
+	 * The rules for `WPS.rules` (0.31), when the facade handed one over.
+	 *
+	 * @var Rules|null
+	 */
+	private $rules;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Config        $config   Configuration accessor.
 	 * @param Token         $token    Token minter (used to embed an initial JWT server-side).
 	 * @param Presence|null $presence Page steps and report routes for the tracker.
+	 * @param Rules|null    $rules    The rules registry and store.
 	 */
-	public function __construct( Config $config, Token $token, ?Presence $presence = null ) {
+	public function __construct( Config $config, Token $token, ?Presence $presence = null, ?Rules $rules = null ) {
 		$this->config   = $config;
 		$this->token    = $token;
 		$this->presence = $presence ?? new Presence();
+		$this->rules    = $rules;
 	}
 
 	/**
@@ -124,6 +134,10 @@ class Client {
 			$asset['version'],
 			true
 		);
+		// The prompts' stylesheet (0.31), emitted beside the script by the build.
+		if ( file_exists( DIR . 'build/client.css' ) ) {
+			wp_enqueue_style( 'wpsignal', URL . 'build/client.css', array(), $asset['version'] );
+		}
 
 		/*
 		 * Mint a token server-side so client.js can connect immediately without
@@ -141,7 +155,11 @@ class Client {
 			'restUrl'          => rest_url( 'wpsignal/v1/token' ),
 			'isDebug'          => ( defined( 'WP_ENVIRONMENT_TYPE' ) && WP_ENVIRONMENT_TYPE !== 'production' ),
 			'presence'         => $this->presence->config(),
+			'siteName'         => get_bloginfo( 'name' ),
 		);
+		if ( $this->rules ) {
+			$localize['rules'] = $this->rules->config();
+		}
 
 		/*
 		 * The REST nonce goes only to logged-in visitors. A guest page may be
