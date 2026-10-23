@@ -77,11 +77,7 @@ export class WebSocketTransport implements WPSTransport {
     this.sendJson({ type: "unsubscribe", channels });
   }
 
-  publish(
-    channel: string,
-    event: string,
-    data: Record<string, unknown>,
-  ): void {
+  publish(channel: string, event: string, data: Record<string, unknown>): void {
     this.sendJson({ type: "message", channel, event, data });
   }
 
@@ -123,8 +119,6 @@ export class WebSocketTransport implements WPSTransport {
     };
   }
 
-
-
   private isOpen(): boolean {
     return this.ws?.readyState === WebSocket.OPEN;
   }
@@ -161,7 +155,11 @@ export class WebSocketTransport implements WPSTransport {
           );
           break;
         case "error":
-          wpsDebug("Server error", { code: message.code, message: message.message }, "warn");
+          wpsDebug(
+            "Server error",
+            { code: message.code, message: message.message },
+            "warn",
+          );
           // A rejected token refresh leaves the socket open but useless:
           // surface it to the client as an authentication close.
           if (message.code === "unauthorized") {

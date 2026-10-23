@@ -1,20 +1,8 @@
 /*
- * A visitor's journey: one string of `kind:id:ms` steps joined by `>`.
- *
- * - A step is a state and how long it lasted: a page (`product:123:3000`) or
- *   being away (`away:0:22000`, the tab hidden). One step is open at a time;
- *   it closes when the next opens or the page is left.
- * - The closed steps live in `sessionStorage`, so the string follows the
- *   visitor from page to page and dies with the tab.
- * - One journey is one visit, with an id of its own. A new one (new id, empty
- *   string) starts when the visitor arrives more than JOURNEY_GAP_MS after the
- *   last arrival. Opening a page or returning to a hidden tab are arrivals;
- *   closing a step is not.
- * - The visitor id (`visitorId()`, `localStorage`) outlives every journey, so
- *   the visits of one browser group under it.
- * - Ids only: a step never carries a URL, a slug or anything a person typed.
- * - The format is a contract with PHP (`Presence::JOURNEY_PATTERN`) and with
- *   every extension that stores journeys; root `CLAUDE.md` has it.
+ * A visitor's journey: `kind:id:ms` steps joined by `>`, the closed steps kept in `sessionStorage`
+ * so the string follows the visitor through the tab and dies with it. One journey is one visit, a
+ * new one starts after JOURNEY_GAP_MS, and the format is a contract with PHP and every extension
+ * (root `CLAUDE.md`).
  */
 
 import { uuid } from "../utils/identity";
@@ -29,9 +17,8 @@ export const JOURNEY_GAP_MS = 30 * 60_000;
 const STEP = /^[a-z_]+:\d+:\d+$/;
 
 /*
- * A tab close fires `visibilitychange` (hidden) a moment before `pagehide`,
- * so without this every closed tab would end in an `away` of a few
- * milliseconds that nobody chose.
+ * A tab close fires `visibilitychange` just before `pagehide`, which would end every closed tab in
+ * a few milliseconds of `away`.
  */
 const UNLOAD_AWAY_MS = 1000;
 
@@ -61,11 +48,17 @@ export interface Journey {
   current(): string;
   /** Close the open step, store, and return the journey. For `pagehide`. */
   close(): string;
-  /** Close whatever is open and open a step for this page; true when the gap had passed and a new journey begins. */
+  /**
+   * Close whatever is open and open a step for this page; true when the gap had passed and a new
+   * journey begins.
+   */
   step(kind: string, id: number): boolean;
   /** The tab was hidden: close the page step, open `away`. */
   away(): void;
-  /** The tab is visible again: close `away` and reopen the page step. Returns the old journey when the away outlasted the gap and a new one began. */
+  /**
+   * The tab is visible again: close `away` and reopen the page step, returning the old journey when
+   * the away outlasted the gap.
+   */
   back(): EndedJourney | null;
 }
 
@@ -82,7 +75,12 @@ function load(store: Storage | null): Stored | null {
     const raw = store?.getItem(JOURNEY_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<Stored>;
-    if (typeof parsed.n !== "string" || typeof parsed.j !== "string" || typeof parsed.at !== "number") return null;
+    if (
+      typeof parsed.n !== "string" ||
+      typeof parsed.j !== "string" ||
+      typeof parsed.at !== "number"
+    )
+      return null;
     return { n: parsed.n, j: parsed.j, at: parsed.at };
   } catch {
     return null;
@@ -90,14 +88,22 @@ function load(store: Storage | null): Stored | null {
 }
 
 function parse(journey: string): string[] {
-  return journey === "" ? [] : journey.split(SEPARATOR).filter((s) => STEP.test(s));
+  return journey === ""
+    ? []
+    : journey.split(SEPARATOR).filter((s) => STEP.test(s));
 }
 
 function format(kind: string, id: number, ms: number): string {
-  return `${kind}:${Math.max(0, Math.floor(id))}:${Math.max(0, Math.round(ms))}`;
+  return `${kind}:${Math.max(0, Math.floor(id))}:${Math.max(
+    0,
+    Math.round(ms),
+  )}`;
 }
 
-export function createJourney(store: Storage | null = storage(), now: () => number = () => Date.now()): Journey {
+export function createJourney(
+  store: Storage | null = storage(),
+  now: () => number = () => Date.now(),
+): Journey {
   const stored = load(store);
   let n = stored?.n ?? uuid();
   let closed = stored ? parse(stored.j) : [];
@@ -113,7 +119,14 @@ export function createJourney(store: Storage | null = storage(), now: () => numb
 
   const commit = (arrival: number = lastArrival()) => {
     try {
-      store?.setItem(JOURNEY_KEY, JSON.stringify({ n, j: closed.join(SEPARATOR), at: arrival } satisfies Stored));
+      store?.setItem(
+        JOURNEY_KEY,
+        JSON.stringify({
+          n,
+          j: closed.join(SEPARATOR),
+          at: arrival,
+        } satisfies Stored),
+      );
     } catch {
       // Storage blocked: the journey lasts for this page only.
     }
@@ -123,7 +136,8 @@ export function createJourney(store: Storage | null = storage(), now: () => numb
   const finish = () => {
     if (!open) return;
     closed.push(format(open.kind, open.id, now() - open.since));
-    if (closed.length > MAX_STEPS) closed = closed.slice(closed.length - MAX_STEPS);
+    if (closed.length > MAX_STEPS)
+      closed = closed.slice(closed.length - MAX_STEPS);
     open = null;
     commit();
   };
@@ -149,7 +163,9 @@ export function createJourney(store: Storage | null = storage(), now: () => numb
       return n;
     },
     current() {
-      const steps = open ? [...closed, format(open.kind, open.id, now() - open.since)] : closed;
+      const steps = open
+        ? [...closed, format(open.kind, open.id, now() - open.since)]
+        : closed;
       return steps.join(SEPARATOR);
     },
     close() {

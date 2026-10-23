@@ -213,7 +213,11 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
   private withinSizeLimit(update: Uint8Array): boolean {
     if (update.byteLength <= MAX_UPDATE_SIZE_BYTES) return true;
     if (this.currentStatus.error?.code !== "document-size-limit-exceeded") {
-      debug("update too large to relay", { channel: this.channel, bytes: update.byteLength }, "error");
+      debug(
+        "update too large to relay",
+        { channel: this.channel, bytes: update.byteLength },
+        "error",
+      );
       this.emitStatus({
         status: "disconnected",
         error: new WPSConnectionError(
@@ -315,9 +319,7 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
        * both sides have purged each other.
        */
       awareness.on("update", onAwarenessUpdate);
-      this.unsubscribers.push(() =>
-        awareness.off("update", onAwarenessUpdate),
-      );
+      this.unsubscribers.push(() => awareness.off("update", onAwarenessUpdate));
     }
 
     // Incoming binary frames from peers.
@@ -397,7 +399,10 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
             const localUpdate = encodeAwarenessUpdate(awareness, [
               awareness.clientID,
             ]);
-            wps.publishBinary(this.channel, this.frame(MSG_AWARENESS, localUpdate));
+            wps.publishBinary(
+              this.channel,
+              this.frame(MSG_AWARENESS, localUpdate),
+            );
           }
           debug("inbound awareness applied", {
             channel,
