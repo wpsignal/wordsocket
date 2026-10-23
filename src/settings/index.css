@@ -1,225 +1,11 @@
-/* Tab content */
-.wpsignal-tab-content {
-  margin-top: 16px;
-}
+/*
+ * The settings app's own styles: only what @wordpress/ui and
+ * @wordpress/components have no primitive for (page chrome rendered by PHP,
+ * grids, the toast position, a few hooks on ui components). Every colour and
+ * size is a --wpds-* design token; WordPress loads the token sheet on the page.
+ */
 
-.wpsignal-settings-select {
-  & select.components-select-control__input {
-    height: 40px !important;
-  }
-}
-
-/* Connection tab */
-.wpsignal-connection-tab .components-notice {
-  margin: 0 0 16px;
-}
-
-.wpsignal-connection-tab .components-base-control {
-  margin-bottom: 16px;
-}
-
-.wpsignal-connection-input {
-  --shimmer-gradient: linear-gradient(
-    90deg,
-    rgba(220, 220, 220, 0.2) 0,
-    rgba(255, 255, 255, 0.8) 50%,
-    rgba(220, 220, 220, 0.2) 100%
-  );
-
-  margin-bottom: 16px;
-
-  &.is-loading {
-    position: relative;
-    overflow: hidden;
-
-    input {
-      color: transparent;
-      background-color: transparent;
-      border-color: transparent;
-      background-image: var(--shimmer-gradient);
-      background-size: 200% 100%;
-      background-position: 100% 0;
-      animation: shimmer 1.5s infinite;
-      pointer-events: none;
-    }
-  }
-}
-
-.wpsignal-status-connected {
-  color: #46b450;
-  font-weight: 600;
-}
-
-.wpsignal-status-disconnected {
-  color: #dc3232;
-  font-weight: 600;
-}
-
-.wpsignal-connection-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-.wpsignal-triggers-app .components-notice {
-  margin: 0 0 16px;
-}
-
-.wpsignal-trigger-row {
-  align-items: center;
-  display: grid;
-  grid-template-columns: 40px 1fr 1fr 1fr 1fr;
-  gap: 12px;
-  padding: 16px;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-.wpsignal-trigger-actions {
-  flex: 0 0 auto;
-}
-
-.wpsignal-triggers-footer {
-  display: flex;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-/* Tab styles */
-.wpsignal-connection-tabs-container {
-  button {
-    flex: none;
-  }
-  p {
-    margin-top: 0;
-  }
-  h3 {
-    margin-top: 0;
-  }
-}
-
-.wpsignal-connection-tabs-content {
-  padding: 0 1rem 1rem;
-}
-
-/* Shimmer animation */
-@keyframes shimmer {
-  0% {
-    background-position: 100% 0;
-  }
-  100% {
-    background-position: -100% 0;
-  }
-}
-
-/* Loading state */
-
-@keyframes wps-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-.wpsignal-skeleton__shimmer {
-  background: #e8e8e8;
-  background-image: linear-gradient(
-    90deg,
-    #e8e8e8 0%,
-    #f2f2f2 50%,
-    #e8e8e8 100%
-  );
-  background-size: 200% 100%;
-  animation: wps-shimmer 1.5s ease-in-out infinite;
-}
-
-.wpsignal-skeleton__tabs {
-  display: flex;
-  gap: 24px;
-  border-bottom: 1px solid #dcdcde;
-  padding-bottom: 14px;
-  margin-bottom: 1rem;
-}
-
-.wpsignal-skeleton__tab {
-  height: 13px;
-  width: 80px;
-  border-radius: 3px;
-}
-
-.wpsignal-skeleton__notice {
-  height: 42px;
-  width: 100%;
-  border-radius: 0 2px 2px 0;
-  margin-bottom: 16px;
-}
-
-.wpsignal-skeleton__line {
-  height: 13px;
-  width: 55%;
-  border-radius: 3px;
-  margin-bottom: 16px;
-}
-
-.wpsignal-skeleton__button {
-  height: 30px;
-  width: 110px;
-  border-radius: 3px;
-  margin-bottom: 20px;
-}
-
-.wpsignal-skeleton__divider {
-  border: none;
-  border-top: 1px solid #dcdcde;
-  margin: 0 0 16px;
-}
-
-.wpsignal-skeleton__toggle-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.wpsignal-skeleton__toggle {
-  flex: 0 0 auto;
-  width: 40px;
-  height: 20px;
-  border-radius: 10px;
-}
-
-.wpsignal-skeleton__toggle-label {
-  height: 13px;
-  width: 250px;
-  border-radius: 3px;
-}
-
-.wpsignal-skeleton__sub-line {
-  height: 12px;
-  width: 65%;
-  margin-left: 52px;
-  border-radius: 3px;
-}
-
-.wpsignal-cards {
-  display: grid;
-  grid-template-columns: calc(50% - 0.5rem) calc(50% - 0.5rem);
-  gap: 1rem;
-}
-
-.wpsignal-card {
-  padding: 1rem;
-}
-
-@media (max-width: 782px) {
-  .wpsignal-card {
-    grid-column: span 2;
-  }
-}
-
+/* The app: one dashed rule under each tab's heading, tabs that wrap on a phone. */
 .wpsignal-settings-app {
   @starting-style {
     opacity: 0;
@@ -231,86 +17,19 @@
   }
 
   h2 {
-    padding-bottom: 0.725em;
-    margin-bottom: 1rem;
-    border-bottom: 1px dashed #dcdcde;
+    margin: 0;
+    padding-bottom: var(--wpds-dimension-padding-md);
+    border-bottom: var(--wpds-border-width-xs) dashed
+      var(--wpds-color-stroke-surface-neutral);
+  }
+
+  .components-tab-panel__tabs {
+    flex-wrap: wrap;
   }
 }
 
-.wpsignal-logo {
-  color: #888;
-
-  & svg {
-    width: 24px;
-    height: auto;
-  }
-
-  &:hover {
-    color: #000;
-  }
-}
-
-.wpsignal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.wpsignal-meta-nav {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
-  & a {
-    display: flex;
-    align-items: center;
-  }
-}
-
-.wpsignal-progress-bar {
-  width: 100%;
-}
-
-.wpsignal-footer {
-  font-size: 0.8rem;
-  color: #666;
-  text-align: right;
-  margin-top: 1rem;
-}
-
-/* Toasts (SnackbarList): bottom centre of the content area, offset by half the admin menu. */
-.wpsignal-snackbars.components-snackbar-list {
-  position: fixed;
-  bottom: 24px;
-  left: calc(50% + calc(160px / 2));
-  transform: translateX(-50%);
-  /* right: calc(160px + 24px); */
-  width: auto;
-  z-index: 100000;
-
-  .folded & {
-    left: calc(50% + calc(36px / 2));
-  }
-
-  /* Core styles every snackbar dark; useTask errors carry `is-error` (see Snackbars.tsx). */
-  .components-snackbar.is-error {
-    background: #cc1818;
-  }
-}
-
-/* Explorer tab */
-.wpsignal-explorer-output {
-  max-height: 300px;
-  overflow-y: auto;
-  background: #1d2327;
-  padding: 10px;
-  font-family: monospace;
-  font-size: 13px;
-  border-radius: 4px;
-
-  & span {
-    display: block;
-  }
+.wpsignal-tab-content {
+  margin-top: var(--wpds-dimension-gap-lg);
 }
 
 @keyframes wps-fade-in {
@@ -322,70 +41,485 @@
   }
 }
 
-/* Extensions tab (native CSS nesting: `&` only ever stands for the parent selector) */
-.wpsignal-extensions-tab {
-  .wpsignal-extensions-installed,
-  .wpsignal-extensions-grid {
-    display: grid;
-    gap: 16px;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    margin-block: 16px;
-  }
+/* Secondary text: summaries, hints, counts' captions. */
+.wpsignal-muted {
+  color: var(--wpds-color-fg-content-neutral-weak);
+}
 
-  .wpsignal-extension {
-    .components-card__header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
+.wpsignal-tone-success {
+  color: var(--wpds-color-fg-content-success-weak);
+}
 
-    h3,
-    h4 {
-      margin: 0;
-    }
-  }
+.wpsignal-tone-error {
+  color: var(--wpds-color-fg-content-error-weak);
+}
 
-  .wpsignal-extension__title {
+/* Header above the app, rendered by PHP: title, links, logo. */
+.wpsignal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wpsignal-meta-nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--wpds-dimension-gap-sm);
+
+  & a {
     display: flex;
     align-items: center;
-    gap: 8px;
+  }
+}
+
+.wpsignal-logo {
+  color: var(--wpds-color-fg-content-neutral-weak);
+
+  & svg {
+    width: 24px;
+    height: auto;
   }
 
-  .wpsignal-extension__description {
-    margin-top: 0;
-    color: #50575e;
+  &:hover {
+    color: var(--wpds-color-fg-content-neutral);
+  }
+}
+
+/* The skeleton PHP renders until the app mounts: shapes of the controls it will show. */
+@keyframes wps-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.wpsignal-skeleton__shimmer {
+  background: var(--wpds-color-bg-surface-neutral-weak);
+  background-image: linear-gradient(
+    90deg,
+    var(--wpds-color-bg-surface-neutral-weak) 0%,
+    var(--wpds-color-bg-surface-neutral) 50%,
+    var(--wpds-color-bg-surface-neutral-weak) 100%
+  );
+  background-size: 200% 100%;
+  animation: wps-shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--wpds-border-radius-sm);
+}
+
+.wpsignal-skeleton__tabs {
+  display: flex;
+  gap: var(--wpds-dimension-gap-2xl);
+  border-bottom: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral);
+  padding-bottom: var(--wpds-dimension-padding-md);
+  margin-bottom: var(--wpds-dimension-gap-lg);
+}
+
+.wpsignal-skeleton__tab {
+  height: 13px;
+  width: 80px;
+}
+
+.wpsignal-skeleton__notice {
+  height: 42px;
+  width: 100%;
+  margin-bottom: var(--wpds-dimension-gap-lg);
+}
+
+.wpsignal-skeleton__line {
+  height: 13px;
+  width: 55%;
+  margin-bottom: var(--wpds-dimension-gap-lg);
+}
+
+.wpsignal-skeleton__button {
+  height: 30px;
+  width: 110px;
+  margin-bottom: var(--wpds-dimension-gap-xl);
+}
+
+.wpsignal-skeleton__divider {
+  border: none;
+  border-top: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral);
+  margin: 0 0 var(--wpds-dimension-gap-lg);
+}
+
+.wpsignal-skeleton__toggle-row {
+  display: flex;
+  align-items: center;
+  gap: var(--wpds-dimension-gap-md);
+  margin-bottom: var(--wpds-dimension-gap-sm);
+}
+
+.wpsignal-skeleton__toggle {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 20px;
+  border-radius: 999px;
+}
+
+.wpsignal-skeleton__toggle-label {
+  height: 13px;
+  width: 250px;
+}
+
+.wpsignal-skeleton__sub-line {
+  height: 12px;
+  width: 65%;
+  margin-left: 52px;
+}
+
+/* Connect tab: the progress bar spans the tab; the vertical tabs' panel keeps a gutter. */
+.wpsignal-progress-bar {
+  width: 100%;
+}
+
+.wpsignal-connection-tabs-content {
+  padding: 0 var(--wpds-dimension-padding-lg) var(--wpds-dimension-padding-lg);
+}
+
+/* Toasts (SnackbarList): bottom centre of the content area, offset by half the admin menu. */
+.wpsignal-snackbars.components-snackbar-list {
+  position: fixed;
+  bottom: var(--wpds-dimension-gap-2xl);
+  left: calc(50% + calc(160px / 2));
+  transform: translateX(-50%);
+  width: auto;
+  z-index: 100000;
+
+  .folded & {
+    left: calc(50% + calc(36px / 2));
   }
 
-  .wpsignal-extension__soon,
-  .wpsignal-extension__button {
-    border-radius: 6px;
-    font-size: 12px;
-    padding: 0.5rem 1rem;
+  /* Core styles every snackbar dark; useTask errors carry `is-error` (see Snackbars.tsx). */
+  .components-snackbar.is-error {
+    background: var(--wpds-color-bg-interactive-error-strong);
+  }
+}
+
+/* Explorer tab: two columns of cards, the trigger table, the event log. */
+.wpsignal-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--wpds-dimension-gap-lg);
+}
+
+.wpsignal-card--wide {
+  grid-column: span 2;
+}
+
+.wpsignal-triggers-table {
+  display: grid;
+  grid-template-columns: 2fr 2fr auto auto 1fr auto;
+  font-size: var(--wpds-font-size-sm);
+  border: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral);
+  border-radius: var(--wpds-border-radius-md);
+  overflow: hidden;
+
+  & > * {
+    padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
+    border-bottom: var(--wpds-border-width-xs) solid
+      var(--wpds-color-stroke-surface-neutral);
   }
 
-  .wpsignal-extension__soon {
-    border: 1px solid #c3c4c7;
-    color: #50575e;
+  .is-head {
+    font-weight: var(--wpds-font-weight-medium);
+    background: var(--wpds-color-bg-surface-neutral-weak);
+  }
+}
+
+.wpsignal-explorer-output {
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--wpds-dimension-padding-md);
+  background: var(--wpds-color-bg-surface-neutral-weak);
+  border-radius: var(--wpds-border-radius-md);
+  font-family: var(--wpds-font-family-mono);
+  font-size: var(--wpds-font-size-sm);
+
+  & span {
+    display: block;
   }
 
-  .wpsignal-extension__button {
-    background-color: var(--wp-admin-theme-color);
-    border: 1px solid transparent;
-    color: #fff;
-    text-decoration: none;
+  .is-info {
+    color: var(--wpds-color-fg-content-info-weak);
+  }
 
-    &:hover {
-      background-color: var(--wp-admin-theme-color-darker-10);
-      color: #fff;
+  .is-success {
+    color: var(--wpds-color-fg-content-success-weak);
+  }
+
+  .is-warning {
+    color: var(--wpds-color-fg-content-warning-weak);
+  }
+
+  .is-error {
+    color: var(--wpds-color-fg-content-error-weak);
+  }
+}
+
+.wpsignal-explorer-claims {
+  margin: 0;
+  padding: var(--wpds-dimension-padding-md);
+  overflow-x: auto;
+  background: var(--wpds-color-bg-surface-neutral-weak);
+  border-radius: var(--wpds-border-radius-md);
+  font-size: var(--wpds-font-size-sm);
+}
+
+/* Extensions tab: card grids, the brand half of an extension's name. */
+.wpsignal-extensions-installed,
+.wpsignal-extensions-grid {
+  display: grid;
+  gap: var(--wpds-dimension-gap-lg);
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+.wpsignal-extension__brand {
+  color: var(--wpds-color-fg-interactive-brand);
+  opacity: 0.6;
+}
+
+/* Settings tab: cards no wider than a form wants. */
+.wpsignal-settings-card {
+  width: 100%;
+}
+
+/*
+ * Rules tab. The builder is laid out by ui (Card, Stack); these rules cover
+ * what it has no primitive for: the fixed column that holds the join word so
+ * the condition rows line up, the adders starting where the rows do, the
+ * remove button's edge, the name as an inline-editable heading, and the
+ * replay aside beside the builder.
+ */
+.wpsignal-rule-editor.has-replay {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: var(--wpds-dimension-gap-2xl);
+  align-items: start;
+}
+
+.wpsignal-rule-editor__main {
+  min-width: 0;
+}
+
+.wpsignal-rule-editor {
+  .wpsignal-rule-title {
+    margin: 0;
+
+    input {
+      display: block;
+      font: inherit;
+      line-height: inherit;
+      letter-spacing: inherit;
+      width: 100%;
+      min-height: 0;
+      margin: 0;
+      padding: 0.5rem;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      color: inherit;
+
+      &::placeholder {
+        color: var(--wpds-color-fg-content-neutral-weak);
+      }
+
+      &:focus,
+      &:hover {
+        outline: none;
+        background-color: var(--wpds-color-bg-surface-info-weak);
+        box-shadow: none;
+      }
     }
   }
 }
 
-.wpsignal-connection-detail {
-  margin: 4px 0 0;
+.wpsignal-rule-join {
+  flex: 0 0 2.5em;
+  text-align: right;
+  text-transform: uppercase;
+  line-height: calc(var(--wpds-dimension-base) * 10);
+  color: var(--wpds-color-fg-content-neutral-weak);
+}
 
-  code {
-    font-size: 12px;
+.wpsignal-rule-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.wpsignal-rule-condition-item,
+.wpsignal-rule-action {
+  background-color: #f7f7f7;
+  border: 1px dashed var(--wpds-color-stroke-surface-neutral, #dbdbdb);
+  border-radius: var(--wpds-border-radius-md);
+  padding: 0.5rem;
+  position: relative;
+}
+
+/* The attention fields share the row in halves, each with its input filling it; too narrow a row stacks them. */
+.wpsignal-rule-attention > * {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.wpsignal-rule-attention input {
+  width: 100%;
+}
+
+/* Show's text takes a whole line of its chip. */
+.wpsignal-rule-fill {
+  flex-basis: 100%;
+}
+
+/* A number in a condition is a few digits, not a line. */
+/*
+ * A number field is as wide as what it holds: one digit when it reads "0", growing as the merchant
+ * types. Browsers without `field-sizing` get a fixed width that fits four digits.
+ */
+.wpsignal-rule-number {
+  flex: 0 0 auto;
+  width: 6.5em;
+  min-width: 0;
+}
+
+.wpsignal-rule-number input {
+  width: 100%;
+  min-width: 0;
+}
+
+@supports (field-sizing: content) {
+  .wpsignal-rule-number {
+    width: auto;
+  }
+
+  .wpsignal-rule-number input {
+    field-sizing: content;
+    width: auto;
+    min-width: 1ch;
+  }
+}
+
+.wpsignal-rule-adders {
+  padding-inline-start: calc(2.5em + var(--wpds-dimension-gap-md));
+}
+
+/*
+ * Reordering: the slot under a drag slides its own item aside, towards the side the drop would
+ * land on. The item is reached by its direct path (slot > stack > item), never by descent: a group
+ * slot holds the slots of its conditions, which must stay put while the whole card moves a little.
+ * The clone Draggable makes is positioned by the component; it only needs to float.
+ */
+.wpsignal-rule-slot {
+  &[data-drop] {
+    > *
+      > .wpsignal-rule-item
+      > .wpsignal-rule-condition
+      .wpsignal-rule-condition-item,
+    > * > .wpsignal-rule-item > .wpsignal-rule-group {
+      transition: transform 0.2s ease-in-out;
+    }
+  }
+  &[data-drop="before"] {
+    > *
+      > .wpsignal-rule-item
+      > .wpsignal-rule-condition
+      .wpsignal-rule-condition-item {
+      transform: translateX(50%);
+    }
+    > * > .wpsignal-rule-item > .wpsignal-rule-group {
+      transform: translateX(var(--wpds-dimension-gap-2xl));
+    }
+  }
+  &[data-drop="after"] {
+    > *
+      > .wpsignal-rule-item
+      > .wpsignal-rule-condition
+      .wpsignal-rule-condition-item {
+      transform: translateX(-50%);
+    }
+    > * > .wpsignal-rule-item > .wpsignal-rule-group {
+      transform: translateX(calc(-1 * var(--wpds-dimension-gap-2xl)));
+    }
+  }
+}
+
+.wpsignal-rule-move {
+  display: inline-flex;
+  align-items: center;
+}
+
+.wpsignal-rule-move__grip {
+  cursor: grab;
+}
+
+body.is-dragging-components-draggable,
+body.is-dragging-components-draggable .wpsignal-rule-move__grip {
+  cursor: grabbing;
+}
+
+.components-draggable__clone {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000000;
+  pointer-events: none;
+  opacity: 0.9;
+
+  .wpsignal-rule-join {
+    opacity: 0;
+  }
+}
+
+.components-draggable__invisible-drag-image {
+  position: fixed;
+  left: -1000px;
+  width: 50px;
+  height: 50px;
+}
+
+.wpsignal-rule-remove {
+  margin-inline-start: auto;
+}
+
+.wpsignal-rule-replay {
+  position: sticky;
+  top: calc(var(--wpds-dimension-base) * 12);
+}
+
+@media (max-width: 782px) {
+  .wpsignal-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .wpsignal-card--wide {
+    grid-column: auto;
+  }
+
+  .wpsignal-rule-editor.has-replay {
+    grid-template-columns: 1fr;
+  }
+
+  .wpsignal-rule-replay {
+    position: static;
+  }
+}
+
+/* Replay samples: a card with a list of samples. */
+
+.wpsignal-replay-samples {
+  .wpsignal-replay-sample {
+    border-bottom: 1px dashed var(--wpds-color-stroke-surface-neutral);
+    padding-bottom: var(--wpds-dimension-padding-md);
+    &:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
   }
 }

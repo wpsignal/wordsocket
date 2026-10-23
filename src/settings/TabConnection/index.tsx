@@ -13,12 +13,10 @@ import {
   FlexItem,
   FlexBlock,
   ProgressBar,
-  Tooltip,
-  Icon,
   Notice,
   __experimentalTruncate as Truncate,
 } from "@wordpress/components";
-import { Tabs } from "@wordpress/ui";
+import { Stack, Tabs, Text } from "@wordpress/ui";
 import { __, sprintf } from "@wordpress/i18n";
 
 /**
@@ -27,7 +25,7 @@ import { __, sprintf } from "@wordpress/i18n";
 import Manual from "./Manual";
 import Automatic from "./Automatic";
 import { useSettings } from "../context";
-import { ConnectionStatusSlot } from "../extensions/api";
+import { TabHeading } from "../TabHeading";
 
 const { isSsl = false, isConstant = false } = window.wpSignalConfig ?? {};
 
@@ -65,9 +63,10 @@ export function TabConnection({ title }: { title: string }) {
     confirmDisconnect,
   } = useSettings();
 
-  // The OAuth callback lands here with wps_notice (and wps_message) in the
-  // URL. Read them once and strip them, otherwise a reload after a later
-  // manual connect keeps showing the stale "cancelled" or error notice.
+  /*
+   * The OAuth callback lands with wps_notice in the URL, read once and stripped, or a reload after
+   * a later manual connect would show the stale notice.
+   */
   const [callback] = useState(() => consumeCallbackParams());
 
   useEffect(() => {
@@ -136,21 +135,15 @@ export function TabConnection({ title }: { title: string }) {
   }, []);
 
   return (
-    <div className="wpsignal-connection-tab">
-      <h2>
-        <Tooltip
-          text={__(
-            "Authorize this site to connect to WPSignal. This will allow you to receive real-time events from your site.",
-            "wordsocket",
-          )}
-        >
-          <span>
-            <Icon size={16} icon="editor-help" />
-          </span>
-        </Tooltip>{" "}
-        {title}
-      </h2>
-      <div className="wpsignal-connection-status">
+    <Stack direction="column" gap="lg" className="wpsignal-connection-tab">
+      <TabHeading
+        title={title}
+        help={__(
+          "Authorize this site to connect to WPSignal. This will allow you to receive real-time events from your site.",
+          "wordsocket",
+        )}
+      />
+      <Stack direction="column" gap="sm">
         {["connecting", "disconnecting"].includes(fetchStatus) && (
           <ProgressBar className="wpsignal-progress-bar" />
         )}
@@ -186,14 +179,13 @@ export function TabConnection({ title }: { title: string }) {
                 {lastError.detail && lastError.detail !== lastError.message && (
                   <details>
                     <summary>{__("Show error details", "wordsocket")}</summary>
-                    <p className="wpsignal-connection-detail">
+                    <Text variant="body-sm" render={<p />}>
                       <code>{lastError.detail}</code>
-                    </p>
+                    </Text>
                   </details>
                 )}
               </Notice>
             )}
-            {/* <ConnectionStatusSlot /> */}
             {!isConnected && ["idle", "disconnected"].includes(fetchStatus) && (
               <Notice status="error" isDismissible={false}>
                 {__("Not connected to WPSignal. Try connecting.", "wordsocket")}
@@ -201,8 +193,8 @@ export function TabConnection({ title }: { title: string }) {
             )}
           </>
         )}
-      </div>
-      <div className="wpsignal-connection-tabs-container">
+      </Stack>
+      <div>
         {isConstant ? (
           <Notice status="info" isDismissible={false}>
             {createInterpolateElement(
@@ -248,21 +240,21 @@ export function TabConnection({ title }: { title: string }) {
             <Manual />
           )
         ) : (
-          <div className="wpsignal-disconnect-actions">
-            <p>
+          <Stack direction="column" gap="md" align="flex-start">
+            <Text render={<p />}>
               {__(
                 "You are connected to WPSignal. To disconnect, click the button below.",
                 "wordsocket",
               )}
-            </p>
+            </Text>
             {confirmDisconnect ? (
-              <Flex align="center" gap={5} expanded={false} justify="start">
-                <span className="wpsignal-disconnect-confirm-label">
+              <Stack direction="row" gap="md" align="center" wrap="wrap">
+                <Text>
                   {__(
                     "Disconnect this site? Stored credentials are removed; your usage history is kept and reconnecting restores the site.",
                     "wordsocket",
                   )}
-                </span>
+                </Text>
                 <Button
                   variant="primary"
                   isDestructive
@@ -281,7 +273,7 @@ export function TabConnection({ title }: { title: string }) {
                 >
                   {__("Cancel", "wordsocket")}
                 </Button>
-              </Flex>
+              </Stack>
             ) : (
               <Button
                 variant="secondary"
@@ -295,9 +287,9 @@ export function TabConnection({ title }: { title: string }) {
                 {__("Disconnect", "wordsocket")}
               </Button>
             )}
-          </div>
+          </Stack>
         )}
       </div>
-    </div>
+    </Stack>
   );
 }

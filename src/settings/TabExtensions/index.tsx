@@ -3,13 +3,8 @@
  */
 import { __ } from "@wordpress/i18n";
 import { useEffect, useState } from "@wordpress/element";
-import {
-  Card,
-  CardBody,
-  CardHeader,
-  Notice,
-  Spinner,
-} from "@wordpress/components";
+import { Notice } from "@wordpress/components";
+import { Badge, ButtonLink, Card, Spinner, Stack, Text } from "@wordpress/ui";
 
 /**
  * Internal dependencies.
@@ -17,6 +12,7 @@ import {
 import { getExtensions } from "../api";
 import { useSettings } from "../context";
 import { ExtensionPanelSlot } from "../extensions/api";
+import { TabHeading } from "../TabHeading";
 
 /**
  * Whether a link leaves this site. The installer lives in this wp-admin and
@@ -58,16 +54,18 @@ export function TabExtensions({ title }: { title: string }) {
   );
 
   return (
-    <div className="wpsignal-extensions-tab">
-      <h2>{title}</h2>
-      <p>
+    <Stack direction="column" gap="lg" className="wpsignal-extensions-tab">
+      <TabHeading title={title} />
+      <Text render={<p />}>
         {__(
           "Extensions are WordPress plugins built on WordSocket.",
           "wordsocket",
         )}
-      </p>
+      </Text>
 
-      <h3>{__("Installed extensions", "wordsocket")}</h3>
+      <Text variant="heading-sm" render={<h4 />}>
+        {__("Installed extensions", "wordsocket")}
+      </Text>
 
       {error && (
         <Notice status="error" isDismissible={false}>
@@ -94,49 +92,62 @@ export function TabExtensions({ title }: { title: string }) {
 
       {extensions === null && !error && <Spinner />}
       {catalogue.length > 0 && (
-        <div className="wpsignal-extensions-catalogue">
-          <h3>{__("Available extensions", "wordsocket")}</h3>
-          <p>
+        <Stack direction="column" gap="md">
+          <Text variant="heading-sm" render={<h4 />}>
+            {__("Available extensions", "wordsocket")}
+          </Text>
+          <Text render={<p />}>
             {comingSoon
               ? __(
                   "Install the ones that are ready now. The rest are coming soon.",
                   "wordsocket",
                 )
               : __("Install any of these from WordPress.org.", "wordsocket")}
-          </p>
+          </Text>
           <div className="wpsignal-extensions-grid">
             {catalogue.map((ext) => (
-              <Card
+              <Card.Root
                 key={ext.slug}
                 className="wpsignal-extension wpsignal-extension--catalogue"
                 data-extension={ext.slug}
               >
-                <CardHeader>
-                  <h4>{ext.title}</h4>
-                  {ext.available ? (
-                    <a
-                      href={ext.docs_url}
-                      {...(isExternal(ext.docs_url)
-                        ? { target: "_blank", rel: "noopener noreferrer" }
-                        : {})}
-                      className="wpsignal-extension__button"
-                    >
-                      {__("Get it", "wordsocket")}
-                    </a>
-                  ) : (
-                    <span className="wpsignal-extension__soon">
-                      {__("Coming soon", "wordsocket")}
-                    </span>
-                  )}
-                </CardHeader>
-                <CardBody>
-                  <p>{ext.description}</p>
-                </CardBody>
-              </Card>
+                <Card.Header>
+                  <Stack
+                    direction="row"
+                    gap="sm"
+                    align="center"
+                    justify="space-between"
+                    wrap="wrap"
+                  >
+                    <Card.Title>{ext.title}</Card.Title>
+                    {ext.available ? (
+                      <ButtonLink
+                        href={ext.docs_url}
+                        variant="solid"
+                        tone="brand"
+                        size="compact"
+                        openInNewTab={isExternal(ext.docs_url)}
+                      >
+                        {__("Get it", "wordsocket")}
+                      </ButtonLink>
+                    ) : (
+                      <Badge
+                        intent="draft"
+                        className="wpsignal-extension__soon"
+                      >
+                        {__("Coming soon", "wordsocket")}
+                      </Badge>
+                    )}
+                  </Stack>
+                </Card.Header>
+                <Card.Content>
+                  <Text render={<p />}>{ext.description}</Text>
+                </Card.Content>
+              </Card.Root>
             ))}
           </div>
-        </div>
+        </Stack>
       )}
-    </div>
+    </Stack>
   );
 }

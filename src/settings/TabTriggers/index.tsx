@@ -7,22 +7,18 @@ import {
   useEffect,
   createInterpolateElement,
 } from "@wordpress/element";
-import {
-  Button,
-  Flex,
-  Icon,
-  Notice,
-  Tooltip,
-} from "@wordpress/components";
+import { Button, Notice } from "@wordpress/components";
+import { Stack, Text } from "@wordpress/ui";
 
 /**
  * Internal dependencies.
  */
 import { TriggerRow } from "./TriggerRow";
 import { getTriggers, saveTriggers } from "../api";
-import type { Trigger, PostTypeOption } from "../types";
+import type { NoticeState, PostTypeOption, Trigger } from "../types";
 import { useSettings } from "../context";
 import { useTask } from "../useTask";
+import { TabHeading } from "../TabHeading";
 
 const EMPTY_TRIGGER: Trigger = {
   type: "post_type",
@@ -32,18 +28,15 @@ const EMPTY_TRIGGER: Trigger = {
   event: "",
 };
 
-interface NoticeState {
-  type: "success" | "error" | "warning";
-  message: string;
-}
-
 /**
  * Triggers tab.
  */
 export function TabTriggers({ title }: { title: string }) {
   const { tabsCache, setTabsCache } = useSettings();
-  // Saved triggers are fetched once; until they arrive the buttons stay
-  // disabled so a row added early is not overwritten by the response.
+  /*
+   * Saved triggers are fetched once; until they arrive the buttons stay disabled so a row added
+   * early is not overwritten by the response.
+   */
   const [loading, setLoading] = useState(tabsCache.triggers.length === 0);
   const [notice, setNotice] = useState<NoticeState | null>(null);
 
@@ -86,7 +79,9 @@ export function TabTriggers({ title }: { title: string }) {
 
   function isTriggersValid(): boolean {
     return tabsCache.triggers.every((trigger) => {
-      return trigger.type === "post_type" ? trigger.post_type !== "" : trigger.option_name !== "";
+      return trigger.type === "post_type"
+        ? trigger.post_type !== ""
+        : trigger.option_name !== "";
     });
   }
 
@@ -94,7 +89,7 @@ export function TabTriggers({ title }: { title: string }) {
     const next = [...tabsCache.triggers];
     next[index] = updated;
     setTabsCache({ ...tabsCache, triggers: next });
-  };
+  }
 
   function removeTrigger(index: number): void {
     setNotice(null);
@@ -102,7 +97,7 @@ export function TabTriggers({ title }: { title: string }) {
       ...tabsCache,
       triggers: tabsCache.triggers.filter((_, i) => i !== index),
     });
-  };
+  }
 
   const save = useTask(() => saveTriggers(tabsCache.triggers), {
     success: (res) => res.message || __("Triggers saved.", "wordsocket"),
@@ -118,21 +113,15 @@ export function TabTriggers({ title }: { title: string }) {
   const isTriggersEmpty = tabsCache.triggers.length === 0;
 
   return (
-    <div className="wpsignal-triggers-app">
-      <h2>
-        <Tooltip
-          text={__(
-            "Triggers are events that can be triggered by a specific action hook.",
-            "wordsocket",
-          )}
-        >
-          <span>
-            <Icon size={16} icon="editor-help" />
-          </span>
-        </Tooltip>{" "}
-        {title}{" "}
-      </h2>
-      <p>
+    <Stack direction="column" gap="lg" className="wpsignal-triggers-app">
+      <TabHeading
+        title={title}
+        help={__(
+          "Triggers are events that can be triggered by a specific action hook.",
+          "wordsocket",
+        )}
+      />
+      <Text render={<p />}>
         {createInterpolateElement(
           __(
             "This section is intended for setting up basic predefined triggers, for more advanced use cases look into our <a>API</a> to setup triggers through code. For a complete list of WordPress core action hooks, see the <b>WordPress Action Reference</b>. To see all available action hooks with your setup, install a plugin like <c>WP Hooks Finder</c>.",
@@ -162,7 +151,7 @@ export function TabTriggers({ title }: { title: string }) {
             ),
           },
         )}
-      </p>
+      </Text>
       {notice && (
         <Notice
           status={notice.type}
@@ -174,7 +163,7 @@ export function TabTriggers({ title }: { title: string }) {
       )}
 
       {!isTriggersEmpty && (
-        <Flex gap={5} align="flex-start" direction="column">
+        <Stack direction="column" gap="md">
           {tabsCache.triggers.map((trigger: Trigger, index: number) => (
             <TriggerRow
               key={index}
@@ -185,11 +174,15 @@ export function TabTriggers({ title }: { title: string }) {
               onRemove={removeTrigger}
             />
           ))}
-        </Flex>
+        </Stack>
       )}
 
-      <div className="wpsignal-triggers-footer">
-        <Button variant="secondary" onClick={addTrigger} disabled={loading || !isTriggersValid()}>
+      <Stack direction="row" gap="sm">
+        <Button
+          variant="secondary"
+          onClick={addTrigger}
+          disabled={loading || !isTriggersValid()}
+        >
           {__("Add Trigger", "wordsocket")}
         </Button>
         <Button
@@ -200,7 +193,7 @@ export function TabTriggers({ title }: { title: string }) {
         >
           {__("Save Triggers", "wordsocket")}
         </Button>
-      </div>
-    </div>
+      </Stack>
+    </Stack>
   );
 }

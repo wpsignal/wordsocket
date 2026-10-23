@@ -9,7 +9,10 @@ import { __ } from "@wordpress/i18n";
 /** Pending toasts are held open until their task settles; each gets its own id. */
 let sequence = 0;
 
-function text<T>(value: string | ((input: T) => string) | undefined, input: T): string | undefined {
+function text<T>(
+  value: string | ((input: T) => string) | undefined,
+  input: T,
+): string | undefined {
   return typeof value === "function" ? value(input) : value;
 }
 
@@ -24,16 +27,10 @@ function messageOf(error: unknown): string | undefined {
 }
 
 /**
- * Run an async task (a save, a connect, a publish) and report each phase as a
- * toast in the Snackbars list: an optional held "pending" toast, then success
- * or a red error. The hook also tracks the phase for the caller's own UI
- * (`isPending` for a button's `isBusy`) and answers with the outcome rather
- * than throwing, so a caller needs no try/catch.
- *
- * Options and the task are read fresh on every run, so closures over state
- * (a form's current values) are never stale. `phase` follows the latest run.
- *
- * Also published to extensions as `window.wordsocket.useTask`.
+ * Run an async task and report each phase as a toast (an optional held pending one, then success or
+ * error), tracking `phase` for the caller's UI and answering with the outcome instead of throwing.
+ * Options and the task are read fresh on every run, so closures are never stale; also published as
+ * `window.wordsocket.useTask`.
  */
 export function useTask<Args extends unknown[], Result>(
   task: (...args: Args) => Promise<Result>,
@@ -77,7 +74,12 @@ export function useTask<Args extends unknown[], Result>(
       if (outcome.ok) {
         if (isLatest()) setPhase("success");
         const message = text(opts.success, outcome.value);
-        if (message) createNotice("success", message, { type: "snackbar" });
+        /* The id is the message, so three quick saves show one "Rules saved." rather than a stack. */
+        if (message)
+          createNotice("success", message, {
+            type: "snackbar",
+            id: `wordsocket-success:${message}`,
+          });
         opts.onSuccess?.(outcome.value, ...args);
       } else {
         if (isLatest()) {
@@ -87,8 +89,13 @@ export function useTask<Args extends unknown[], Result>(
         const message =
           typeof opts.error === "function"
             ? opts.error(outcome.error)
-            : messageOf(outcome.error) || opts.error || __("Something went wrong.", "wordsocket");
-        createNotice("error", message, { type: "snackbar" });
+            : messageOf(outcome.error) ||
+              opts.error ||
+              __("Something went wrong.", "wordsocket");
+        createNotice("error", message, {
+          type: "snackbar",
+          id: `wordsocket-error:${message}`,
+        });
         opts.onError?.(outcome.error, ...args);
       }
       opts.onSettled?.(outcome, ...args);

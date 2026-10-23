@@ -205,8 +205,9 @@ class Admin_Page {
 					 * Settings tab then waited for data that never came.
 					 */
 					'rtc'           => array(
-						'available' => $this->config->is_wp_sync_available(),
-						'enabled'   => $this->config->is_wp_rtc_enabled(),
+						'available'      => $this->config->is_wp_sync_available(),
+						'enabled'        => $this->config->is_wp_rtc_enabled(),
+						'experimentsUrl' => admin_url( 'admin.php?page=gutenberg-experiments' ),
 					),
 					// Known before the first render, so a link to a developer tab opens it.
 					'developerMode' => $this->config->developer_mode(),

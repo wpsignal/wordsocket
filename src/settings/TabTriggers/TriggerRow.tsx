@@ -7,6 +7,7 @@ import {
   FlexItem,
 } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
+import { Card } from "@wordpress/ui";
 
 /**
  * Internal dependencies.
@@ -65,79 +66,80 @@ export function TriggerRow({
   ];
 
   return (
-    <Flex gap={5} align="flex-end" justify="space-between" className="wpsignal-trigger-row">
-      <FlexItem>
-        <Button
-          icon="trash"
-          label={__("Remove trigger", "wordsocket")}
-          isDestructive
-          onClick={() => onRemove(index)}
-          __next40pxDefaultSize
-        />
-      </FlexItem>
-      <FlexBlock>
-        <SelectControl
-          className="wpsignal-settings-select"
-          label={__("Type", "wordsocket")}
-          value={trigger.type}
-          options={typeOptions}
-          onChange={(val) => update("type", val)}
-          __nextHasNoMarginBottom
-          __next40pxDefaultSize
-        />
-      </FlexBlock>
+    <Card.Root className="wpsignal-trigger-row">
+      <Card.Content>
+        <Flex gap={5} align="flex-end" justify="space-between">
+          <FlexItem>
+            <Button
+              icon="trash"
+              label={__("Remove trigger", "wordsocket")}
+              isDestructive
+              onClick={() => onRemove(index)}
+              __next40pxDefaultSize
+            />
+          </FlexItem>
+          <FlexBlock>
+            <SelectControl
+              label={__("Type", "wordsocket")}
+              value={trigger.type}
+              options={typeOptions}
+              onChange={(val) => update("type", val)}
+              __nextHasNoMarginBottom
+              __next40pxDefaultSize
+            />
+          </FlexBlock>
 
-      <FlexBlock>
-        {trigger.type === "post_type" && (
-          <SelectControl
-            className="wpsignal-settings-select"
-            label={__("Post Type", "wordsocket")}
-            value={trigger.post_type}
-            options={[
-              { value: "", label: __("-- Select --", "wordsocket") },
-              ...postTypes,
-            ]}
-            onChange={(val) => update("post_type", val)}
-            __nextHasNoMarginBottom
-            __next40pxDefaultSize
-          />
-        )}
+          <FlexBlock>
+            {trigger.type === "post_type" && (
+              <SelectControl
+                label={__("Post Type", "wordsocket")}
+                value={trigger.post_type}
+                options={[
+                  { value: "", label: __("-- Select --", "wordsocket") },
+                  ...postTypes,
+                ]}
+                onChange={(val) => update("post_type", val)}
+                __nextHasNoMarginBottom
+                __next40pxDefaultSize
+              />
+            )}
 
-        {trigger.type === "option" && (
-          <SelectControl
-            className="wpsignal-settings-select"
-            label={__("Option Name", "wordsocket")}
-            value={trigger.option_name}
-            options={[
-              { value: "", label: __("-- Select --", "wordsocket") },
-              ...OPTION_PRESETS,
-            ]}
-            onChange={(val) => update("option_name", val || "")}
-            __nextHasNoMarginBottom
-            __next40pxDefaultSize
-          />
-        )}
-      </FlexBlock>
+            {trigger.type === "option" && (
+              <SelectControl
+                label={__("Option Name", "wordsocket")}
+                value={trigger.option_name}
+                options={[
+                  { value: "", label: __("-- Select --", "wordsocket") },
+                  ...OPTION_PRESETS,
+                ]}
+                onChange={(val) => update("option_name", val || "")}
+                __nextHasNoMarginBottom
+                __next40pxDefaultSize
+              />
+            )}
+          </FlexBlock>
 
-      <FlexBlock>
-        <TextControl
-          label={__("Channel", "wordsocket")}
-          value={trigger.channel}
-          onChange={(val) => update("channel", val)}
-          __nextHasNoMarginBottom
-          __next40pxDefaultSize
-        />
-      </FlexBlock>
+          <FlexBlock>
+            <TextControl
+              label={__("Channel", "wordsocket")}
+              value={trigger.channel}
+              onChange={(val) => update("channel", val)}
+              __nextHasNoMarginBottom
+              __next40pxDefaultSize
+            />
+          </FlexBlock>
 
-      <FlexBlock>
-        <TextControl
-          label={__("Event", "wordsocket")}
-          value={trigger.event}
-          onChange={(val) => update("event", val)}
-          __nextHasNoMarginBottom
-          __next40pxDefaultSize
-        />
-      </FlexBlock>
-    </Flex>
+          <FlexBlock>
+            <TextControl
+              label={__("Event", "wordsocket")}
+              value={trigger.event}
+              onChange={(val) => update("event", val)}
+              __nextHasNoMarginBottom
+              __next40pxDefaultSize
+            />
+          </FlexBlock>
+        </Flex>
+      </Card.Content>
+    </Card.Root>
   );
 }

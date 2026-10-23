@@ -9,13 +9,9 @@ import { SnackbarList } from "@wordpress/components";
 const MAX_VISIBLE = 3;
 
 /**
- * The "Settings saved." toasts. Any tab, WordSocket's own or an extension's,
- * dispatches to core's `core/notices` store with `type: "snackbar"`
- * (`createSuccessNotice`, `createErrorNotice`) and this list stacks them
- * bottom-left, each dismissing itself after ten seconds (a `useTask`
- * pending toast is held until its task settles). One list for the whole page,
- * so an extension needs no notice state of its own. Core styles every
- * snackbar the same; the status class (`is-error` is red) is ours.
+ * The toasts: every tab dispatches to core's `core/notices` store with `type: "snackbar"` and this
+ * one list shows them, each dismissing itself after ten seconds. Core styles every snackbar alike;
+ * the status class is ours.
  */
 export function Snackbars() {
   const notices = useSelect(

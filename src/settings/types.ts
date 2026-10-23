@@ -20,19 +20,22 @@ export interface SettingsPost {
   yjs_provider_enabled?: boolean;
   developer_mode?: boolean;
 }
+/** `GET /wpsignal/v1/settings`, as `Token::handle_get_settings()` answers it. */
 export interface Settings {
-  // base_url: string;
+  base_url: string;
   api_key: string;
   site_key: string;
   is_connected: boolean;
   yjs_provider_enabled: boolean;
   developer_mode: boolean;
-  is_rtc_enabled: boolean;
-  wp_version: number;
-  credential_source?: "constant" | "database";
-  is_ssl: boolean;
+  credential_source: "constant" | "database";
   /** Last publish failure recorded by the plugin, if events are not being delivered. */
-  last_error?: { code: string; message: string; detail: string; time: number } | null;
+  last_error?: {
+    code: string;
+    message: string;
+    detail: string;
+    time: number;
+  } | null;
 }
 
 export interface ConnectResponse {
@@ -41,6 +44,6 @@ export interface ConnectResponse {
 }
 
 export interface NoticeState {
-  type: "success" | "error";
+  type: "success" | "error" | "warning";
   message: string | React.ReactNode;
 }

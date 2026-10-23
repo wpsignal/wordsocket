@@ -2,12 +2,10 @@
  * WordPress dependencies.
  */
 import { __, sprintf } from "@wordpress/i18n";
-import { CollapsibleCard, Card, Badge } from "@wordpress/ui";
+import { CollapsibleCard, Card, Badge, Stack, Text } from "@wordpress/ui";
 import { useState, useRef, useEffect } from "@wordpress/element";
 import {
   Button,
-  Icon,
-  Tooltip,
   TextControl,
   TextareaControl,
   FlexBlock,
@@ -23,34 +21,31 @@ import { useSettings } from "../context";
 import { getToken, publishEvent } from "../api";
 import { useTask } from "../useTask";
 import { relayEndpoints, withQuery } from "../../utils/relay";
+import { TabHeading } from "../TabHeading";
 
 const settings = window.wpsignalSettings ?? { triggers: [], baseUrl: "" };
 
+/** A log line's tone picks its colour token in the stylesheet. */
+type Tone = "info" | "success" | "warning" | "error" | "neutral";
 
 interface LogEntry {
   text: string;
-  color: string;
+  tone: Tone;
 }
+
+const LOG_LINES = 500;
 
 // TODO: sync triggers between triggers tab and triggers table.
 function PanelTriggers() {
   const triggers: WpSignalTriggerRow[] = settings.triggers ?? [];
   if (!triggers.length) return null;
   return (
-    <CollapsibleCard.Root style={{ gridColumn: "span 2" }}>
+    <CollapsibleCard.Root className="wpsignal-card--wide">
       <CollapsibleCard.Header>
         <Card.Title>{__("Registered Triggers", "wordsocket")}</Card.Title>
       </CollapsibleCard.Header>
       <CollapsibleCard.Content>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "2fr 2fr auto auto 1fr auto",
-            fontSize: 13,
-            borderTop: "1px solid #ddd",
-            borderLeft: "1px solid #ddd",
-          }}
-        >
+        <div className="wpsignal-triggers-table">
           {[
             __("Event", "wordsocket"),
             __("Hook", "wordsocket"),
@@ -59,33 +54,13 @@ function PanelTriggers() {
             __("Channel", "wordsocket"),
             __("Condition", "wordsocket"),
           ].map((h) => (
-            <div
-              key={h}
-              style={{
-                fontWeight: 600,
-                padding: "8px 12px",
-                background: "#f0f0f1",
-                borderRight: "1px solid #ddd",
-                borderBottom: "1px solid #ddd",
-              }}
-            >
+            <div key={h} className="is-head">
               {h}
             </div>
           ))}
           {triggers.flatMap((t, i) => {
-            const bg = i % 2 ? "#f9f9f9" : "#fff";
             const cell = (key: string, content: React.ReactNode) => (
-              <div
-                key={key}
-                style={{
-                  padding: "8px 12px",
-                  background: bg,
-                  borderRight: "1px solid #ddd",
-                  borderBottom: "1px solid #ddd",
-                }}
-              >
-                {content}
-              </div>
+              <div key={key}>{content}</div>
             );
             return [
               cell(`${i}-e`, <code>{t.event}</code>),
@@ -102,7 +77,6 @@ function PanelTriggers() {
   );
 }
 
-// TODO: add a way to clear the log.
 function PanelEventLog({
   setIsConnected,
 }: {
@@ -115,7 +89,7 @@ function PanelEventLog({
   const [log, setLog] = useState<LogEntry[]>([
     {
       text: __("Waiting for connection...", "wordsocket"),
-      color: "#72aee6",
+      tone: "info",
     },
   ]);
   const wsRef = useRef<WebSocket | null>(null);
@@ -132,32 +106,37 @@ function PanelEventLog({
     [],
   );
 
-  function addLog(text: string, color = "#c3c4c7") {
+  /* The newest LOG_LINES only, so a long session does not grow the page without end. */
+  function addLog(text: string, tone: Tone = "neutral") {
     const time = new Date().toLocaleTimeString();
-    setLog((prev) => [...prev, { text: `${time}  ${text}`, color }]);
+    setLog((prev) =>
+      [...prev, { text: `${time}  ${text}`, tone }].slice(-LOG_LINES),
+    );
   }
 
   function connect() {
-    setLog([{ text: __("Fetching token...", "wordsocket"), color: "#72aee6" }]);
+    setLog([{ text: __("Fetching token...", "wordsocket"), tone: "info" }]);
     setWsStatus("connecting");
 
     getToken()
       .then(({ token }) => {
         // The endpoint comes from PHP, so an http:// admin still talks to a wss:// relay.
-        const ws = new WebSocket(withQuery(relayEndpoints(settings).ws, { token }));
+        const ws = new WebSocket(
+          withQuery(relayEndpoints(settings).ws, { token }),
+        );
         wsRef.current = ws;
 
-        addLog(__("Connecting...", "wordsocket"), "#72aee6");
+        addLog(__("Connecting...", "wordsocket"), "info");
 
         ws.addEventListener("open", () => {
           setWsStatus("connected");
           setIsConnected(true);
-          addLog(__("Connected", "wordsocket"), "#46b450");
+          addLog(__("Connected", "wordsocket"), "success");
           const list = channels.split(",").map((c) => c.trim());
           ws.send(JSON.stringify({ type: "subscribe", channels: list }));
           addLog(
             `${__("Subscribing to:", "wordsocket")} ${list.join(", ")}`,
-            "#72aee6",
+            "info",
           );
         });
 
@@ -168,19 +147,23 @@ function PanelEventLog({
               case "message":
                 addLog(
                   `[${msg.channel}] ${msg.event}: ${JSON.stringify(msg.data)}`,
-                  "#00e676",
+                  "success",
                 );
                 break;
               case "subscribed":
                 addLog(
-                  `${__("Subscribed to:", "wordsocket")} ${(msg.channels || []).join(", ")}`,
-                  "#72aee6",
+                  `${__("Subscribed to:", "wordsocket")} ${(
+                    msg.channels || []
+                  ).join(", ")}`,
+                  "info",
                 );
                 break;
               case "unsubscribed":
                 addLog(
-                  `${__("Unsubscribed from:", "wordsocket")} ${(msg.channels || []).join(", ")}`,
-                  "#ffb74d",
+                  `${__("Unsubscribed from:", "wordsocket")} ${(
+                    msg.channels || []
+                  ).join(", ")}`,
+                  "warning",
                 );
                 break;
               case "ping":
@@ -189,7 +172,7 @@ function PanelEventLog({
               case "error":
                 addLog(
                   `${__("Error:", "wordsocket")} ${msg.code}: ${msg.message}`,
-                  "#dc3232",
+                  "error",
                 );
                 break;
               default:
@@ -198,7 +181,7 @@ function PanelEventLog({
           } catch (err) {
             addLog(
               `${__("Parse error:", "wordsocket")} ${(err as Error).message}`,
-              "#dc3232",
+              "error",
             );
           }
         });
@@ -208,19 +191,19 @@ function PanelEventLog({
           setIsConnected(false);
           addLog(
             `${__("Disconnected", "wordsocket")} (code=${e.code})`,
-            "#ffb74d",
+            "warning",
           );
           wsRef.current = null;
         });
 
         ws.addEventListener("error", () => {
           setIsConnected(false);
-          addLog(__("WebSocket error", "wordsocket"), "#dc3232");
+          addLog(__("WebSocket error", "wordsocket"), "error");
         });
       })
       .catch((err: Error) => {
         setWsStatus("disconnected");
-        addLog(`${__("Error:", "wordsocket")} ${err.message}`, "#dc3232");
+        addLog(`${__("Error:", "wordsocket")} ${err.message}`, "error");
       });
   }
 
@@ -231,55 +214,56 @@ function PanelEventLog({
   const isWsConnected = wsStatus === "connected";
 
   return (
-    <Card.Root className="wpsignal-card">
-      <Card.Title>
-        {__("Event Log", "wordsocket")}{" "}
-        {isWsConnected ? (
-          <Badge intent="stable">{__("Connected", "wordsocket")}</Badge>
-        ) : (
-          <Badge intent="none">{__("Not connected", "wordsocket")}</Badge>
-        )}{" "}
-        {wsStatus === "connecting" && (
-          <small style={{ marginLeft: 10, color: "#46b450" }}>
-            {__("Connecting...", "wordsocket")}
-          </small>
-        )}
-      </Card.Title>
+    <Card.Root>
+      <Card.Header>
+        <Stack direction="row" gap="sm" align="center" wrap="wrap">
+          <Card.Title>{__("Event Log", "wordsocket")}</Card.Title>
+          {isWsConnected ? (
+            <Badge intent="stable">{__("Connected", "wordsocket")}</Badge>
+          ) : (
+            <Badge intent="none">{__("Not connected", "wordsocket")}</Badge>
+          )}
+          {wsStatus === "connecting" && (
+            <Text variant="body-sm" className="wpsignal-tone-success">
+              {__("Connecting...", "wordsocket")}
+            </Text>
+          )}
+        </Stack>
+      </Card.Header>
       <Card.Content>
-        <TextControl
-          label={__("Channels (comma-separated):", "wordsocket")}
-          value={channels}
-          onChange={(value: string) => setChannels(value)}
-          disabled={isWsConnected}
-          __next40pxDefaultSize
-          __nextHasNoMarginBottom
-        />
-        <p
-          ref={logRef}
-          className="wpsignal-explorer-output"
-        >
-          {log.map((entry, i) => (
-            <span key={i} style={{ color: entry.color }}>
-              {entry.text}
-            </span>
-          ))}
-        </p>
-        <p>
-          <Button
-            variant="primary"
-            onClick={connect}
-            disabled={wsStatus !== "disconnected"}
-          >
-            {__("Connect", "wordsocket")}
-          </Button>{" "}
-          <Button
-            variant="secondary"
-            onClick={disconnect}
-            disabled={wsStatus === "disconnected"}
-          >
-            {__("Disconnect", "wordsocket")}
-          </Button>
-        </p>
+        <Stack direction="column" gap="md">
+          <TextControl
+            label={__("Channels (comma-separated):", "wordsocket")}
+            value={channels}
+            onChange={(value: string) => setChannels(value)}
+            disabled={isWsConnected}
+            __next40pxDefaultSize
+            __nextHasNoMarginBottom
+          />
+          <p ref={logRef} className="wpsignal-explorer-output">
+            {log.map((entry, i) => (
+              <span key={i} className={`is-${entry.tone}`}>
+                {entry.text}
+              </span>
+            ))}
+          </p>
+          <Stack direction="row" gap="sm">
+            <Button
+              variant="primary"
+              onClick={connect}
+              disabled={wsStatus !== "disconnected"}
+            >
+              {__("Connect", "wordsocket")}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={disconnect}
+              disabled={wsStatus === "disconnected"}
+            >
+              {__("Disconnect", "wordsocket")}
+            </Button>
+          </Stack>
+        </Stack>
       </Card.Content>
     </Card.Root>
   );
@@ -304,13 +288,16 @@ function PanelPublish({ isConnected }: { isConnected: boolean }) {
     {
       pending: __("Publishing...", "wordsocket"),
       success: __("Published.", "wordsocket"),
-      error: (err) => `${__("Failed:", "wordsocket")} ${(err as Error).message}`,
+      error: (err) =>
+        `${__("Failed:", "wordsocket")} ${(err as Error).message}`,
     },
   );
 
   return (
-    <Card.Root className="wpsignal-card">
-      <Card.Title>{__("Publish Test Event", "wordsocket")}</Card.Title>
+    <Card.Root>
+      <Card.Header>
+        <Card.Title>{__("Publish Test Event", "wordsocket")}</Card.Title>
+      </Card.Header>
       <Card.Content>
         <Flex direction="column">
           <FlexBlock>
@@ -346,7 +333,10 @@ function PanelPublish({ isConnected }: { isConnected: boolean }) {
           <FlexItem>
             {!isConnected ? (
               <Notice status="warning" isDismissible={false}>
-                {__("Click connect under Event Log to publish events.")}
+                {__(
+                  "Click connect under Event Log to publish events.",
+                  "wordsocket",
+                )}
               </Notice>
             ) : (
               <>
@@ -402,7 +392,7 @@ function PanelToken() {
   }
 
   let expiryText = "";
-  let expiryColor = "#46b450";
+  let expiryTone = "wpsignal-tone-success";
   if (remaining !== null) {
     if (remaining > 0) {
       expiryText = sprintf(
@@ -411,25 +401,32 @@ function PanelToken() {
         Math.floor(remaining / 60),
         remaining % 60,
       );
-      expiryColor = remaining < 60 ? "#dc3232" : "#46b450";
+      expiryTone =
+        remaining < 60 ? "wpsignal-tone-error" : "wpsignal-tone-success";
     } else {
       expiryText = __("Expired", "wordsocket");
-      expiryColor = "#dc3232";
+      expiryTone = "wpsignal-tone-error";
     }
   }
 
   return (
-    <CollapsibleCard.Root style={{ gridColumn: "span 2" }}>
+    <CollapsibleCard.Root className="wpsignal-card--wide">
       <CollapsibleCard.Header>
         <Card.Title>{__("Token Inspector", "wordsocket")}</Card.Title>
       </CollapsibleCard.Header>
       <CollapsibleCard.Content>
         <Flex direction="column">
           <FlexItem>
-            {error && <p style={{ color: "#dc3232" }}>{error}</p>}
+            {error && (
+              <Text className="wpsignal-tone-error" render={<p />}>
+                {error}
+              </Text>
+            )}
             {tokenData && (
               <>
-                <h4>{__("Raw Token", "wordsocket")}</h4>
+                <Text variant="heading-sm" render={<h4 />}>
+                  {__("Raw Token", "wordsocket")}
+                </Text>
                 <TextareaControl
                   className="large-text"
                   rows={3}
@@ -437,19 +434,16 @@ function PanelToken() {
                   value={tokenData.raw}
                   onChange={() => {}}
                 />
-                <h4>{__("Decoded Claims", "wordsocket")}</h4>
-                <pre
-                  style={{
-                    background: "#f0f0f1",
-                    padding: 10,
-                    overflowX: "auto",
-                    fontSize: 12,
-                  }}
-                >
+                <Text variant="heading-sm" render={<h4 />}>
+                  {__("Decoded Claims", "wordsocket")}
+                </Text>
+                <pre className="wpsignal-explorer-claims">
                   <code>{JSON.stringify(tokenData.claims, null, 2)}</code>
                 </pre>
                 {expiryText && (
-                  <p style={{ color: expiryColor }}>{expiryText}</p>
+                  <Text className={expiryTone} render={<p />}>
+                    {expiryText}
+                  </Text>
                 )}
               </>
             )}
@@ -468,32 +462,26 @@ function PanelToken() {
 export function TabExplorer({ title }: { title: string }) {
   const [isConnected, setIsConnected] = useState(false);
   return (
-    <div className="wpsignal-explorer-tab">
-      <h2>
-        <Tooltip
-          text={__(
-            "Explorer is a tool for testing and debugging WPSignal events.",
-            "wordsocket",
-          )}
-        >
-          <span>
-            <Icon size={16} icon="editor-help" />
-          </span>
-        </Tooltip>{" "}
-        {title}
-      </h2>
-      <p>
+    <Stack direction="column" gap="lg" className="wpsignal-explorer-tab">
+      <TabHeading
+        title={title}
+        help={__(
+          "Explorer is a tool for testing and debugging WPSignal events.",
+          "wordsocket",
+        )}
+      />
+      <Text render={<p />}>
         {__(
           "View registered triggers and publish test events to see realtime event handling in action.",
           "wordsocket",
         )}
-      </p>
+      </Text>
       <div className="wpsignal-cards">
         <PanelTriggers />
         <PanelEventLog setIsConnected={setIsConnected} />
         <PanelPublish isConnected={isConnected} />
         <PanelToken />
       </div>
-    </div>
+    </Stack>
   );
 }
