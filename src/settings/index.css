@@ -406,10 +406,6 @@
   }
 }
 
-.wpsignal-rule-adders {
-  padding-inline-start: calc(2.5em + var(--wpds-dimension-gap-md));
-}
-
 /*
  * Reordering: the slot under a drag slides its own item aside, towards the side the drop would
  * land on. The item is reached by its direct path (slot > stack > item), never by descent: a group

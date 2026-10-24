@@ -139,8 +139,8 @@ export function GroupCard({
   const labelOf = (node: RuleNode) =>
     isGroup(node)
       ? __("the group", "wordsocket")
-      : vocabulary.conditions.find((c) => c.key === node.condition)?.label ??
-        node.condition;
+      : (vocabulary.conditions.find((c) => c.key === node.condition)?.label ??
+        node.condition);
   /*
    * Switching the kind flips every nested group to the new opposite, so a group never matches its
    * parent (which would merely flatten).
@@ -240,9 +240,11 @@ export function GroupCard({
                   gap="md"
                   align={isGroup(node) ? "flex-start" : "center"}
                 >
-                  <Text variant="body-sm" className="wpsignal-rule-join">
-                    {index ? join : ""}
-                  </Text>
+                  {index !== 0 && (
+                    <Text variant="body-sm" className="wpsignal-rule-join">
+                      {join}
+                    </Text>
+                  )}
                   <div className="wpsignal-rule-item">
                     {isGroup(node) ? (
                       <GroupCard
