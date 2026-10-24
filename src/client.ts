@@ -4,7 +4,7 @@
  */
 
 import { wpsDebug } from "./utils";
-import { onChannel, uuid, visitorId } from "./utils/identity";
+import { onChannel, uuid, visitorId, isCrawler } from "./utils/identity";
 import { createTracker } from "./presence/track";
 import { createAttention } from "./attention/attention";
 import { createRecovery } from "./recovery/recovery";
@@ -347,6 +347,14 @@ export class WPSignalClient implements WPSApi {
           document.dispatchEvent(new Event("visibilitychange"));
         },
       });
+    }
+    /*
+     * A crawler rendering the page is nobody to deliver to: no socket, no presence, no visitor
+     * counted on the site or the plan. The tracker and the rules engine check the same way.
+     */
+    if (isCrawler()) {
+      wpsDebug("Crawler detected; not connecting", navigator.userAgent);
+      return;
     }
     /*
      * A prerendered page runs scripts before anyone looks at it, so connecting waits until the

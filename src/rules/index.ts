@@ -8,7 +8,7 @@
 import type { Attention } from "../attention/attention";
 import { pageJourney } from "../presence/page-journey";
 import type { Recovery } from "../recovery/recovery";
-import { onChannel, visitorId } from "../utils/identity";
+import { isCrawler, onChannel, visitorId } from "../utils/identity";
 import { createEngine } from "./engine";
 import {
   createRegistry,
@@ -77,8 +77,9 @@ export function createRulesApi(
 ): RulesApi {
   const registry = createRegistry();
   const seed = config.rules;
+  /* Front-end pages only, and never for a crawler: a rendered prompt would be indexed and a firing reported. */
   const onFront = (config.presence?.kind ?? "admin") !== "admin";
-  const page = onFront ? pageJourney() : null;
+  const page = onFront && !isCrawler() ? pageJourney() : null;
 
   const loadPattern = async (id: number): Promise<Node | null> => {
     if (!seed?.promptUrl) return null;

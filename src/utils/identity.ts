@@ -67,3 +67,19 @@ export function visitorId(): string {
 export function onChannel(channel: string, expected: string): boolean {
   return channel === expected || channel.endsWith(`:${expected}`);
 }
+
+/*
+ * Crawlers that render pages (Bing, Google and the link previewers) run this
+ * client too, and each render would open a socket, join presence as a visitor,
+ * report a visit and, on a site with moments, fire one. Cloudflare's verified
+ * bot flag stops the socket at the edge for sites behind it; this is the check
+ * for every site. It reads the user agent only: `navigator.webdriver` and a
+ * headless Chrome agent are what the Playwright suites run under.
+ */
+const CRAWLER =
+  /bot(?:[/\-;)]|$)|crawl|spider|slurp|bingpreview|facebookexternalhit|lighthouse|pagespeed|gtmetrix|pingdom/i;
+
+/** Whether this browser announces itself as a crawler, so nothing live should run for it. */
+export function isCrawler(): boolean {
+  return CRAWLER.test(navigator.userAgent ?? "");
+}
