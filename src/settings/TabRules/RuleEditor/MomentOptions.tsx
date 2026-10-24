@@ -37,7 +37,7 @@ export function MomentOptions({
   return (
     <Fragment>
       <Text variant="heading-lg" render={<h3 />}>
-        {__("When user is", "wordsocket")} <em>{__("away", "wordsocket")}</em>
+        {__("When user is away", "wordsocket")}
       </Text>
       <Text variant="body-sm" render={<p />}>
         {__(
