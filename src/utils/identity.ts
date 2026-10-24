@@ -72,7 +72,11 @@ export function onChannel(channel: string, expected: string): boolean {
 const CRAWLER =
   /bot(?:[/\-;)]|$)|crawl|spider|slurp|bingpreview|facebookexternalhit|lighthouse|pagespeed|gtmetrix|pingdom/i;
 
-/** Whether this browser announces itself as a crawler, so nothing live should run for it. */
+/**
+ * Whether this browser announces itself as a crawler, so nothing live should run for it.
+ *
+ * @since 0.31.0
+ */
 export function isCrawler(): boolean {
   return CRAWLER.test(navigator.userAgent ?? "");
 }

@@ -80,16 +80,31 @@ export interface Recovery {
   /**
    * Called each time a prompt closes, with the moment (`id:rev`) and action that showed it, and
    * `dismissed` when the visitor closed it (a toast's clock and a takeback pass no reason).
+   *
+   * @since 0.31.0 Receives the moment, the reason and the action.
    */
   onClose(
     handler: (rule?: string, reason?: CloseReason, action?: string) => void,
   ): () => void;
-  /** Called each time a prompt opens, with the moment (`id:rev`) and action that showed it, if any. Returns the unsubscribe. */
+  /**
+   * Called each time a prompt opens, with the moment (`id:rev`) and action that showed it, if any. Returns the unsubscribe.
+   *
+   * @since 0.31.0 Receives the action.
+   */
   onShow(handler: (rule?: string, action?: string) => void): () => void;
-  /** Called on a click on a link or button inside a prompt, with the moment and action that showed it. */
+  /**
+   * Called on a click on a link or button inside a prompt, with the moment and action that showed it.
+   *
+   * @since 0.31.0
+   */
   onClick(handler: (rule?: string, action?: string) => void): () => void;
 }
 
+/**
+ * The recovery API: prompts, the title flash, the badge and the chime.
+ *
+ * @since 0.31.0 Closes carry the moment, the reason and the action; `onClick()`.
+ */
 export function createRecovery(attention: Attention): Recovery {
   const open = new Map<PromptMount, ShowOptions>();
   const closeHandlers = new Set<

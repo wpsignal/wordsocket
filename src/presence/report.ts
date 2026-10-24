@@ -20,6 +20,8 @@ export type ReportAnswer = Record<string, unknown>;
 /**
  * Send a report and resolve to what WordPress answered, or null when it did not (offline, refused,
  * an unloading page); a leave's answer is never read.
+ *
+ * @since 0.31.0 Returns the answer.
  */
 export async function sendReport(
   url: string,

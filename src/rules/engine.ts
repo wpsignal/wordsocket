@@ -168,6 +168,11 @@ export interface Engine {
   stop(): void;
 }
 
+/**
+ * The engine over the registry, the recovery surfaces and the page journey.
+ *
+ * @since 0.31.0 Reports what the visitor did with a prompt.
+ */
 export function createEngine(deps: EngineDeps): Engine {
   const { registry, recovery, attention, page } = deps;
   const taxonomies = new Set(deps.taxonomies);

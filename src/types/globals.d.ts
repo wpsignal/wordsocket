@@ -382,13 +382,25 @@ interface WPSRecoveryApi {
   sound(): boolean;
   /** Called when attention comes back to the page from a hidden tab or another window. Returns the unsubscribe. */
   onReturn(handler: () => void): () => void;
-  /** Each close, with the moment (`id:rev`) and action that showed the prompt, and `dismissed` when the visitor closed it. */
+  /**
+   * Each close, with the moment (`id:rev`) and action that showed the prompt, and `dismissed` when the visitor closed it.
+   *
+   * @since 0.31.0 Receives the moment, the reason and the action.
+   */
   onClose(
     handler: (rule?: string, reason?: "dismissed", action?: string) => void,
   ): () => void;
-  /** Called each time a prompt opens, with the moment (`id:rev`) and action that showed it, if any. */
+  /**
+   * Called each time a prompt opens, with the moment (`id:rev`) and action that showed it, if any.
+   *
+   * @since 0.31.0 Receives the action.
+   */
   onShow(handler: (rule?: string, action?: string) => void): () => void;
-  /** A click on a link or button inside a prompt, with the moment and action that showed it. */
+  /**
+   * A click on a link or button inside a prompt, with the moment and action that showed it.
+   *
+   * @since 0.31.0
+   */
   onClick(handler: (rule?: string, action?: string) => void): () => void;
   readonly open: boolean;
   /** The moments (`id:rev`) with a prompt on screen. */

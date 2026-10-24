@@ -61,6 +61,8 @@ class Presence {
 	/**
 	 * The step before the filter.
 	 *
+	 * @since 0.31.0 Names a post type archive `<type>_archive`.
+	 *
 	 * @return array{kind: string, id: int}
 	 */
 	private function detect_step(): array {
@@ -198,6 +200,8 @@ class Presence {
 
 	/**
 	 * Hand a report to the action for it.
+	 *
+	 * @since 0.31.0 Answers a visit with `wpsignal_visitor_visit_response`.
 	 *
 	 * @param WP_REST_Request $request The request.
 	 * @param bool            $leaving Whether this is `/leave`.

@@ -69,6 +69,11 @@ const patternCache = (id: number, version: number) =>
     (value): value is string => typeof value === "string",
   );
 
+/**
+ * `WPS.rules`: the registration API over the engine.
+ *
+ * @since 0.31.0 Runs no engine for a crawler.
+ */
 export function createRulesApi(
   client: RulesClient,
   config: WpSignalConfig,

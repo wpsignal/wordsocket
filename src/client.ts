@@ -321,7 +321,11 @@ export class WPSignalClient implements WPSApi {
     };
   }
 
-  /** Initialise the client: obtain a token and open a transport connection. */
+  /**
+   * Initialise the client: obtain a token and open a transport connection.
+   *
+   * @since 0.31.0 Returns before connecting for a crawler.
+   */
   start(): void {
     if (this.config.isDebug) {
       new WPSClientDebug({

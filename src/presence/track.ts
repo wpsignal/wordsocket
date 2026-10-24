@@ -51,6 +51,12 @@ export interface PresenceTracker {
   stop(): void;
 }
 
+/**
+ * The tracker behind `WPS.presence.track()`.
+ *
+ * @since 0.30.0
+ * @since 0.31.0 `report` may be a predicate, and `onVisit()` hands out the visit answer.
+ */
 export function createTracker(
   client: PresenceClient,
   config: WpSignalPresenceConfig | undefined,

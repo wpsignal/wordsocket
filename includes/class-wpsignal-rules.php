@@ -34,7 +34,11 @@ class Rules {
 	const KEY_PATTERN  = '/^[a-z][a-z0-9_]{0,63}$/';
 	const UUID_PATTERN = Presence::UUID_PATTERN;
 
-	/** What a report to `/fired` is about: the firing, or what the visitor did with the prompt it showed. */
+	/**
+	 * What a report to `/fired` is about: the firing, or what the visitor did with the prompt it showed.
+	 *
+	 * @since 0.31.0
+	 */
 	const FIRING_KINDS = array( 'fired', 'returned', 'dismissed', 'clicked' );
 
 	/** Value types a condition or a param may declare. */
@@ -188,6 +192,8 @@ class Rules {
 
 	/**
 	 * A condition entry in its stored shape.
+	 *
+	 * @since 0.31.0 Takes `groups`.
 	 *
 	 * @param string $key  Key.
 	 * @param array  $args As given.
@@ -457,6 +463,8 @@ class Rules {
 	/**
 	 * The page kinds a journey step may carry, as `key => label`.
 	 *
+	 * @since 0.31.0 Adds the post type archives.
+	 *
 	 * @return array<string, string>
 	 */
 	public function kinds(): array {
@@ -494,6 +502,8 @@ class Rules {
 
 	/**
 	 * Every page kind under its heading, as the builder's selects list them: Pages, Archives, Taxonomies.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @return array<int, array{label: string, options: array<string, string>}>
 	 */
@@ -568,6 +578,8 @@ class Rules {
 	/**
 	 * The page kinds that are post type archives (`<type>_archive`, labelled by the plural name), plus what `wpsignal_archive_kinds` changes.
 	 *
+	 * @since 0.31.0
+	 *
 	 * @return array<string, string> Kind key => label.
 	 */
 	public function archive_kinds(): array {
@@ -600,6 +612,8 @@ class Rules {
 	/**
 	 * A condition tree with every condition keyed `$from` re-keyed `$to`.
 	 *
+	 * @since 0.31.0
+	 *
 	 * @param array  $node A group or a condition.
 	 * @param string $from The key to replace.
 	 * @param string $to   Its replacement.
@@ -620,6 +634,8 @@ class Rules {
 
 	/**
 	 * The saved option, in shape.
+	 *
+	 * @since 0.31.0 Re-keys the `taxonomy` and `archive` conditions to `page_kind`.
 	 *
 	 * @return array{version: int, rules: array, removed: string[]}
 	 */
@@ -1225,6 +1241,8 @@ class Rules {
 	/**
 	 * Register the routes. Hooked to `rest_api_init` during WPS::boot().
 	 *
+	 * @since 0.31.0 The fired route takes `ms` and `kind`.
+	 *
 	 * @return void
 	 */
 	public function register_routes(): void {
@@ -1411,6 +1429,8 @@ class Rules {
 
 	/**
 	 * `POST /fired`: a browser reports a firing of an enabled rule; whoever stores it listens to `wpsignal_rule_fired`.
+	 *
+	 * @since 0.31.0 Takes `ms` and `kind`.
 	 *
 	 * @param WP_REST_Request $request The request.
 	 * @return WP_REST_Response|WP_Error
