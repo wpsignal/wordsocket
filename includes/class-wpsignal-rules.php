@@ -1285,6 +1285,11 @@ class Rules {
 						'default' => 0,
 						'minimum' => 0,
 					),
+					'ms'     => array(
+						'type'    => 'integer',
+						'default' => 0,
+						'minimum' => 0,
+					),
 					'data'   => array(
 						'type'    => 'object',
 						'default' => array(),
@@ -1412,13 +1417,14 @@ class Rules {
 			'rule_id'    => (string) $request->get_param( 'rule' ),
 			'action'     => (string) $request->get_param( 'action' ),
 			'step'       => max( 0, (int) $request->get_param( 'step' ) ),
+			'ms'         => max( 0, (int) $request->get_param( 'ms' ) ),
 			'user_id'    => get_current_user_id(),
 			'data'       => Presence::sanitize_data( (array) $request->get_param( 'data' ) ),
 		);
 		/**
 		 * Fires when a visitor's browser reports that a rule fired. WordSocket stores nothing; an extension does.
 		 *
-		 * @param array{visitor: string, journey_id: string, rule_id: string, action: string, step: int, user_id: int, data: array} $report The report.
+		 * @param array{visitor: string, journey_id: string, rule_id: string, action: string, step: int, ms: int, user_id: int, data: array} $report The report, `ms` the elapsed time of the step it fired in.
 		 */
 		do_action( 'wpsignal_rule_fired', $report );
 		$response = rest_ensure_response( array( 'ok' => true ) );

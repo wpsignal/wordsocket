@@ -342,8 +342,12 @@ export function createEngine(deps: EngineDeps): Engine {
         } catch {
           // One action's failure must not stop the next.
         }
+        /* The step's elapsed ms as the journey has it now; final once the step has closed. */
+        const ms = page
+          ? parseSteps(page.journey.current())[stepIndex]?.ms ?? 0
+          : 0;
         deps.report(
-          { rule: rule.id, action: action.action, step: stepIndex },
+          { rule: rule.id, action: action.action, step: stepIndex, ms },
           ctx,
         );
       };

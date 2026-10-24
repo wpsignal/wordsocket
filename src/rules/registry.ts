@@ -54,6 +54,21 @@ export interface Firing {
   action: string;
   /** Index of the journey step the rule fired on. */
   step: number;
+  /** Elapsed ms of that step when the action ran, as the journey records it. */
+  ms?: number;
+}
+
+/** A firing as a history provider stored it, with what the store learned afterwards. */
+export interface HistoryFiring {
+  rule: string;
+  action: string;
+  step: number;
+  ms?: number;
+  /** When it fired, RFC 3339 or the store's own stamp. */
+  at?: string;
+  /** The order the store attributed to this firing, when the cart converted later. */
+  order?: number;
+  order_at?: string;
 }
 
 export interface HistoryJourney {
@@ -66,6 +81,8 @@ export interface HistoryJourney {
    * ctx.
    */
   context?: Record<string, unknown>;
+  /** The moments that fired in this journey, as the provider stored them. */
+  firings?: HistoryFiring[];
 }
 
 export interface HistoryProvider {

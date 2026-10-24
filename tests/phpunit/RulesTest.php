@@ -549,6 +549,7 @@ final class RulesTest extends WordSocketTestCase {
 					'rule'   => 'r1',
 					'action' => 'show',
 					'step'   => 3,
+					'ms'     => 4500,
 					'data'   => array( 'b' => 'cart-1' ),
 				)
 			);
@@ -560,6 +561,7 @@ final class RulesTest extends WordSocketTestCase {
 					'rule_id'    => 'r1',
 					'action'     => 'show',
 					'step'       => 3,
+					'ms'         => 4500,
 					'user_id'    => 0,
 					'data'       => array( 'b' => 'cart-1' ),
 				),
