@@ -562,11 +562,38 @@ final class RulesTest extends WordSocketTestCase {
 					'action'     => 'show',
 					'step'       => 3,
 					'ms'         => 4500,
+					'kind'       => 'fired',
 					'user_id'    => 0,
 					'data'       => array( 'b' => 'cart-1' ),
 				),
 				$seen[0]
 			);
+			list( $status ) = $this->rest(
+				'POST',
+				'fired',
+				array(
+					'v'      => self::V,
+					'n'      => self::N,
+					'rule'   => 'r1',
+					'action' => 'show',
+					'kind'   => 'dismissed',
+				)
+			);
+			$this->assertSame( 200, $status );
+			$this->assertSame( 'dismissed', $seen[1]['kind'], 'what the visitor did with the prompt rides the same route' );
+			list( $status ) = $this->rest(
+				'POST',
+				'fired',
+				array(
+					'v'      => self::V,
+					'n'      => self::N,
+					'rule'   => 'r1',
+					'action' => 'show',
+					'kind'   => 'ignored',
+				)
+			);
+			$this->assertSame( 400, $status, 'a kind outside the four is refused' );
+			$this->assertCount( 2, $seen );
 			list( $status ) = $this->rest(
 				'POST',
 				'fired',
@@ -578,7 +605,7 @@ final class RulesTest extends WordSocketTestCase {
 				)
 			);
 			$this->assertSame( 400, $status );
-			$this->assertCount( 1, $seen, 'a bad id never reaches the action' );
+			$this->assertCount( 2, $seen, 'a bad id never reaches the action' );
 			foreach ( array( array( 'rule' => 'r2', 'action' => 'show' ), array( 'rule' => 'r1', 'action' => 'alert_staff' ) ) as $unknown ) {
 				list( $status ) = $this->rest( 'POST', 'fired', array( 'v' => self::V, 'n' => self::N ) + $unknown );
 				$this->assertSame( 404, $status, wp_json_encode( $unknown ) );
@@ -587,7 +614,7 @@ final class RulesTest extends WordSocketTestCase {
 			$this->rules()->save( $clean );
 			list( $status ) = $this->rest( 'POST', 'fired', array( 'v' => self::V, 'n' => self::N, 'rule' => 'r1', 'action' => 'show' ) );
 			$this->assertSame( 404, $status, 'a paused moment cannot have fired' );
-			$this->assertCount( 1, $seen, 'a rule that is not saved and enabled never reaches the action' );
+			$this->assertCount( 2, $seen, 'a rule that is not saved and enabled never reaches the action' );
 		} finally {
 			remove_action( 'wpsignal_rule_fired', $listener );
 		}

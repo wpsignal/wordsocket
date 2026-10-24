@@ -9,9 +9,12 @@ export interface PromptMount {
   close(): void;
 }
 
+/** Why a mount closed itself: the visitor did it; a toast's own clock passes nothing. */
+export type CloseReason = "dismissed";
+
 export type PresentationMount = (
   root: HTMLElement,
-  close: () => void,
+  close: (reason?: CloseReason) => void,
 ) => PromptMount;
 
 const TOAST_MS = 8_000;
@@ -42,18 +45,25 @@ export function promptLayer(): HTMLElement {
   return layer;
 }
 
-function closeButton(label: string, onClick: () => void): HTMLButtonElement {
+function closeButton(
+  label: string,
+  close: (reason?: CloseReason) => void,
+): HTMLButtonElement {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "wordsocket-prompt__close";
   button.setAttribute("aria-label", label);
   button.textContent = "×";
-  button.addEventListener("click", onClick);
+  button.addEventListener("click", () => close("dismissed"));
   return button;
 }
 
 /** A box with the content slot and a close button, shared by every built-in but the dialog. */
-function box(kind: string, root: HTMLElement, close: () => void): PromptMount {
+function box(
+  kind: string,
+  root: HTMLElement,
+  close: (reason?: CloseReason) => void,
+): PromptMount {
   const el = document.createElement("div");
   el.className = `wordsocket-prompt wordsocket-prompt--${kind}`;
   el.setAttribute("role", kind === "panel" ? "dialog" : "status");
@@ -76,7 +86,7 @@ function box(kind: string, root: HTMLElement, close: () => void): PromptMount {
             document.addEventListener("visibilitychange", arm, { once: true });
             return;
           }
-          timer = setTimeout(close, TOAST_MS);
+          timer = setTimeout(() => close(), TOAST_MS);
         };
         arm();
       }
@@ -104,13 +114,14 @@ registerPresentation("modal", (root, close) => {
    * Escape fires `cancel` before `close`, so closing on `cancel` keeps the state in step with the
    * screen; the button and a backdrop click call `close` too.
    */
+  const dismiss = () => close("dismissed");
   dialog.addEventListener("cancel", (event) => {
     event.preventDefault();
-    close();
+    dismiss();
   });
-  dialog.addEventListener("close", close);
+  dialog.addEventListener("close", dismiss);
   dialog.addEventListener("click", (event) => {
-    if (event.target === dialog) close();
+    if (event.target === dialog) dismiss();
   });
   return {
     open(node) {
@@ -123,7 +134,7 @@ registerPresentation("modal", (root, close) => {
     close() {
       document.body.classList.remove("wordsocket-prompt-open");
       // `removeEventListener` first: `dialog.close()` fires `close` again.
-      dialog.removeEventListener("close", close);
+      dialog.removeEventListener("close", dismiss);
       if (dialog.open) dialog.close();
       dialog.remove();
     },

@@ -350,12 +350,14 @@ interface WPSPromptContent {
 /** A presentation: given the layer and a close callback, mounts and unmounts a prompt's node. */
 type WPSPresentationMount = (
   root: HTMLElement,
-  close: () => void,
+  close: (reason?: "dismissed") => void,
 ) => { open(node: Node): void; close(): void };
 
 interface WPSShowOptions {
   /** The rule showing this prompt, as `id:rev`; a re-fire or a take-back closes it by this key. */
   rule?: string;
+  /** The action showing it, reported with what the visitor does to the prompt. */
+  action?: string;
   /** Values for the content's placeholders. */
   context?: Record<string, unknown>;
   /** Rendered pattern markup, when the caller fetched one. */
@@ -380,9 +382,14 @@ interface WPSRecoveryApi {
   sound(): boolean;
   /** Called when attention comes back to the page from a hidden tab or another window. Returns the unsubscribe. */
   onReturn(handler: () => void): () => void;
-  onClose(handler: () => void): () => void;
-  /** Called each time a prompt opens, with the moment (`id:rev`) that showed it, if any. */
-  onShow(handler: (rule?: string) => void): () => void;
+  /** Each close, with the moment (`id:rev`) and action that showed the prompt, and `dismissed` when the visitor closed it. */
+  onClose(
+    handler: (rule?: string, reason?: "dismissed", action?: string) => void,
+  ): () => void;
+  /** Called each time a prompt opens, with the moment (`id:rev`) and action that showed it, if any. */
+  onShow(handler: (rule?: string, action?: string) => void): () => void;
+  /** A click on a link or button inside a prompt, with the moment and action that showed it. */
+  onClick(handler: (rule?: string, action?: string) => void): () => void;
   readonly open: boolean;
   /** The moments (`id:rev`) with a prompt on screen. */
   readonly shownBy: string[];

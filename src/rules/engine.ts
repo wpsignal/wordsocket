@@ -14,7 +14,13 @@ import { AWAY, SEPARATOR } from "../presence/journey";
 import { deviceOf } from "../attention/attention";
 import { visitorId } from "../utils/identity";
 import { isRecord, stored } from "../utils/storage";
-import type { Firing, HistoryJourney, Registry, RuleContext } from "./registry";
+import type {
+  Firing,
+  FiringKind,
+  HistoryJourney,
+  Registry,
+  RuleContext,
+} from "./registry";
 import { isGroup, MAX_AFTER, type Rule, type RuleNode } from "./types";
 import {
   DEFAULT_TITLE,
@@ -305,6 +311,47 @@ export function createEngine(deps: EngineDeps): Engine {
     }),
   );
 
+  /* Reports what the visitor did with a prompt: returned to the tab, dismissed it, clicked inside it. */
+  const afterShow = (
+    key: string | undefined,
+    action: string | undefined,
+    kind: FiringKind,
+  ) => {
+    if (!key || !page) return;
+    const rule = rules.find((r) => `${r.id}:${r.rev}` === key);
+    const ctx = rule ? buildContext() : null;
+    if (!rule || !ctx) return;
+    const steps = parseSteps(page.journey.current());
+    const stepIndex = Math.max(0, steps.length - 1);
+    deps.report(
+      {
+        rule: rule.id,
+        action: action ?? "show",
+        step: stepIndex,
+        ms: steps[stepIndex]?.ms ?? 0,
+        kind,
+      },
+      ctx,
+    );
+  };
+  const awaitingReturn = new Map<string, string | undefined>();
+  offs.push(
+    recovery.onShow((key, action) => {
+      if (key && attention.state === "hidden") awaitingReturn.set(key, action);
+    }),
+    attention.on((state, previous) => {
+      if (previous !== "hidden" || state === "hidden") return;
+      awaitingReturn.forEach((action, key) =>
+        afterShow(key, action, "returned"),
+      );
+      awaitingReturn.clear();
+    }),
+    recovery.onClose((key, reason, action) => {
+      if (reason === "dismissed") afterShow(key, action, "dismissed");
+    }),
+    recovery.onClick((key, action) => afterShow(key, action, "clicked")),
+  );
+
   const runActions = (rule: Rule, ctx: RuleContext, stepIndex: number) => {
     const key = `${rule.id}:${rule.rev}`;
     /*
@@ -342,7 +389,7 @@ export function createEngine(deps: EngineDeps): Engine {
         } catch {
           // One action's failure must not stop the next.
         }
-        /* The step's elapsed ms as the journey has it now; final once the step has closed. */
+        /* The step's elapsed ms, as the journey records it. */
         const ms = page
           ? parseSteps(page.journey.current())[stepIndex]?.ms ?? 0
           : 0;

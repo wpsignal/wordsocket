@@ -19,6 +19,7 @@ import {
   presentationFor,
   promptLayer,
   registerPresentation,
+  type CloseReason,
   type PresentationMount,
   type PromptMount,
 } from "./surfaces";
@@ -50,6 +51,8 @@ export function writeStore(update: (store: RulesStore) => void): void {
 export interface ShowOptions {
   /** The rule showing this prompt, for whoever listens to closes. */
   rule?: string;
+  /** The action showing it, reported with what the visitor does to the prompt. */
+  action?: string;
   /** Values for the content's placeholders. */
   context?: PromptContext;
   /** Rendered pattern markup, when the engine fetched one. */
@@ -74,21 +77,50 @@ export interface Recovery {
   readonly shownBy: string[];
   /** Close every prompt on screen, or only those a moment (`id:rev`) showed. */
   close(rule?: string): void;
-  /** Called each time a prompt closes. Returns the unsubscribe. */
-  onClose(handler: () => void): () => void;
-  /** Called each time a prompt opens, with the moment (`id:rev`) that showed it, if any. Returns the unsubscribe. */
-  onShow(handler: (rule?: string) => void): () => void;
+  /**
+   * Called each time a prompt closes, with the moment (`id:rev`) and action that showed it, and
+   * `dismissed` when the visitor closed it (a toast's clock and a takeback pass no reason).
+   */
+  onClose(
+    handler: (rule?: string, reason?: CloseReason, action?: string) => void,
+  ): () => void;
+  /** Called each time a prompt opens, with the moment (`id:rev`) and action that showed it, if any. Returns the unsubscribe. */
+  onShow(handler: (rule?: string, action?: string) => void): () => void;
+  /** Called on a click on a link or button inside a prompt, with the moment and action that showed it. */
+  onClick(handler: (rule?: string, action?: string) => void): () => void;
 }
 
 export function createRecovery(attention: Attention): Recovery {
-  const open = new Map<PromptMount, string | undefined>();
-  const closeHandlers = new Set<() => void>();
-  const showHandlers = new Set<(rule?: string) => void>();
+  const open = new Map<PromptMount, ShowOptions>();
+  const closeHandlers = new Set<
+    (rule?: string, reason?: CloseReason, action?: string) => void
+  >();
+  const showHandlers = new Set<(rule?: string, action?: string) => void>();
+  const clickHandlers = new Set<(rule?: string, action?: string) => void>();
 
-  const closeOne = (mount: PromptMount) => {
-    if (!open.delete(mount)) return;
+  const closeOne = (mount: PromptMount, reason?: CloseReason) => {
+    const shownBy = open.get(mount);
+    if (!shownBy || !open.delete(mount)) return;
     mount.close();
-    closeHandlers.forEach((fn) => fn());
+    closeHandlers.forEach((fn) => fn(shownBy.rule, reason, shownBy.action));
+  };
+
+  /* The content, with clicks on links and buttons inside it reported. */
+  const clickable = (node: Node, options: ShowOptions): Node => {
+    let el: Element;
+    if (node instanceof Element) {
+      el = node;
+    } else {
+      el = document.createElement("div");
+      el.appendChild(node);
+    }
+    el.addEventListener("click", (event) => {
+      const target = event.target as Element | null;
+      if (!target?.closest?.("a, button, input[type=submit], [role=button]"))
+        return;
+      clickHandlers.forEach((fn) => fn(options.rule, options.action));
+    });
+    return el;
   };
 
   return {
@@ -96,25 +128,30 @@ export function createRecovery(attention: Attention): Recovery {
       return open.size > 0;
     },
     get shownBy() {
-      const keys = Array.from(open.values()).filter(
-        (key): key is string => typeof key === "string",
-      );
+      const keys = Array.from(open.values())
+        .map((shownBy) => shownBy.rule)
+        .filter((key): key is string => typeof key === "string");
       return Array.from(new Set(keys));
     },
     close(rule) {
       Array.from(open.entries())
-        .filter(([, shownBy]) => rule === undefined || shownBy === rule)
+        .filter(([, shownBy]) => rule === undefined || shownBy.rule === rule)
         .forEach(([mount]) => closeOne(mount));
     },
     show(content, presentation, options = {}) {
       /* The mount's own close button closes that prompt alone; `mount` is assigned before any can fire. */
       let mount: PromptMount | null = null;
-      mount = presentationFor(presentation)(promptLayer(), () => {
-        if (mount) closeOne(mount);
+      mount = presentationFor(presentation)(promptLayer(), (reason) => {
+        if (mount) closeOne(mount, reason);
       });
-      open.set(mount, options.rule);
-      mount.open(resolveContent(content, options.context, options.pattern));
-      showHandlers.forEach((fn) => fn(options.rule));
+      open.set(mount, options);
+      mount.open(
+        clickable(
+          resolveContent(content, options.context, options.pattern),
+          options,
+        ),
+      );
+      showHandlers.forEach((fn) => fn(options.rule, options.action));
       return true;
     },
     presentation: registerPresentation,
@@ -137,6 +174,12 @@ export function createRecovery(attention: Attention): Recovery {
       showHandlers.add(handler);
       return () => {
         showHandlers.delete(handler);
+      };
+    },
+    onClick(handler) {
+      clickHandlers.add(handler);
+      return () => {
+        clickHandlers.delete(handler);
       };
     },
   };

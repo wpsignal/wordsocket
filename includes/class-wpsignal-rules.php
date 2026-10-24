@@ -34,6 +34,9 @@ class Rules {
 	const KEY_PATTERN  = '/^[a-z][a-z0-9_]{0,63}$/';
 	const UUID_PATTERN = Presence::UUID_PATTERN;
 
+	/** What a report to `/fired` is about: the firing, or what the visitor did with the prompt it showed. */
+	const FIRING_KINDS = array( 'fired', 'returned', 'dismissed', 'clicked' );
+
 	/** Value types a condition or a param may declare. */
 	const VALUE_TYPES = array( 'none', 'number', 'text', 'boolean', 'select', 'kind', 'id', 'hours', 'weekdays', 'presentation' );
 
@@ -632,12 +635,12 @@ class Rules {
 			if ( empty( $attention['title'] ) && ! empty( $rule['attention_title'] ) ) {
 				$attention['title'] = (string) $rule['attention_title'];
 			}
-			// The flash delay (gone 2026-10-22: it only duplicated "Time on page while hidden") is dropped on read.
+			// Older shapes: the flash delay and the flat attention fields are dropped.
 			unset( $rule['grab_attention'], $rule['attention_title'], $rule['attention_delay'] );
-			// `once` (a boolean until 2026-10-23) reads as `frequency`: true was once per visitor, false every time.
+			// A boolean `once` reads as a frequency.
 			$rule['frequency'] = $this->frequency_of( $rule );
 			unset( $rule['once'] );
-			// The `taxonomy` condition (briefly `archive`) folded into `page_kind` on 2026-10-23: same values, same `is`.
+			// The `taxonomy` and `archive` conditions read as `page_kind`.
 			if ( is_array( $rule['conditions'] ?? null ) ) {
 				$rule['conditions'] = self::rekey_conditions( self::rekey_conditions( $rule['conditions'], 'taxonomy', 'page_kind' ), 'archive', 'page_kind' );
 			}
@@ -663,7 +666,7 @@ class Rules {
 					);
 					unset( $params['content'] );
 				}
-				// `after` (2026-10-22) defaults here too, so the next save does not read as a change to every rule.
+				// `after` defaults to 0.
 				$params['after']       = (int) ( $params['after'] ?? 0 );
 				$rule['actions'][ $i ] = array( 'action' => $key ) + $params;
 			}
@@ -1290,6 +1293,11 @@ class Rules {
 						'default' => 0,
 						'minimum' => 0,
 					),
+					'kind'   => array(
+						'type'    => 'string',
+						'default' => 'fired',
+						'enum'    => self::FIRING_KINDS,
+					),
 					'data'   => array(
 						'type'    => 'object',
 						'default' => array(),
@@ -1418,13 +1426,14 @@ class Rules {
 			'action'     => (string) $request->get_param( 'action' ),
 			'step'       => max( 0, (int) $request->get_param( 'step' ) ),
 			'ms'         => max( 0, (int) $request->get_param( 'ms' ) ),
+			'kind'       => (string) $request->get_param( 'kind' ),
 			'user_id'    => get_current_user_id(),
 			'data'       => Presence::sanitize_data( (array) $request->get_param( 'data' ) ),
 		);
 		/**
 		 * Fires when a visitor's browser reports that a rule fired. WordSocket stores nothing; an extension does.
 		 *
-		 * @param array{visitor: string, journey_id: string, rule_id: string, action: string, step: int, ms: int, user_id: int, data: array} $report The report, `ms` the elapsed time of the step it fired in.
+		 * @param array{visitor: string, journey_id: string, rule_id: string, action: string, step: int, ms: int, kind: string, user_id: int, data: array} $report The report: `ms` the elapsed time of the step, `kind` one of FIRING_KINDS.
 		 */
 		do_action( 'wpsignal_rule_fired', $report );
 		$response = rest_ensure_response( array( 'ok' => true ) );

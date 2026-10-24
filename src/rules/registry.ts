@@ -49,13 +49,21 @@ export type ActionRun = (
 ) => void | Promise<void>;
 export type ContextRead = () => unknown;
 
+/**
+ * What a report is about: the firing itself, or what the visitor did with the prompt it showed (the
+ * return to the tab it opened into while hidden, a dismissal, a click on a link or button inside).
+ */
+export type FiringKind = "fired" | "returned" | "dismissed" | "clicked";
+
 export interface Firing {
   rule: string;
   action: string;
-  /** Index of the journey step the rule fired on. */
+  /** Index of the journey step the rule fired on, or the event happened in. */
   step: number;
   /** Elapsed ms of that step when the action ran, as the journey records it. */
   ms?: number;
+  /** `fired` when absent. */
+  kind?: FiringKind;
 }
 
 /** A firing as a history provider stored it, with what the store learned afterwards. */
@@ -64,6 +72,7 @@ export interface HistoryFiring {
   action: string;
   step: number;
   ms?: number;
+  kind?: FiringKind;
   /** When it fired, RFC 3339 or the store's own stamp. */
   at?: string;
   /** The order the store attributed to this firing, when the cart converted later. */

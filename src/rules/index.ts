@@ -77,7 +77,7 @@ export function createRulesApi(
 ): RulesApi {
   const registry = createRegistry();
   const seed = config.rules;
-  /* Front-end pages only, and never for a crawler: a rendered prompt would be indexed and a firing reported. */
+  /* Front-end pages only, never for a crawler. */
   const onFront = (config.presence?.kind ?? "admin") !== "admin";
   const page = onFront && !isCrawler() ? pageJourney() : null;
 
@@ -109,7 +109,9 @@ export function createRulesApi(
   };
 
   const report = (firing: Firing, ctx: RuleContext) => {
-    registry.fireHandlers.forEach((fn) => fn(firing, ctx));
+    /* `onFire` receives firings only. */
+    if (!firing.kind || firing.kind === "fired")
+      registry.fireHandlers.forEach((fn) => fn(firing, ctx));
     if (!seed?.firedUrl || !page) return;
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -127,6 +129,7 @@ export function createRulesApi(
         action: firing.action,
         step: firing.step,
         ms: firing.ms ?? 0,
+        kind: firing.kind ?? "fired",
       }),
     }).catch(() => undefined);
   };

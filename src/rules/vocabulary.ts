@@ -108,6 +108,7 @@ async function showContent(
   const pattern = shown.pattern ? await deps.loadPattern(shown.pattern) : null;
   return recovery.show({ text: shown.text }, shown.type, {
     rule: `${rule.id}:${rule.rev}`,
+    action: "show",
     context: ctx,
     pattern,
   });
