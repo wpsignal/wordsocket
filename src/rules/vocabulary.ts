@@ -32,8 +32,6 @@ export const conditions: Record<string, ConditionTest> = {
     !ctx.page.taxonomy && equals(c.op, ctx.page.id, num(c.value)),
   term_id: (ctx, c) =>
     ctx.page.taxonomy && equals(c.op, ctx.page.id, num(c.value)),
-  taxonomy: (ctx, c) =>
-    ctx.page.taxonomy && equals(c.op, ctx.page.kind, c.value),
   dwell: (ctx, c) => compare(c.op, ctx.page.dwell, num(c.value)),
   time_hidden: (ctx, c) => compare(c.op, ctx.page.hidden, num(c.value)),
   pages_viewed: (ctx, c) =>

@@ -201,13 +201,28 @@ class Rules {
 				);
 			}
 		}
+		// A select may group its options (`groups`: a list of `{ label, options }`); `options` stays the flat set the validator checks.
+		$groups  = array();
+		$options = (array) ( $args['options'] ?? array() );
+		foreach ( (array) ( $args['groups'] ?? array() ) as $group ) {
+			$members = (array) ( $group['options'] ?? array() );
+			if ( empty( $members ) ) {
+				continue;
+			}
+			$groups[] = array(
+				'label'   => (string) ( $group['label'] ?? '' ),
+				'options' => $members,
+			);
+			$options += $members;
+		}
 		return array(
 			'key'         => $key,
 			'label'       => (string) ( $args['label'] ?? $key ),
 			'description' => (string) ( $args['description'] ?? '' ),
 			'operators'   => $operators,
 			'value'       => in_array( $args['value'] ?? '', self::VALUE_TYPES, true ) ? $args['value'] : 'none',
-			'options'     => (array) ( $args['options'] ?? array() ),
+			'options'     => $options,
+			'groups'      => $groups,
 			'source'      => (string) ( $args['source'] ?? 'wordsocket' ),
 		);
 	}
@@ -218,7 +233,7 @@ class Rules {
 	 * @return void
 	 */
 	public function register_defaults(): void {
-		$is         = array(
+		$is     = array(
 			array(
 				'key'   => 'is',
 				'label' => __( 'is', 'wordsocket' ),
@@ -228,7 +243,7 @@ class Rules {
 				'label' => __( 'is not', 'wordsocket' ),
 			),
 		);
-		$bounds     = array(
+		$bounds = array(
 			array(
 				'key'   => 'at_least',
 				'label' => __( 'at least', 'wordsocket' ),
@@ -238,28 +253,13 @@ class Rules {
 				'label' => __( 'at most', 'wordsocket' ),
 			),
 		);
-		$taxonomies = $this->taxonomy_kinds();
-		$kinds      = $this->kinds();
-		$pages      = array();
-		// Post types first (post leads, as the builder's default), then the site's own pages; taxonomy archives have their own condition.
-		foreach ( get_post_types( array( 'public' => true ), 'objects' ) as $type ) {
-			$key = sanitize_key( $type->name );
-			if ( isset( $kinds[ $key ] ) ) {
-				$pages[ $key ] = $kinds[ $key ];
-			}
-		}
-		foreach ( $kinds as $key => $label ) {
-			if ( ! isset( $pages[ $key ] ) && ! isset( $taxonomies[ $key ] ) ) {
-				$pages[ $key ] = $label;
-			}
-		}
 		$this->condition(
 			'page_kind',
 			array(
 				'label'     => __( 'Page', 'wordsocket' ),
 				'operators' => $is,
 				'value'     => 'select',
-				'options'   => $pages,
+				'groups'    => $this->kind_groups(),
 			)
 		);
 		$this->condition(
@@ -276,15 +276,6 @@ class Rules {
 				'label'     => __( 'Term id', 'wordsocket' ),
 				'operators' => $is,
 				'value'     => 'id',
-			)
-		);
-		$this->condition(
-			'taxonomy',
-			array(
-				'label'     => __( 'Taxonomy archive is', 'wordsocket' ),
-				'operators' => array( $is[0] ),
-				'value'     => 'select',
-				'options'   => $taxonomies,
 			)
 		);
 		$this->condition(
@@ -469,7 +460,7 @@ class Rules {
 		$kinds = array(
 			'home'    => __( 'Home page', 'wordsocket' ),
 			'search'  => __( 'Search results', 'wordsocket' ),
-			'archive' => __( 'Archive', 'wordsocket' ),
+			'archive' => __( 'Date or author archive', 'wordsocket' ),
 			'other'   => __( 'Another page', 'wordsocket' ),
 		);
 		foreach ( get_post_types( array( 'public' => true ), 'objects' ) as $type ) {
@@ -477,6 +468,10 @@ class Rules {
 		}
 		foreach ( get_taxonomies( array( 'public' => true ), 'objects' ) as $taxonomy ) {
 			$kinds[ sanitize_key( $taxonomy->name ) ] = (string) $taxonomy->labels->singular_name;
+		}
+		foreach ( $this->archive_kinds() as $key => $label ) {
+			/* translators: %s: a post type's plural name */
+			$kinds[ $key ] = sprintf( __( '%s archive', 'wordsocket' ), $label );
 		}
 		/**
 		 * Filters the page kinds a rule may name (ShopSocket adds `shop`, `cart`, `checkout`, `thanks`, `category`).
@@ -492,6 +487,53 @@ class Rules {
 			}
 		}
 		return $clean;
+	}
+
+	/**
+	 * Every page kind under its heading, as the builder's selects list them: Pages, Archives, Taxonomies.
+	 *
+	 * @return array<int, array{label: string, options: array<string, string>}>
+	 */
+	public function kind_groups(): array {
+		$kinds      = $this->kinds();
+		$taxonomies = $this->taxonomy_kinds();
+		$archives   = $this->archive_kinds();
+		$pages      = array();
+		$archived   = array();
+		$terms      = array();
+		// Post types lead (post first, as the builder's default), then the site's other pages, in `kinds()` order.
+		foreach ( get_post_types( array( 'public' => true ), 'objects' ) as $type ) {
+			$key = sanitize_key( $type->name );
+			if ( isset( $kinds[ $key ] ) ) {
+				$pages[ $key ] = $kinds[ $key ];
+			}
+		}
+		foreach ( $kinds as $key => $label ) {
+			if ( isset( $archives[ $key ] ) ) {
+				$archived[ $key ] = $label;
+			} elseif ( isset( $taxonomies[ $key ] ) ) {
+				$terms[ $key ] = $label;
+			} elseif ( ! isset( $pages[ $key ] ) && 'archive' !== $key ) {
+				$pages[ $key ] = $label;
+			}
+		}
+		if ( isset( $kinds['archive'] ) ) {
+			$archived['archive'] = $kinds['archive'];
+		}
+		return array(
+			array(
+				'label'   => __( 'Pages', 'wordsocket' ),
+				'options' => $pages,
+			),
+			array(
+				'label'   => __( 'Archives', 'wordsocket' ),
+				'options' => $archived,
+			),
+			array(
+				'label'   => __( 'Taxonomies', 'wordsocket' ),
+				'options' => $terms,
+			),
+		);
 	}
 
 	/**
@@ -521,6 +563,59 @@ class Rules {
 	}
 
 	/**
+	 * The page kinds that are post type archives (`<type>_archive`, labelled by the plural name), plus what `wpsignal_archive_kinds` changes.
+	 *
+	 * @return array<string, string> Kind key => label.
+	 */
+	public function archive_kinds(): array {
+		$archives = array();
+		// The blog index is the posts archive, but only when it is not the front page (`home`).
+		if ( 'page' === get_option( 'show_on_front' ) && (int) get_option( 'page_for_posts' ) > 0 ) {
+			$archives['post_archive'] = (string) get_post_type_object( 'post' )->labels->name;
+		}
+		foreach ( get_post_types( array( 'public' => true ), 'objects' ) as $type ) {
+			if ( ! empty( $type->has_archive ) ) {
+				$archives[ sanitize_key( $type->name ) . '_archive' ] = (string) $type->labels->name;
+			}
+		}
+		/**
+		 * Filters the kinds that are post type archives (ShopSocket drops `product_archive`, since the shop page is its `shop` kind).
+		 *
+		 * @param array<string, string> $archives Kind key => label.
+		 */
+		$archives = (array) apply_filters( 'wpsignal_archive_kinds', $archives );
+		$clean    = array();
+		foreach ( $archives as $key => $label ) {
+			$key = sanitize_key( (string) $key );
+			if ( '' !== $key ) {
+				$clean[ $key ] = (string) $label;
+			}
+		}
+		return $clean;
+	}
+
+	/**
+	 * A condition tree with every condition keyed `$from` re-keyed `$to`.
+	 *
+	 * @param array  $node A group or a condition.
+	 * @param string $from The key to replace.
+	 * @param string $to   Its replacement.
+	 * @return array
+	 */
+	private static function rekey_conditions( array $node, string $from, string $to ): array {
+		foreach ( array( 'all', 'any' ) as $list ) {
+			if ( isset( $node[ $list ] ) && is_array( $node[ $list ] ) ) {
+				$node[ $list ] = array_map( static fn( $child ) => is_array( $child ) ? self::rekey_conditions( $child, $from, $to ) : $child, $node[ $list ] );
+			}
+		}
+		$key = $node['condition'] ?? null;
+		if ( $from === $key ) {
+			$node['condition'] = $to;
+		}
+		return $node;
+	}
+
+	/**
 	 * The saved option, in shape.
 	 *
 	 * @return array{version: int, rules: array, removed: string[]}
@@ -542,6 +637,10 @@ class Rules {
 			// `once` (a boolean until 2026-10-23) reads as `frequency`: true was once per visitor, false every time.
 			$rule['frequency'] = $this->frequency_of( $rule );
 			unset( $rule['once'] );
+			// The `taxonomy` condition (briefly `archive`) folded into `page_kind` on 2026-10-23: same values, same `is`.
+			if ( is_array( $rule['conditions'] ?? null ) ) {
+				$rule['conditions'] = self::rekey_conditions( self::rekey_conditions( $rule['conditions'], 'taxonomy', 'page_kind' ), 'archive', 'page_kind' );
+			}
 			foreach ( (array) ( $rule['actions'] ?? array() ) as $i => $action ) {
 				$action = (array) $action;
 				$params = (array) $action + (array) ( $action['params'] ?? array() );
@@ -1219,6 +1318,7 @@ class Rules {
 			'removed'    => $saved['removed'],
 			'vocabulary' => $this->vocabulary(),
 			'kinds'      => $this->kinds(),
+			'kindGroups' => $this->kind_groups(),
 		);
 	}
 

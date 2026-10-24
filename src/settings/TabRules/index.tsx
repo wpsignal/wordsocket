@@ -168,6 +168,7 @@ export function TabRules({ title }: { title: string }) {
         ? {
             vocabulary: listing.vocabulary,
             kinds: listing.kinds,
+            kindGroups: listing.kindGroups ?? [],
             patterns,
             history,
           }
@@ -346,7 +347,7 @@ export function TabRules({ title }: { title: string }) {
                   >
                     <Stack
                       direction="column"
-                      gap="sm"
+                      gap="lg"
                       className="wpsignal-rule-item"
                     >
                       <ToggleControl
@@ -361,7 +362,7 @@ export function TabRules({ title }: { title: string }) {
                         className="wpsignal-rule-summary wpsignal-muted"
                         render={<p />}
                       >
-                        {summarize(rule, vocabulary, kinds)}
+                        {summarize(rule, vocabulary, kinds, patterns)}
                       </Text>
                       <Stack direction="row" gap="xs" wrap="wrap">
                         <Button
@@ -393,12 +394,17 @@ export function TabRules({ title }: { title: string }) {
                         direction="column"
                         gap="xs"
                         align="flex-end"
+                        style={{
+                          padding: "0.5rem",
+                          backgroundColor: "var(--wpds-color-background-surface-neutral-weak)",
+                          borderRadius: "0.5rem",
+                        }}
                         title={__(
                           "Journeys stored in the last 30 days this moment would have happened in",
                           "wordsocket",
                         )}
                       >
-                        <Text variant="heading-xl">
+                        <Text variant="heading-2xl">
                           {reach(rule)?.count ?? 0}
                         </Text>
                         <Text variant="body-sm" className="wpsignal-muted">

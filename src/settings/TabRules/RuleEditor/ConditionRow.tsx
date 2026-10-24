@@ -100,6 +100,7 @@ export function ConditionRow({
               type={spec.value}
               value={condition.value}
               options={spec.options}
+              groups={spec.groups}
               onChange={(value) => onChange({ ...condition, value })}
             />
           )}

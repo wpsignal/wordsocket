@@ -19,7 +19,7 @@ import {
 /**
  * Internal dependencies.
  */
-import type { ValueType } from "./model";
+import type { OptionGroup, ValueType } from "./model";
 import { weekdayName } from "./model";
 import { useRules } from "./context";
 import {
@@ -36,6 +36,8 @@ interface Props {
   type: ValueType;
   value: unknown;
   options: Record<string, string>;
+  /** A select's options under headings; `options` is the same set flat. */
+  groups?: OptionGroup[];
   label?: string;
   /** In a chip: the label stays for assistive technology, the control reads as part of the sentence. */
   inline?: boolean;
@@ -52,13 +54,14 @@ const HOURS: Option[] = Array.from({ length: 24 }, (_, h) => ({
   label: `${h}:00`,
 }));
 
-/** A select over string values; the label is visible unless `hideLabel`. */
+/** A select over string values; the label is visible unless `hideLabel`, and `groups` puts the options under headings. */
 export function Choice({
   label,
   hideLabel,
   description,
   value,
   options,
+  groups,
   onChange,
 }: {
   label: string;
@@ -66,6 +69,7 @@ export function Choice({
   description?: string;
   value: string;
   options: Option[];
+  groups?: OptionGroup[];
   onChange(value: string): void;
 }) {
   /*
@@ -84,6 +88,19 @@ export function Choice({
           )})`,
         },
       ];
+  /*
+   * Grouped, the items render as children under group labels, each `Item` holding the same object
+   * `items` does, since the select matches values by identity; an item no group names (the
+   * unavailable fallback) follows the groups.
+   */
+  const grouped = (groups ?? []).filter((g) => Object.keys(g.options).length);
+  const inGroups = new Set(grouped.flatMap((g) => Object.keys(g.options)));
+  const itemOf = (v: string) => items.find((o) => o.value === v);
+  const renderItem = (item: Option) => (
+    <SelectControl.Item key={item.value} value={item} label={item.label}>
+      <SelectControl.ItemLabel>{item.label}</SelectControl.ItemLabel>
+    </SelectControl.Item>
+  );
   return (
     <SelectControl
       label={label}
@@ -95,7 +112,22 @@ export function Choice({
         if (item && item.value !== null) onChange(item.value);
       }}
       popupWidth="content"
-    />
+    >
+      {grouped.length > 0
+        ? [
+            ...grouped.map((g) => (
+              <SelectControl.Group key={g.label}>
+                <SelectControl.GroupLabel>{g.label}</SelectControl.GroupLabel>
+                {Object.keys(g.options)
+                  .map(itemOf)
+                  .filter((o): o is Option => Boolean(o))
+                  .map(renderItem)}
+              </SelectControl.Group>
+            )),
+            ...items.filter((o) => !inGroups.has(o.value)).map(renderItem),
+          ]
+        : undefined}
+    </SelectControl>
   );
 }
 
@@ -145,11 +177,12 @@ export function ValueControl({
   type,
   value,
   options,
+  groups,
   label,
   inline,
   onChange,
 }: Props) {
-  const { kinds } = useRules();
+  const { kinds, kindGroups } = useRules();
   const hidden = inline || !label;
   switch (type) {
     case "none":
@@ -194,6 +227,7 @@ export function ValueControl({
           hideLabel={hidden}
           value={String(value ?? "")}
           options={entries(options)}
+          groups={groups}
           onChange={onChange}
         />
       );
@@ -204,6 +238,7 @@ export function ValueControl({
           hideLabel={hidden}
           value={String(value ?? "")}
           options={entries(kinds)}
+          groups={kindGroups}
           onChange={onChange}
         />
       );

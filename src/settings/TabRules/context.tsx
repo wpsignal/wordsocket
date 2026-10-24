@@ -12,13 +12,14 @@ import { createContext, useContext } from "@wordpress/element";
 /**
  * Internal dependencies.
  */
-import type { Vocabulary } from "./model";
+import type { OptionGroup, Vocabulary } from "./model";
 import type { PatternOption } from "./ValueControl";
 import type { Journeys } from "./useJourneys";
 
 export interface RulesData {
   vocabulary: Vocabulary;
   kinds: Record<string, string>;
+  kindGroups: OptionGroup[];
   patterns: PatternOption[];
   history: Journeys;
 }

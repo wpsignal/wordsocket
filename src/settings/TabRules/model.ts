@@ -19,6 +19,7 @@ import type {
   RuleNode,
 } from "../../rules/types";
 import { isGroup } from "../../rules/types";
+import type { PatternOption } from "./ValueControl";
 
 export type ValueType =
   | "none"
@@ -39,7 +40,14 @@ export interface ConditionSpec {
   operators: Array<{ key: string; label: string }>;
   value: ValueType;
   options: Record<string, string>;
+  /** A select's options in named groups; `options` is the same set flat. */
+  groups?: OptionGroup[];
   source: string;
+}
+
+export interface OptionGroup {
+  label: string;
+  options: Record<string, string>;
 }
 
 export interface ParamSpec {
@@ -87,6 +95,8 @@ export interface RulesListing {
   removed: string[];
   vocabulary: Vocabulary;
   kinds: Record<string, string>;
+  /** The same kinds under the headings the selects show. */
+  kindGroups: OptionGroup[];
 }
 
 /** An 8-hex id, from WordSocket's generator when the client is on the page. */
@@ -270,10 +280,26 @@ function describeNode(
   return nested && list.length > 1 ? `(${inner})` : inner;
 }
 
+const EXCERPT = 60;
+
+/** The first words of a prompt's text, for the summary sentence. */
+function excerpt(text: string): string {
+  const flat = text.replace(/\s+/g, " ").trim();
+  return flat.length > EXCERPT
+    ? `${flat.slice(0, EXCERPT - 1).trimEnd()}…`
+    : flat;
+}
+
+/**
+ * An action in words: its label, how it shows, the pattern by title (or id) or the text it shows
+ * instead, and its delay. A param the action lacks is skipped, so an extension's action reads as
+ * its label alone.
+ */
 function describeAction(
   a: RuleAction,
   vocabulary: Vocabulary,
   kinds: Record<string, string>,
+  patterns: PatternOption[],
 ): string {
   const spec = vocabulary.actions.find((s) => s.key === a.action);
   if (!spec) return a.action;
@@ -288,28 +314,47 @@ function describeAction(
         kinds,
       ),
     );
-    const shown = (a.presentation ?? {}) as { pattern?: number };
-    if (shown.pattern) parts.push(__("with a pattern", "wordsocket"));
+    const shown = (a.presentation ?? {}) as { pattern?: number; text?: string };
+    if (shown.pattern) {
+      const title = patterns.find((p) => p.id === shown.pattern)?.title;
+      parts.push(
+        title
+          ? /* translators: %s: the synced pattern's title */
+            sprintf(__('with the pattern "%s"', "wordsocket"), title)
+          : /* translators: %d: the synced pattern's id */
+            sprintf(__("with pattern #%d", "wordsocket"), shown.pattern),
+      );
+    } else if (shown.text?.trim()) {
+      /* translators: %s: the first words of the prompt's text */
+      parts.push(sprintf(__('saying "%s"', "wordsocket"), excerpt(shown.text)));
+    }
   }
   const after = Number(a.after);
   if (after > 0) {
     /* translators: %d: seconds */
-    parts.push(sprintf(__("after %ds", "wordsocket"), after));
+    parts.push(sprintf(__("after %d s", "wordsocket"), after));
   }
   return parts.join(" ");
 }
 
-/** "If page kind is post and dwell at least 30 s, then show banner." */
+/**
+ * "If page is Post and time on page while visible at least 30, then Show banner saying "Still
+ * there?" after 20 s, flashing the tab title while hidden." The frequency is the card's badge, not
+ * part of the sentence.
+ */
 export function summarize(
   rule: Rule,
   vocabulary: Vocabulary,
   kinds: Record<string, string>,
+  patterns: PatternOption[] = [],
 ): string {
   const when = describeNode(rule.conditions as RuleGroup, vocabulary, kinds);
   const then =
-    rule.actions.map((a) => describeAction(a, vocabulary, kinds)).join(", ") +
+    rule.actions
+      .map((a) => describeAction(a, vocabulary, kinds, patterns))
+      .join(", ") +
     (rule.attention?.enabled
-      ? __(" (grabbing their attention)", "wordsocket")
+      ? __(", flashing the tab title while hidden", "wordsocket")
       : "");
   /* translators: 1: the conditions in words, 2: the actions in words */
   return sprintf(__("If %1$s, then %2$s.", "wordsocket"), when, then);

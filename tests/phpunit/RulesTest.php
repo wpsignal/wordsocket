@@ -97,15 +97,25 @@ final class RulesTest extends WordSocketTestCase {
 	public function test_the_default_vocabulary_lists_every_built_in_with_operators(): void {
 		$vocabulary = $this->rules()->vocabulary();
 		$conditions = array_column( $vocabulary['conditions'], null, 'key' );
-		foreach ( array( 'page_kind', 'page_id', 'term_id', 'taxonomy', 'dwell', 'time_hidden', 'pages_viewed', 'visited', 'site_hour', 'hour', 'weekday', 'visitor', 'logged_in', 'device' ) as $key ) {
+		foreach ( array( 'page_kind', 'page_id', 'term_id', 'dwell', 'time_hidden', 'pages_viewed', 'visited', 'site_hour', 'hour', 'weekday', 'visitor', 'logged_in', 'device' ) as $key ) {
 			$this->assertArrayHasKey( $key, $conditions, $key );
 			$this->assertNotEmpty( $conditions[ $key ]['operators'], "$key has operators" );
 		}
+		$this->assertArrayNotHasKey( 'taxonomy', $conditions, 'folded into page_kind' );
+		$this->assertArrayNotHasKey( 'archive', $conditions );
 		$this->assertSame( array( 'at_least', 'at_most' ), array_column( $conditions['dwell']['operators'], 'key' ) );
-		$this->assertSame( 'select', $conditions['page_kind']['value'] );
-		$this->assertArrayNotHasKey( 'category', $conditions['page_kind']['options'], 'taxonomy archives have their own condition' );
-		$this->assertArrayHasKey( 'category', $conditions['taxonomy']['options'] );
-		$this->assertSame( 'post', array_key_first( $conditions['page_kind']['options'] ), 'post leads, as the builder default' );
+		$page = $conditions['page_kind'];
+		$this->assertSame( 'select', $page['value'] );
+		$this->assertSame( 'post', array_key_first( $page['options'] ), 'post leads, as the builder default' );
+		$this->assertSame( $this->rules()->kinds(), array_replace( $this->rules()->kinds(), $page['options'] ), 'every kind is a choice, labelled as kinds() labels it' );
+		$this->assertCount( count( $this->rules()->kinds() ), $page['options'] );
+		$groups = array_column( $page['groups'], 'options', 'label' );
+		$this->assertSame( array( 'Pages', 'Archives', 'Taxonomies' ), array_keys( $groups ) );
+		$this->assertSame( 'post', array_key_first( $groups['Pages'] ) );
+		$this->assertArrayHasKey( 'home', $groups['Pages'] );
+		$this->assertArrayHasKey( 'category', $groups['Taxonomies'] );
+		$this->assertSame( 'archive', array_key_last( $groups['Archives'] ), 'date or author closes the archives' );
+		$this->assertSame( $groups, array_column( $this->rules()->kind_groups(), 'options', 'label' ), 'the listing hands the builder the same groups for "Earlier in the visit"' );
 		$actions = array_column( $vocabulary['actions'], null, 'key' );
 		$this->assertSame( array( 'show' ), array_keys( $actions ) );
 		$this->assertSame( array( 'presentation', 'after' ), array_keys( $actions['show']['params'] ), 'how, with what text or pattern, and the delay every action has' );
@@ -114,6 +124,38 @@ final class RulesTest extends WordSocketTestCase {
 		$this->assertArrayHasKey( 'post', $kinds );
 		$this->assertArrayHasKey( 'home', $kinds );
 		$this->assertArrayHasKey( 'category', $kinds );
+		foreach ( array_keys( $this->rules()->archive_kinds() ) as $kind ) {
+			$this->assertStringEndsWith( '_archive', $kind );
+			$this->assertArrayHasKey( $kind, $kinds, 'a post type archive is a kind a journey step may carry' );
+		}
+	}
+
+	public function test_a_registered_post_type_with_an_archive_is_a_page_and_an_archive_kind(): void {
+		register_post_type(
+			'wps_book',
+			array(
+				'public'      => true,
+				'has_archive' => true,
+				'labels'      => array(
+					'name'          => 'Books',
+					'singular_name' => 'Book',
+				),
+			)
+		);
+		try {
+			$rules = $this->rules();
+			$rules->register_defaults();
+			$archives = $rules->archive_kinds();
+			$this->assertSame( 'Books', $archives['wps_book_archive'] );
+			$this->assertSame( 'Books archive', $rules->kinds()['wps_book_archive'] );
+			$groups = array_column( array_column( $rules->vocabulary()['conditions'], null, 'key' )['page_kind']['groups'], 'options', 'label' );
+			$this->assertSame( 'Book', $groups['Pages']['wps_book'], 'the single Book is a page' );
+			$this->assertSame( 'Books archive', $groups['Archives']['wps_book_archive'], 'its archive sits under Archives' );
+			$this->assertArrayNotHasKey( 'wps_book_archive', $groups['Pages'] );
+		} finally {
+			unregister_post_type( 'wps_book' );
+			$this->rules()->register_defaults();
+		}
 	}
 
 	public function test_an_extension_registers_a_condition_and_an_action(): void {
