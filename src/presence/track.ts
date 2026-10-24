@@ -61,7 +61,7 @@ export function createTracker(
   const page = pageJourney();
   const { journey } = page;
   const v = visitorId();
-  /* A crawler's render reports nothing, whatever the plugin asked; the client opens no socket for it either. */
+  /* A crawler never reports. */
   const reporting = (): boolean =>
     !!config &&
     !isCrawler() &&

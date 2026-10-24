@@ -233,12 +233,7 @@ class Config {
 	}
 
 	/**
-	 * Whether the settings page shows its developer tabs (Triggers, Explorer).
-	 *
-	 * Off by default: a site owner installing an extension has no use for
-	 * hook wiring or a live event console, and both read as "what is this
-	 * for" (tester feedback, 2026-10-15). A developer switches it on once,
-	 * on the Settings tab.
+	 * Whether the settings page shows its developer tabs (Triggers, Explorer); off by default.
 	 *
 	 * @return bool
 	 */
