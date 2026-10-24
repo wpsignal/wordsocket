@@ -176,7 +176,7 @@ interface WPSRulesApi {
 
 /** Printed by class-wpsignal-client.php from `Presence::config()`. */
 interface WpSignalPresenceConfig {
-  /** The page's kind: a post type, a taxonomy, or `home`, `search`, `archive`, `other`, `admin` (the `wpsignal_page_step` filter). */
+  /** The page's kind: a post type, a taxonomy, a post type's `<type>_archive`, or `home`, `search`, `archive`, `other`, `admin` (the `wpsignal_page_step` filter). */
   kind: string;
   /** The post or term id, 0 when the kind has none. */
   id: number;
@@ -302,6 +302,15 @@ interface WPSPresenceTracker {
   update(state: Record<string, unknown>): void;
   /** Called after every change to the journey (a step, away, back, a new visit). Returns the unsubscribe. */
   onChange(handler: (journey: string, journeyId: string) => void): () => void;
+  /**
+   * Called with what WordPress answered each visit report (0.31): `ok` plus the fields plugins add
+   * through `wpsignal_visitor_visit_response`, each under its own key. The latest answer is replayed
+   * to a late subscriber; null means none is coming (no reporting, or the report failed), so fetch
+   * your own. Returns the unsubscribe.
+   */
+  onVisit(
+    handler: (answer: Record<string, unknown> | null) => void,
+  ): () => void;
   /** Leave presence and stop listening. The journey in storage is kept. */
   stop(): void;
 }

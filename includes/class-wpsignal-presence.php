@@ -108,7 +108,21 @@ class Presence {
 				'id'   => 0,
 			);
 		}
-		if ( is_archive() || is_home() ) {
+		// A post type's archive is its own kind (`post_archive` is the blog index), so "Archive is Posts" can name it without the single posts.
+		if ( is_home() ) {
+			return array(
+				'kind' => 'post_archive',
+				'id'   => (int) get_queried_object_id(),
+			);
+		}
+		if ( is_post_type_archive() ) {
+			$type = get_queried_object();
+			return array(
+				'kind' => ( $type instanceof \WP_Post_Type ? $type->name : 'other' ) . '_archive',
+				'id'   => 0,
+			);
+		}
+		if ( is_archive() ) {
 			return array(
 				'kind' => 'archive',
 				'id'   => 0,
@@ -143,12 +157,12 @@ class Presence {
 	 * @return void
 	 */
 	public function register_routes() {
-		$uuid = array(
+		$uuid   = array(
 			'type'              => 'string',
 			'required'          => true,
 			'validate_callback' => static fn( $value ): bool => is_string( $value ) && 1 === preg_match( self::UUID_PATTERN, $value ),
 		);
-		$args = array(
+		$args   = array(
 			'v'       => $uuid,
 			'n'       => $uuid,
 			'journey' => array(
@@ -217,7 +231,21 @@ class Presence {
 			 */
 			do_action( 'wpsignal_visitor_visit', $report );
 		}
-		$response = rest_ensure_response( array( 'ok' => true ) );
+		$answer = array( 'ok' => true );
+		if ( ! $leaving ) {
+			/**
+			 * Filters what the visit route answers beyond `ok`, so a plugin hands the
+			 * browser its own state in the request the page already makes (ShopSocket
+			 * answers the cart under `shopsocket`). Each plugin keeps to one key of its
+			 * own; `ok` cannot be overridden. The browser reads it through
+			 * `tracker.onVisit()`.
+			 *
+			 * @param array $answer Fields to add, empty to begin with.
+			 * @param array{visitor: string, journey_id: string, journey: string, steps: int, user_id: int, data: array, leaving: bool} $report The report.
+			 */
+			$answer = array( 'ok' => true ) + (array) apply_filters( 'wpsignal_visitor_visit_response', array(), $report );
+		}
+		$response = rest_ensure_response( $answer );
 		$response->header( 'Cache-Control', 'no-store' );
 		return $response;
 	}

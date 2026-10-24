@@ -190,4 +190,91 @@ final class PresenceTest extends WordSocketTestCase {
 		$this->assertStringEndsWith( '/wpsignal/v1/leave', $config['leaveUrl'] );
 		$this->assertSame( 3, Presence::steps( 'a:1:1>b:2:2>away:0:3' ) );
 	}
+
+	public function test_a_post_type_archive_and_the_blog_index_are_their_own_kinds(): void {
+		// phpcs:disable WordPress.WP.GlobalVariablesOverride.Prohibited -- the detector reads the main query, so the test drives it through the global.
+		global $wp_query;
+		$presence = WPS::instance()->presence();
+		$original = $wp_query;
+		$static   = static fn() => 'page';
+		$of_flags = static function ( array $flags, ?object $queried = null, int $id = 0 ): WP_Query {
+			$query = new WP_Query();
+			foreach ( $flags as $flag ) {
+				$query->$flag = true;
+			}
+			if ( $queried ) {
+				$query->queried_object    = $queried;
+				$query->queried_object_id = $id;
+			}
+			return $query;
+		};
+		add_filter( 'pre_option_show_on_front', $static );
+		try {
+			$wp_query = $of_flags( array( 'is_archive', 'is_post_type_archive' ), get_post_type_object( 'post' ) );
+			$this->assertSame(
+				array(
+					'kind' => 'post_archive',
+					'id'   => 0,
+				),
+				$presence->page_step(),
+				'a post type archive is <type>_archive'
+			);
+			$wp_query = $of_flags( array( 'is_home' ), (object) array( 'ID' => 12 ), 12 );
+			$this->assertSame(
+				array(
+					'kind' => 'post_archive',
+					'id'   => 12,
+				),
+				$presence->page_step(),
+				'the blog index is the posts archive, carrying its page id'
+			);
+			$wp_query = $of_flags( array( 'is_archive', 'is_date' ) );
+			$this->assertSame(
+				array(
+					'kind' => 'archive',
+					'id'   => 0,
+				),
+				$presence->page_step(),
+				'a date archive stays the plain archive kind'
+			);
+		} finally {
+			remove_filter( 'pre_option_show_on_front', $static );
+			$wp_query = $original;
+		}
+		// phpcs:enable
+	}
+
+	public function test_a_plugin_answers_the_visit_through_the_response_filter_but_never_the_leave(): void {
+		$seen   = array();
+		$answer = static function ( array $fields, array $report ) use ( &$seen ): array {
+			$seen[]         = $report['journey'];
+			$fields['ok']   = false;
+			$fields['shop'] = array( 'id' => 'cart-abc' );
+			return $fields;
+		};
+		$body   = array(
+			'v'       => self::V,
+			'n'       => self::N,
+			'journey' => 'home:2:1200',
+		);
+		add_filter( 'wpsignal_visitor_visit_response', $answer, 10, 2 );
+		try {
+			list( $status, $data ) = $this->rest( 'POST', 'visit', $body );
+			$this->assertSame( 200, $status );
+			$this->assertSame(
+				array(
+					'ok'   => true,
+					'shop' => array( 'id' => 'cart-abc' ),
+				),
+				$data,
+				'the plugin answers under its own key and cannot unset ok'
+			);
+			$this->assertSame( array( 'home:2:1200' ), $seen, 'the filter sees the report' );
+			list( , $data ) = $this->rest( 'POST', 'leave', $body );
+			$this->assertSame( array( 'ok' => true ), $data, 'a leave answers nothing extra' );
+			$this->assertCount( 1, $seen, 'and never runs the filter' );
+		} finally {
+			remove_filter( 'wpsignal_visitor_visit_response', $answer, 10 );
+		}
+	}
 }

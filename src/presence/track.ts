@@ -5,7 +5,7 @@
  */
 
 import { pageJourney } from "./page-journey";
-import { sendReport } from "./report";
+import { sendReport, type ReportAnswer } from "./report";
 import { visitorId } from "../utils/identity";
 
 /** The client the tracker drives: presence only, so a test can stand one in. */
@@ -38,6 +38,13 @@ export interface PresenceTracker {
    * unsubscribe.
    */
   onChange(handler: (journey: string, journeyId: string) => void): () => void;
+  /**
+   * Called with what WordPress answered each visit report (`ok` plus the fields of the
+   * `wpsignal_visitor_visit_response` filter), so a plugin reads its own state without a request
+   * of its own; the latest answer is replayed to a late subscriber, and null means none is coming
+   * (the tracker does not report, or the report failed). Returns the unsubscribe.
+   */
+  onVisit(handler: (answer: ReportAnswer | null) => void): () => void;
   /** Leave presence and stop listening. The journey in storage is kept. */
   stop(): void;
 }
@@ -56,6 +63,9 @@ export function createTracker(
   let state = options.state ?? {};
   let stopped = false;
   const handlers = new Set<(journey: string, journeyId: string) => void>();
+  const visitHandlers = new Set<(answer: ReportAnswer | null) => void>();
+  /* The newest visit answer, undefined until the first report settles, so a late subscriber gets it. */
+  let lastVisit: ReportAnswer | null | undefined;
 
   const announce = () => {
     if (stopped) return;
@@ -74,18 +84,25 @@ export function createTracker(
     n: string,
     j: string,
     keepalive: boolean,
-  ) => {
-    if (!report || !url) return;
+  ): Promise<ReportAnswer | null> => {
+    if (!report || !url) return Promise.resolve(null);
     const body = {
       v,
       n,
       journey: j,
       ...(Object.keys(state).length ? { data: state } : {}),
     };
-    sendReport(url, body, nonce, keepalive);
+    return sendReport(url, body, nonce, keepalive);
   };
-  const visit = () =>
-    send(config?.visitUrl, journey.id(), journey.current(), false);
+  const visit = () => {
+    void send(config?.visitUrl, journey.id(), journey.current(), false).then(
+      (answer) => {
+        if (stopped) return;
+        lastVisit = answer;
+        visitHandlers.forEach((fn) => fn(answer));
+      },
+    );
+  };
 
   // The page's step has already been opened by `pageJourney()`: announce and report it.
   announce();
@@ -136,11 +153,20 @@ export function createTracker(
         handlers.delete(handler);
       };
     },
+    onVisit(handler) {
+      visitHandlers.add(handler);
+      if (!report) handler(null);
+      else if (lastVisit !== undefined) handler(lastVisit);
+      return () => {
+        visitHandlers.delete(handler);
+      };
+    },
     stop() {
       if (stopped) return;
       stopped = true;
       off();
       handlers.clear();
+      visitHandlers.clear();
       client.setPresence(channel, null);
     },
   };
