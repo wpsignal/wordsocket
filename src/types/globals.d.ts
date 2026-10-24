@@ -286,8 +286,12 @@ interface WPSConnectionState {
 interface WPSTrackOptions {
   /** The plugin's own fields, carried in presence state and in every report (ShopSocket's cart id). */
   state?: Record<string, unknown>;
-  /** Whether to report visits and leaves to WordPress. Default true; false for a live-only board. */
-  report?: boolean;
+  /**
+   * Whether to report visits and leaves to WordPress. Default true; false for a live-only board; a
+   * function is read before each report (0.31), so a plugin holds reports until they are worth
+   * storing. Presence is announced either way.
+   */
+  report?: boolean | (() => boolean);
 }
 
 /** What `WPS.presence.track()` returns. */

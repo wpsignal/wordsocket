@@ -6,7 +6,7 @@
 
 import { pageJourney } from "./page-journey";
 import { sendReport, type ReportAnswer } from "./report";
-import { visitorId } from "../utils/identity";
+import { isCrawler, visitorId } from "../utils/identity";
 
 /** The client the tracker drives: presence only, so a test can stand one in. */
 export interface PresenceClient {
@@ -19,9 +19,11 @@ export interface TrackOptions {
    */
   state?: Record<string, unknown>;
   /**
-   * Whether to report visits and leaves to WordPress. Default true; false for a live-only board.
+   * Whether to report visits and leaves to WordPress. Default true; false for a live-only board; a
+   * function is read before each report, so a plugin can hold reports until they are worth storing
+   * (ShopSocket: until the visitor has a cart). Presence is announced either way.
    */
-  report?: boolean;
+  report?: boolean | (() => boolean);
 }
 
 export interface PresenceTracker {
@@ -59,7 +61,13 @@ export function createTracker(
   const page = pageJourney();
   const { journey } = page;
   const v = visitorId();
-  const report = options.report !== false && !!config;
+  /* A crawler's render reports nothing, whatever the plugin asked; the client opens no socket for it either. */
+  const reporting = (): boolean =>
+    !!config &&
+    !isCrawler() &&
+    (typeof options.report === "function"
+      ? options.report()
+      : options.report !== false);
   let state = options.state ?? {};
   let stopped = false;
   const handlers = new Set<(journey: string, journeyId: string) => void>();
@@ -85,7 +93,7 @@ export function createTracker(
     j: string,
     keepalive: boolean,
   ): Promise<ReportAnswer | null> => {
-    if (!report || !url) return Promise.resolve(null);
+    if (!url || !reporting()) return Promise.resolve(null);
     const body = {
       v,
       n,
@@ -155,7 +163,7 @@ export function createTracker(
     },
     onVisit(handler) {
       visitHandlers.add(handler);
-      if (!report) handler(null);
+      if (!reporting()) handler(null);
       else if (lastVisit !== undefined) handler(lastVisit);
       return () => {
         visitHandlers.delete(handler);
