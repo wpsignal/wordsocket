@@ -215,9 +215,7 @@ test.describe("Rules tab", () => {
     await nested.getByRole("button", { name: "Add a condition" }).click();
     await expect(nested.locator(".wpsignal-rule-condition")).toHaveCount(2);
     await expect(editor.locator(".wpsignal-rule-join")).toHaveText([
-      "",
       "or",
-      "",
       "and",
     ]);
     await page.getByRole("button", { name: "Save moment" }).click();
@@ -324,7 +322,7 @@ test.describe("Rules tab", () => {
     await expect(row).toHaveCount(1);
     await expect(row).toHaveAttribute("data-enabled", "0");
     await expect(row.locator(".wpsignal-rule-summary")).toHaveText(
-      "If page is Post and time on page while visible (seconds) at least 1, then Show banner at the top.",
+      'If page is Post and time on page while visible (seconds) at least 1, then Show banner at the top saying "Still reading, {site.name}?".',
     );
     const saved = (await requestUtils.rest({ path: "/wpsignal/v1/rules" })) as {
       rules: Array<{ id: string; enabled: boolean; rev: number }>;
