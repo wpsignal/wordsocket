@@ -123,12 +123,37 @@ interface WPSFiring {
   data?: Record<string, unknown>;
 }
 
+/**
+ * A firing as the history provider stored it, with what the store learned afterwards.
+ *
+ * @since 0.31.0
+ */
+interface WPSHistoryFiring {
+  rule: string;
+  action: string;
+  step: number;
+  ms?: number;
+  /** `fired` when absent. */
+  kind?: "fired" | "returned" | "dismissed" | "clicked";
+  at?: string;
+  /** The order the store credited this firing with, and its value. */
+  order?: number;
+  order_at?: string;
+  value?: number;
+}
+
 interface WPSHistoryJourney {
   journey: string;
   started_at?: string;
   outcome?: string;
   value?: number;
   context?: Record<string, unknown>;
+  /**
+   * The moments that fired in this journey, as the provider stored them.
+   *
+   * @since 0.31.0
+   */
+  firings?: WPSHistoryFiring[];
 }
 
 interface WPSHistoryProvider {
@@ -137,6 +162,12 @@ interface WPSHistoryProvider {
     limit?: number;
   }): Promise<WPSHistoryJourney[]>;
   outcomes?: boolean;
+  /**
+   * The ISO 4217 code the journeys' values and the firings' order values are in.
+   *
+   * @since 0.31.0
+   */
+  currency?: string;
 }
 
 interface WPSRulesApi {

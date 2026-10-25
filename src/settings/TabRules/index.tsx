@@ -22,7 +22,7 @@ import { AlertDialog, Badge, Card, Stack, Text } from "@wordpress/ui";
  */
 import { TabHeading } from "../TabHeading";
 import { RuleEditor } from "./RuleEditor";
-import { replayRule } from "./ReplayPanel";
+import { firedHistory, replayRule } from "./ReplayPanel";
 import { getRules, saveRules } from "../api";
 import {
   newId,
@@ -132,7 +132,18 @@ export function TabRules({ title }: { title: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listing, momentId]);
 
-  /* Every rule's reach over the stored journeys, once per listing or journeys change, not per render. */
+  /* Every rule's firings over the stored journeys, by id, once per listing or journeys change. */
+  const fired = useMemo(
+    () =>
+      new Map(
+        (listing?.rules ?? []).map((rule) => [
+          rule.id,
+          history.journeys ? firedHistory(rule.id, history.journeys) : null,
+        ]),
+      ),
+    [listing?.rules, history.journeys],
+  );
+  /* Every rule's reach over the same journeys, once per listing or journeys change, not per render. */
   const reaches = useMemo(
     () =>
       new Map(
@@ -396,7 +407,8 @@ export function TabRules({ title }: { title: string }) {
                         align="flex-end"
                         style={{
                           padding: "0.5rem",
-                          backgroundColor: "var(--wpds-color-background-surface-neutral-weak)",
+                          backgroundColor:
+                            "var(--wpds-color-background-surface-neutral-weak)",
                           borderRadius: "0.5rem",
                         }}
                         title={__(
@@ -416,6 +428,22 @@ export function TabRules({ title }: { title: string }) {
                             history.journeys.length,
                           )}
                         </Text>
+                        {(fired.get(rule.id)?.shown ?? 0) > 0 && (
+                          <Text variant="body-sm" className="wpsignal-muted">
+                            {(fired.get(rule.id)?.orders ?? 0) > 0
+                              ? sprintf(
+                                  /* translators: 1: times shown, 2: orders credited */
+                                  __("fired %1$d, %2$d orders", "wordsocket"),
+                                  fired.get(rule.id)!.shown,
+                                  fired.get(rule.id)!.orders,
+                                )
+                              : sprintf(
+                                  /* translators: %d: times shown */
+                                  __("fired %d", "wordsocket"),
+                                  fired.get(rule.id)!.shown,
+                                )}
+                          </Text>
+                        )}
                       </Stack>
                     )}
                   </Stack>
