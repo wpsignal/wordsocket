@@ -11,6 +11,7 @@ import { createRecovery } from "./recovery/recovery";
 import { createRulesApi } from "./rules";
 import "./recovery/recovery.css";
 import { Backoff } from "./utils/backoff";
+import { isRecord, stored } from "./utils/storage";
 import { createDecryptor, type Decryptor } from "./utils/crypto";
 import { relayEndpoints } from "./utils/relay";
 import WPSClientDebug from "./utils/client-debug";
@@ -33,6 +34,26 @@ if (window.wpSignalConfig?.isDebug) {
  * WebSocket session (4000-4999 are reserved for applications by RFC 6455).
  */
 const CLOSE_INVALID_TOKEN = 4001;
+
+/** A minted token with its channels and expiry, as the token route answers. */
+interface TokenData {
+  token: string;
+  channels: string[];
+  exp: number;
+}
+
+/** The guest token this tab holds, reused across pages while it has TOKEN_REUSE_MARGIN_S left. */
+const tokenStore = stored<TokenData | null>(
+  "session",
+  "wordsocket-token",
+  () => null,
+  (value): value is TokenData =>
+    isRecord(value) &&
+    typeof value.token === "string" &&
+    Array.isArray(value.channels) &&
+    typeof value.exp === "number",
+);
+const TOKEN_REUSE_MARGIN_S = 30;
 const CLOSE_SITE_NOT_FOUND = 4003;
 const CLOSE_CONNECTION_LIMIT = 4029;
 
@@ -478,34 +499,45 @@ export class WPSignalClient implements WPSApi {
   }
 
   /**
-   * Obtain a token (reused from config on first load, otherwise fetched) and
-   * open a transport. Retries after 30s if the token fetch fails.
+   * Obtain a token and open a transport. Retries after 30s if the token fetch fails.
    *
+   * @since 0.31.0 A guest tab reuses the token it holds across pages.
    */
   private init(): void {
     this.attachVisibilityListeners();
 
-    let tokenPromise: Promise<{
-      token: string;
-      channels: string[];
-      exp: number;
-    }>;
-
-    if (this.config.token && this.config.channels && this.config.exp) {
-      tokenPromise = Promise.resolve({
-        token: this.config.token,
-        channels: this.config.channels,
-        exp: this.config.exp,
-      });
-      delete this.config.token;
-      delete this.config.channels;
-      delete this.config.exp;
+    const now = Math.floor(Date.now() / 1000);
+    const printed: TokenData | null =
+      this.config.token && this.config.channels && this.config.exp
+        ? {
+            token: this.config.token,
+            channels: this.config.channels,
+            exp: this.config.exp,
+          }
+        : null;
+    delete this.config.token;
+    delete this.config.channels;
+    delete this.config.exp;
+    /*
+     * A logged-in page prints a fresh token. A guest page may come from a page cache with the token
+     * minted when it was cached, so the token this tab fetched earlier comes first, then a printed
+     * one that has not expired, then the route.
+     */
+    const remembered = this.config.nonce ? null : tokenStore.read();
+    let tokenPromise: Promise<TokenData>;
+    if (this.config.nonce && printed) {
+      tokenPromise = Promise.resolve(printed);
+    } else if (remembered && remembered.exp - now > TOKEN_REUSE_MARGIN_S) {
+      tokenPromise = Promise.resolve(remembered);
+    } else if (printed && printed.exp > now) {
+      tokenPromise = Promise.resolve(printed);
     } else {
       tokenPromise = this.fetchToken();
     }
 
     tokenPromise
       .then((data) => {
+        this.rememberToken(data);
         wpsDebug(
           "Token obtained",
           { expiresAt: new Date(data.exp * 1000).toISOString() },
@@ -564,6 +596,7 @@ export class WPSignalClient implements WPSApi {
     this.setConnected(false);
     switch (code) {
       case CLOSE_INVALID_TOKEN:
+        tokenStore.write(null);
         if (!this.remintedAfterAuthFailure) {
           this.remintedAfterAuthFailure = true;
           wpsDebug(
@@ -793,11 +826,7 @@ export class WPSignalClient implements WPSApi {
    * Mint a fresh token, channel list, and expiry from the REST endpoint. The
    * nonce is only printed for logged-in visitors.
    */
-  private async fetchToken(): Promise<{
-    token: string;
-    channels: string[];
-    exp: number;
-  }> {
+  private async fetchToken(): Promise<TokenData> {
     const res = await fetch(this.config.restUrl, {
       method: "POST",
       credentials: "same-origin",
@@ -809,7 +838,14 @@ export class WPSignalClient implements WPSApi {
     if (!res.ok) {
       throw new TokenRequestError(res.status);
     }
-    return res.json();
+    const data = (await res.json()) as TokenData;
+    this.rememberToken(data);
+    return data;
+  }
+
+  /** Keep a guest token for this tab's next page; a logged-in page prints its own. */
+  private rememberToken(data: TokenData): void {
+    if (!this.config.nonce) tokenStore.write(data);
   }
 
   /**

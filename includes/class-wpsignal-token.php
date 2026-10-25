@@ -28,6 +28,13 @@ class Token {
 	 * `allowed_publish_prefixes`. Bump it only when the claims change meaning.
 	 */
 	const TOKEN_VERSION = 2;
+
+	/**
+	 * Seconds a connection token lives before the client refreshes it.
+	 *
+	 * @since 0.31.0
+	 */
+	const LIFETIME = 300;
 	/**
 	 * Configuration accessor.
 	 *
@@ -175,6 +182,8 @@ class Token {
 	 * via the REST endpoint. Returns a plain array on success or WP_Error on
 	 * failure.
 	 *
+	 * @since 0.31.0 Lives `LIFETIME` seconds, filterable through `wpsignal_token_lifetime`.
+	 *
 	 * @return array|\WP_Error Token data array or error.
 	 */
 	public function mint() {
@@ -196,9 +205,17 @@ class Token {
 			);
 		}
 
-		$user      = wp_get_current_user();
-		$now       = time();
-		$exp       = $now + 300;
+		$user = wp_get_current_user();
+		$now  = time();
+		/**
+		 * Filters how long a connection token lives, in seconds, 60 to 3600.
+		 *
+		 * @since 0.31.0
+		 *
+		 * @param int $lifetime Default `Token::LIFETIME`, 300.
+		 */
+		$lifetime  = (int) apply_filters( 'wpsignal_token_lifetime', self::LIFETIME );
+		$exp       = $now + min( 3600, max( 60, $lifetime ) );
 		$tenant_id = hash( 'sha256', 'tenant:' . $site_key );
 		$site_id   = hash( 'sha256', 'site:' . $site_key );
 

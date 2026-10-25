@@ -55,7 +55,8 @@ export interface PresenceTracker {
  * The tracker behind `WPS.presence.track()`.
  *
  * @since 0.30.0
- * @since 0.31.0 `report` may be a predicate, and `onVisit()` hands out the visit answer.
+ * @since 0.31.0 `report` may be a predicate, `onVisit()` hands out the visit answer, and a same-site
+ *               navigation sends no leave.
  */
 export function createTracker(
   client: PresenceClient,
@@ -143,6 +144,8 @@ export function createTracker(
         announce();
         break;
       case "close":
+        /* The next page's visit carries this step; the leave is for a tab that closes or goes elsewhere. */
+        if (event.navigating) break;
         send(
           config?.leaveUrl,
           journey.id(),
