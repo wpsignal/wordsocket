@@ -185,7 +185,8 @@ final class PresenceTest extends WordSocketTestCase {
 		);
 
 		$config = $presence->config();
-		$this->assertSame( array( 'kind', 'id', 'visitUrl', 'leaveUrl' ), array_keys( $config ) );
+		$this->assertSame( array( 'kind', 'id', 'visitUrl', 'leaveUrl', 'report' ), array_keys( $config ) );
+		$this->assertFalse( $config['report'], 'history off: extensions decide who reports' );
 		$this->assertStringEndsWith( '/wpsignal/v1/visit', $config['visitUrl'] );
 		$this->assertStringEndsWith( '/wpsignal/v1/leave', $config['leaveUrl'] );
 		$this->assertSame( 3, Presence::steps( 'a:1:1>b:2:2>away:0:3' ) );

@@ -120,6 +120,8 @@ class Admin_Page {
 	/**
 	 * Render the Settings page: mounts the React settings app.
 	 *
+	 * @since 0.31.0 Prints `history` for the replay's provider.
+	 *
 	 * @return void
 	 */
 	public function render_settings_page() {
@@ -211,6 +213,11 @@ class Admin_Page {
 					),
 					// Known before the first render, so a link to a developer tab opens it.
 					'developerMode' => $this->config->developer_mode(),
+					// The Moments tab's replay registers its history provider from this before the app mounts.
+					'history'       => array(
+						'enabled'  => $this->config->history_enabled(),
+						'currency' => WPS::journeys()->currency(),
+					),
 				),
 				JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
 			) . ';',

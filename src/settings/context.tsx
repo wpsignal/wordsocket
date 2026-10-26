@@ -59,6 +59,10 @@ type SettingsState = {
   yjsProviderEnabled: boolean;
   /** The Triggers and Explorer tabs are shown. */
   developerMode: boolean;
+  /** Journeys are kept on the site. */
+  historyEnabled: boolean;
+  /** How many months a journey is kept. */
+  journeysRetentionMonths: number;
   tabsCache: TabsCached;
   setTabsCache: (tabs: TabsCached) => void;
   setSetting: (
@@ -84,6 +88,8 @@ const DEFAULT_STATE: SettingsState = {
   yjsProviderEnabled: false,
   // Seeded from PHP so a link to a developer tab is honoured on first render.
   developerMode: window.wpsignalSettings?.developerMode === true,
+  historyEnabled: window.wpsignalSettings?.history?.enabled === true,
+  journeysRetentionMonths: 3,
   tabsCache: { triggers: [] },
   setTabsCache: () => {},
   setSetting: () => {},
@@ -131,6 +137,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setSetting("isConnected", res.is_connected);
         setSetting("yjsProviderEnabled", res.yjs_provider_enabled);
         setSetting("developerMode", res.developer_mode);
+        setSetting("historyEnabled", res.history_enabled === true);
+        setSetting("journeysRetentionMonths", Number(res.journeys_retention_months) || 3);
         setSetting("lastError", res.last_error ?? null);
       } catch (error: any) {
         setSetting("noticeMessage", {

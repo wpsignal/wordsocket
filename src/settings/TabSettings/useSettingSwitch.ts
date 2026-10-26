@@ -15,6 +15,7 @@ import { useTask } from "../useTask";
 const FIELDS = {
   developerMode: "developer_mode",
   yjsProviderEnabled: "yjs_provider_enabled",
+  historyEnabled: "history_enabled",
 } as const satisfies Record<string, keyof SettingsPost>;
 
 export function useSettingSwitch(

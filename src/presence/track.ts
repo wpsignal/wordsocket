@@ -1,7 +1,7 @@
 /*
  * `WPS.presence.track( channel, options )`: enters relay presence as `{ v, n, j, ...state }`,
- * announces again on every journey change, and reports visits and leaves to WordPress, which stores
- * none of it. The lab in `examples/wordsocket-presence-lab` is its test.
+ * announces again on every journey change, and reports visits and leaves to WordPress, which keeps
+ * them while History is on. The lab in `examples/wordsocket-presence-lab` is its test.
  */
 
 import { pageJourney } from "./page-journey";
@@ -21,7 +21,8 @@ export interface TrackOptions {
   /**
    * Whether to report visits and leaves to WordPress. Default true; false for a live-only board; a
    * function is read before each report, so a plugin can hold reports until they are worth storing
-   * (ShopSocket: until the visitor has a cart). Presence is announced either way.
+   * (ShopSocket: until the visitor has a cart). Presence is announced either way, and while the
+   * site keeps journeys (`config.report`) every visitor reports whatever this says.
    */
   report?: boolean | (() => boolean);
 }
@@ -55,26 +56,28 @@ export interface PresenceTracker {
  * The tracker behind `WPS.presence.track()`.
  *
  * @since 0.30.0
- * @since 0.31.0 `report` may be a predicate, `onVisit()` hands out the visit answer, and a same-site
- *               navigation sends no leave.
+ * @since 0.31.0 `report` may be a predicate, `onVisit()` hands out the visit answer, a same-site
+ *               navigation sends no leave, a null channel enters no presence, and a site that keeps
+ *               journeys reports every visitor.
  */
 export function createTracker(
   client: PresenceClient,
   config: WpSignalPresenceConfig | undefined,
   nonce: string | undefined,
-  channel: string,
+  channel: string | null,
   options: TrackOptions = {},
 ): PresenceTracker {
   const page = pageJourney();
   const { journey } = page;
   const v = visitorId();
-  /* A crawler never reports. */
+  /* A crawler never reports; a site keeping journeys hears from everyone else. */
   const reporting = (): boolean =>
     !!config &&
     !isCrawler() &&
-    (typeof options.report === "function"
-      ? options.report()
-      : options.report !== false);
+    (config.report === true ||
+      (typeof options.report === "function"
+        ? options.report()
+        : options.report !== false));
   let state = options.state ?? {};
   let stopped = false;
   const handlers = new Set<(journey: string, journeyId: string) => void>();
@@ -84,12 +87,14 @@ export function createTracker(
 
   const announce = () => {
     if (stopped) return;
-    client.setPresence(channel, {
-      ...state,
-      v,
-      n: journey.id(),
-      j: journey.current(),
-    });
+    if (channel !== null) {
+      client.setPresence(channel, {
+        ...state,
+        v,
+        n: journey.id(),
+        j: journey.current(),
+      });
+    }
     const current = journey.current();
     handlers.forEach((fn) => fn(current, journey.id()));
   };
@@ -184,7 +189,7 @@ export function createTracker(
       off();
       handlers.clear();
       visitHandlers.clear();
-      client.setPresence(channel, null);
+      if (channel !== null) client.setPresence(channel, null);
     },
   };
 }

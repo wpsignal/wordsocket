@@ -129,19 +129,40 @@ export class WPSignalClient implements WPSApi {
   /** Cached AES-256-GCM decryptor; built once and reused for every message. */
   private decryptorPromise: Promise<Decryptor | null> | null = null;
 
+  /** Trackers started on this page, so the site's own reporter starts only when no extension's did. */
+  private trackers = 0;
+
   /**
    * Visitor tracking over presence (0.30).
+   *
+   * @since 0.31.0 A null channel reports without presence.
    */
   readonly presence: WPSPresenceApi = {
-    track: (channel, options) =>
-      createTracker(
+    track: (channel, options) => {
+      this.trackers += 1;
+      return createTracker(
         this,
         this.config.presence,
         this.config.nonce,
         channel,
         options,
-      ),
+      );
+    },
   };
+
+  /**
+   * A site that keeps journeys hears from every visitor: once every script has run, start a
+   * reporter of the site's own unless an extension's tracker already reports.
+   */
+  private startReporter(): void {
+    const presence = this.config.presence;
+    if (!presence?.report || presence.kind === "admin") return;
+    const begin = () => {
+      if (this.trackers === 0) this.presence.track(null, { report: true });
+    };
+    if (document.readyState === "complete") begin();
+    else window.addEventListener("load", begin, { once: true });
+  }
 
   /** Where the visitor's attention is (0.31): `page`, `window` or `hidden`. */
   readonly attention: WPSAttentionApi = createAttention();
@@ -392,6 +413,7 @@ export class WPSignalClient implements WPSApi {
       });
       return;
     }
+    this.startReporter();
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", () => this.init());
     } else {

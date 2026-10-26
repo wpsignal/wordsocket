@@ -15,8 +15,9 @@ export interface Journeys {
   failed: boolean;
 }
 
-export const REPLAY_DAYS = 30;
-export const REPLAY_LIMIT = 500;
+/** The same window and ceiling as the Journeys tab, so both count the same journeys. */
+export const REPLAY_DAYS = 28;
+export const REPLAY_LIMIT = 1000;
 
 export function useJourneys(): Journeys {
   const provider = window.WPS?.rules?.historyProvider ?? null;

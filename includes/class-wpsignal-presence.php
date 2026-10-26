@@ -26,8 +26,12 @@ class Presence {
 	/** Longest journey string accepted (50 steps of `kind:id:ms` is well under this). */
 	const MAX_JOURNEY_BYTES = 4000;
 
-	/** A journey: `kind:id:ms` steps joined by `>`. Ids only, never a URL or a word. */
-	const JOURNEY_PATTERN = '/^[a-z_]+:\d+:\d+(>[a-z_]+:\d+:\d+)*$/';
+	/**
+	 * A journey: `kind:id:ms` steps joined by `>`. Ids only, never a URL or a word.
+	 *
+	 * @since 0.31.0 An id has at most 12 digits and a time 9.
+	 */
+	const JOURNEY_PATTERN = '/^[a-z_]+:\d{1,12}:\d{1,9}(>[a-z_]+:\d{1,12}:\d{1,9})*$/';
 
 	/** The visitor id and the journey id are version 4 UUIDs. */
 	const UUID_PATTERN = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i';
@@ -137,9 +141,12 @@ class Presence {
 	}
 
 	/**
-	 * What the client needs for `track()`: this page's step and the two routes.
+	 * What the client needs for `track()`: this page's step, the two routes, and whether every
+	 * visitor reports (History on).
 	 *
-	 * @return array{kind: string, id: int, visitUrl: string, leaveUrl: string}
+	 * @since 0.31.0 Adds `report`.
+	 *
+	 * @return array{kind: string, id: int, visitUrl: string, leaveUrl: string, report: bool}
 	 */
 	public function config(): array {
 		$step = $this->page_step();
@@ -148,6 +155,7 @@ class Presence {
 			'id'       => $step['id'],
 			'visitUrl' => rest_url( 'wpsignal/v1/visit' ),
 			'leaveUrl' => rest_url( 'wpsignal/v1/leave' ),
+			'report'   => WPS::journeys()->enabled(),
 		);
 	}
 

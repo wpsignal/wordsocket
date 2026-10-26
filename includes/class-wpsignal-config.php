@@ -242,6 +242,51 @@ class Config {
 	}
 
 	/**
+	 * Whether journeys are kept on the site (the Journeys tab's switch); off by default.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return bool
+	 */
+	public function history_enabled(): bool {
+		return (bool) get_option( 'wpsignal_history_enabled', false );
+	}
+
+	/**
+	 * How many months a journey is kept, 1 to 36; 3 by default.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return int
+	 */
+	public function journeys_retention_months(): int {
+		return min( 36, max( 1, (int) get_option( 'wpsignal_journeys_retention_months', 3 ) ) );
+	}
+
+	/**
+	 * The journeys table's `dbDelta` version as installed, empty before the first install.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return string
+	 */
+	public function db_version(): string {
+		return (string) get_option( 'wpsignal_db_version', '' );
+	}
+
+	/**
+	 * Record the journeys table's version; autoloaded, since every request compares it.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string $version The version installed.
+	 * @return void
+	 */
+	public function save_db_version( string $version ): void {
+		update_option( 'wpsignal_db_version', $version, true );
+	}
+
+	/**
 	 * The saved rules (0.31): `{ version, rules, removed }`, in shape whatever is stored.
 	 *
 	 * @return array{version: int, rules: array, removed: string[]}

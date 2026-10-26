@@ -17,6 +17,8 @@ abstract class WordSocketTestCase extends TestCase {
 		'wpsignal_last_publish_error',
 		'wpsignal_yjs_provider_enabled',
 		'wpsignal_developer_mode',
+		'wpsignal_history_enabled',
+		'wpsignal_journeys_retention_months',
 	);
 
 	/** @var array<string, mixed> */

@@ -412,7 +412,7 @@ export function TabRules({ title }: { title: string }) {
                           borderRadius: "0.5rem",
                         }}
                         title={__(
-                          "Journeys stored in the last 30 days this moment would have happened in",
+                          "Journeys stored in the last 28 days this moment would have happened in",
                           "wordsocket",
                         )}
                       >

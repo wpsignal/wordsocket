@@ -141,11 +141,19 @@ class Token {
 					'methods'             => 'POST',
 					'callback'            => array( $this, 'handle_post_settings' ),
 					'args'                => array(
-						'yjs_provider_enabled' => array(
+						'yjs_provider_enabled'      => array(
 							'type' => 'boolean',
 						),
-						'developer_mode'       => array(
+						'developer_mode'            => array(
 							'type' => 'boolean',
+						),
+						'history_enabled'           => array(
+							'type' => 'boolean',
+						),
+						'journeys_retention_months' => array(
+							'type'    => 'integer',
+							'minimum' => 1,
+							'maximum' => 36,
 						),
 					),
 					'permission_callback' => $permission_callback,
@@ -520,14 +528,16 @@ class Token {
 
 		return rest_ensure_response(
 			array(
-				'base_url'             => $this->config->base_url(),
-				'api_key'              => self::mask_api_key( $this->config->api_key() ),
-				'site_key'             => $is_connected ? $this->config->site_key() : '',
-				'is_connected'         => $is_connected,
-				'yjs_provider_enabled' => $this->config->yjs_provider_enabled(),
-				'developer_mode'       => $this->config->developer_mode(),
-				'credential_source'    => $this->config->credential_source(),
-				'last_error'           => $this->last_publish_error(),
+				'base_url'                  => $this->config->base_url(),
+				'api_key'                   => self::mask_api_key( $this->config->api_key() ),
+				'site_key'                  => $is_connected ? $this->config->site_key() : '',
+				'is_connected'              => $is_connected,
+				'yjs_provider_enabled'      => $this->config->yjs_provider_enabled(),
+				'developer_mode'            => $this->config->developer_mode(),
+				'history_enabled'           => $this->config->history_enabled(),
+				'journeys_retention_months' => $this->config->journeys_retention_months(),
+				'credential_source'         => $this->config->credential_source(),
+				'last_error'                => $this->last_publish_error(),
 			)
 		);
 	}
@@ -535,29 +545,36 @@ class Token {
 	/**
 	 * Save settings.
 	 *
+	 * @since 0.31.0 Saves `history_enabled` and `journeys_retention_months` too.
+	 *
 	 * @param WP_REST_Request $request The incoming REST request.
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function handle_post_settings( WP_REST_Request $request ) {
-		// Each switch saves on its own; a request carrying neither has nothing to do.
-		$switches = array_intersect_key(
+		// Each field saves on its own; a request carrying none has nothing to do.
+		$fields = array_intersect_key(
 			$request->get_params(),
 			array(
-				'yjs_provider_enabled' => true,
-				'developer_mode'       => true,
+				'yjs_provider_enabled'      => true,
+				'developer_mode'            => true,
+				'history_enabled'           => true,
+				'journeys_retention_months' => true,
 			)
 		);
-		if ( empty( $switches ) ) {
+		if ( empty( $fields ) ) {
 			return new WP_Error( 'wpsignal_no_settings', __( 'No settings to save.', 'wordsocket' ), array( 'status' => 400 ) );
 		}
-		foreach ( $switches as $name => $value ) {
-			update_option( 'wpsignal_' . $name, rest_sanitize_boolean( $value ) );
+		foreach ( $fields as $name => $value ) {
+			$clean = 'journeys_retention_months' === $name ? min( 36, max( 1, (int) $value ) ) : rest_sanitize_boolean( $value );
+			update_option( 'wpsignal_' . $name, $clean );
 		}
 
 		return rest_ensure_response(
 			array(
-				'yjs_provider_enabled' => $this->config->yjs_provider_enabled(),
-				'developer_mode'       => $this->config->developer_mode(),
+				'yjs_provider_enabled'      => $this->config->yjs_provider_enabled(),
+				'developer_mode'            => $this->config->developer_mode(),
+				'history_enabled'           => $this->config->history_enabled(),
+				'journeys_retention_months' => $this->config->journeys_retention_months(),
 			)
 		);
 	}

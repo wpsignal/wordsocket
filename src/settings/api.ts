@@ -81,6 +81,30 @@ export function getExtensions(): Promise<{
   return apiFetch({ path: "/wpsignal/v1/extensions" });
 }
 
+/**
+ * The Journeys tab's figures; null with History off.
+ *
+ * @since 0.31.0
+ */
+export function getJourneyVisuals(): Promise<import("./types").JourneyVisuals | null> {
+  return apiFetch({ path: "/wpsignal/v1/journeys/visuals" });
+}
+
+/**
+ * The stored journeys for the Moments tab's replay.
+ *
+ * @since 0.31.0
+ */
+export function getJourneys(options: {
+  days?: number;
+  limit?: number;
+}): Promise<{ enabled: boolean; currency: string; journeys: WPSHistoryJourney[] }> {
+  const query = new URLSearchParams();
+  if (options.days) query.set("days", String(options.days));
+  if (options.limit) query.set("limit", String(options.limit));
+  return apiFetch({ path: `/wpsignal/v1/journeys?${query.toString()}` });
+}
+
 export function getRules(): Promise<import("./TabRules/model").RulesListing> {
   return apiFetch({ path: "/wpsignal/v1/rules" });
 }

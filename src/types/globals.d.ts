@@ -215,6 +215,8 @@ interface WpSignalPresenceConfig {
   visitUrl: string;
   /** `POST /wpsignal/v1/leave`. */
   leaveUrl: string;
+  /** Whether every visitor reports, since the site keeps journeys (0.31); an extension's `report` option cannot hold them then. */
+  report?: boolean;
 }
 
 /** Localized by class-wpsignal-admin-page.php (Settings React app) */
@@ -243,6 +245,8 @@ interface WpSignalSettings {
   rtc?: { available: boolean; enabled: boolean; experimentsUrl: string };
   /** Whether the Triggers and Explorer tabs are shown (the Settings tab's "Developer tools" switch). */
   developerMode?: boolean;
+  /** Journey history: whether journeys are kept, and the currency their values are in (0.31). */
+  history?: { enabled: boolean; currency: string };
 }
 
 /** Localized by class-wpsignal-client.php (enqueue_yjs_provider) */
@@ -354,8 +358,9 @@ interface WPSPresenceApi {
   /**
    * Track this visitor on a channel the token may write presence to (0.30): presence as `{ v, n, j, ...state }`,
    * the journey kept across pages, visits and leaves reported to the `wpsignal_visitor_visit` and `wpsignal_visitor_leave` actions.
+   * A null channel (0.31) reports without entering presence.
    */
-  track(channel: string, options?: WPSTrackOptions): WPSPresenceTracker;
+  track(channel: string | null, options?: WPSTrackOptions): WPSPresenceTracker;
 }
 
 /** Where the visitor's attention is: visible and focused, visible in an unfocused window (desktop only), or a hidden tab. */

@@ -23,6 +23,7 @@ import {
  * Internal dependencies.
  */
 import type { Rule } from "../../rules/types";
+import { duration, parseJourney as stepsOf } from "../TabJourneys/journeys";
 import { useRules } from "./context";
 
 interface Sample {
@@ -61,26 +62,6 @@ interface History {
   orders: number;
   value: number;
   samples: Fired[];
-}
-
-/**
- * The stored journey as steps; the engine's parser is private, so the same split lives here.
- */
-function stepsOf(journey: string): Sample["steps"] {
-  if (!journey) return [];
-  return journey.split(">").map((s) => {
-    const [kind, id, ms] = s.split(":");
-    return { kind, id: Number(id) || 0, ms: Number(ms) || 0 };
-  });
-}
-
-function duration(ms: number): string {
-  if (ms >= 60_000) {
-    /* translators: %d: minutes */
-    return sprintf(__("%d min", "wordsocket"), Math.round(ms / 60_000));
-  }
-  /* translators: %d: seconds */
-  return sprintf(__("%d s", "wordsocket"), Math.round(ms / 1000));
 }
 
 /** The replay of one rule over loaded journeys, for the aside and the list's reach counts. */
@@ -276,8 +257,8 @@ export function ReplayPanel({ rule }: { rule: Rule }) {
                   {sprintf(
                     /* translators: %d: journeys replayed */
                     _n(
-                      "of %d journey in the last 30 days would have had this moment",
-                      "of %d journeys in the last 30 days would have had this moment",
+                      "of %d journey in the last 28 days would have had this moment",
+                      "of %d journeys in the last 28 days would have had this moment",
                       result.total,
                       "wordsocket",
                     ),
@@ -349,7 +330,7 @@ export function ReplayPanel({ rule }: { rule: Rule }) {
                 {fired.shown === 0 ? (
                   <Text variant="body-sm" className="wpsignal-muted">
                     {__(
-                      "Not in the last 30 days, counting earlier versions of this moment.",
+                      "Not in the last 28 days, counting earlier versions of this moment.",
                       "wordsocket",
                     )}
                   </Text>

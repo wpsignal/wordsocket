@@ -15,6 +15,7 @@ import { TabConnection } from "./TabConnection";
 import { TabExplorer } from "./TabExplorer";
 import { TabExtensions } from "./TabExtensions";
 import { TabRules } from "./TabRules";
+import { TabJourneys } from "./TabJourneys";
 import { Snackbars } from "./Snackbars";
 import { SettingsProvider, useSettings } from "./context";
 import { useExtensionTabs } from "./extensions/api";
@@ -39,6 +40,11 @@ const TABS = [
     name: "moments",
     title: __("Moments", "wordsocket"),
     className: "wpsignal-tab-moments",
+  },
+  {
+    name: "journeys",
+    title: __("Journeys", "wordsocket"),
+    className: "wpsignal-tab-journeys",
   },
   {
     name: "triggers",
@@ -174,6 +180,7 @@ function TabsSettings() {
           {tab.name === "connection" && <TabConnection title={tab.title} />}
           {tab.name === "settings" && <TabSettings title={tab.title} />}
           {tab.name === "moments" && <TabRules title={tab.title} />}
+          {tab.name === "journeys" && <TabJourneys title={tab.title} />}
           {tab.name === "triggers" && <TabTriggers title={tab.title} />}
           {tab.name === "explorer" && <TabExplorer title={tab.title} />}
           {tab.name === "extensions" && <TabExtensions title={tab.title} />}

@@ -519,3 +519,324 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
     }
   }
 }
+
+/* Journeys tab: the chart frame, its tooltip, the legend, the table view and the marks of the three visuals. */
+
+.wpsignal-visual .wpsignal-chart__filters > * {
+  min-width: 160px;
+  flex: 1 1 calc(33.33% - var(--wpds-dimension-gap-lg));
+}
+
+.wpsignal-chart__note {
+  min-height: 2.8rem;
+}
+
+.wpsignal-chart,
+.wpsignal-chart__swatch,
+.wpsignal-hours__ramp {
+  /* The one data hue the chart chrome shares: the trend line, the all-days bars, the line swatch. */
+  --wpsignal-chart-accent: #2a78d6;
+}
+
+.wpsignal-chart {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  overflow-x: auto;
+
+  svg {
+    display: block;
+    flex: none;
+    max-width: none;
+    font-family: inherit;
+  }
+}
+
+/* Row labels beside a drawing: pinned to the left edge while the drawing scrolls under them. */
+.wpsignal-chart__labels {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  flex: none;
+  background: var(--wpds-color-bg-surface-neutral-strong);
+  font-size: var(--wpds-font-size-sm);
+  color: var(--wpds-color-fg-content-neutral);
+
+  span {
+    position: absolute;
+    right: var(--wpds-dimension-padding-md);
+    transform: translateY(-50%);
+    white-space: nowrap;
+  }
+}
+
+.wpsignal-chart {
+
+  svg text {
+    fill: var(--wpds-color-fg-content-neutral);
+    font-size: var(--wpds-font-size-sm);
+  }
+
+  svg .is-strong {
+    font-weight: 500;
+  }
+
+  svg .is-muted {
+    fill: var(--wpds-color-fg-content-neutral-weak);
+  }
+
+  svg .is-num {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.wpsignal-chart__grid {
+  stroke: var(--wpds-color-stroke-surface-neutral-weak);
+  stroke-width: 1;
+}
+
+.wpsignal-chart__rule {
+  stroke: var(--wpds-color-stroke-surface-neutral);
+  stroke-width: 1;
+}
+
+.wpsignal-chart__tip {
+  position: fixed;
+  pointer-events: none;
+  /* Inverted: the content ink as the surface, the surface as the ink; the theme has no dark surface token. */
+  background: var(--wpds-color-fg-content-neutral);
+  color: var(--wpds-color-bg-surface-neutral-strong);
+  padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
+  border-radius: var(--wpds-border-radius-sm);
+  font-size: var(--wpds-font-size-sm);
+  line-height: 1.35;
+  white-space: nowrap;
+  transform: translate(-50%, calc(-100% - 10px));
+  opacity: 0;
+  transition: opacity 120ms;
+  z-index: 2;
+
+  &.is-shown {
+    opacity: 1;
+  }
+
+  &.is-below {
+    transform: translate(-50%, 10px);
+  }
+
+  &.is-wide {
+    white-space: normal;
+    max-width: min(440px, calc(100vw - 16px));
+  }
+
+  strong {
+    font-weight: 600;
+  }
+
+  span {
+    display: block;
+  }
+}
+
+.wpsignal-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--wpds-dimension-gap-xs) var(--wpds-dimension-gap-lg);
+  font-size: var(--wpds-font-size-sm);
+  color: var(--wpds-color-fg-content-neutral);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--wpds-dimension-gap-xs);
+  }
+}
+
+.wpsignal-chart__swatch {
+  display: inline-block;
+  flex: none;
+
+  &.is-line {
+    width: 18px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--wpsignal-chart-accent);
+  }
+
+  &.is-line.is-raw {
+    opacity: 0.4;
+    height: 1.5px;
+  }
+
+  &.is-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+}
+
+.wpsignal-chart__table {
+  font-size: var(--wpds-font-size-sm);
+
+  summary {
+    cursor: pointer;
+    color: var(--wpds-color-fg-content-neutral);
+  }
+
+  table {
+    border-collapse: collapse;
+    margin-top: var(--wpds-dimension-gap-sm);
+    font-variant-numeric: tabular-nums;
+  }
+
+  th,
+  td {
+    padding: var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm);
+    border-bottom: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  th {
+    color: var(--wpds-color-fg-content-neutral-weak);
+    font-weight: 500;
+  }
+
+  tbody th,
+  thead th:first-child {
+    text-align: left;
+  }
+}
+
+/* The network: edges grey, a journey lit only while hovered, the pulse behind the nodes. */
+
+.wpsignal-net__edge {
+  fill: none;
+  stroke: var(--wpds-color-fg-content-neutral-weak);
+}
+
+.wpsignal-net.is-focus .wpsignal-net__edge {
+  stroke-opacity: 0.05;
+}
+
+.wpsignal-net__journey {
+  fill: none;
+  stroke: var(--wpds-color-fg-content-neutral);
+  stroke-width: 3px;
+  stroke-linecap: round;
+  opacity: 0;
+  transition: opacity 180ms;
+  pointer-events: stroke;
+
+  &.is-on {
+    opacity: 0.9;
+  }
+}
+
+.wpsignal-net__node {
+  stroke: var(--wpds-color-bg-surface-neutral-strong);
+  stroke-width: 2px;
+  cursor: default;
+}
+
+.wpsignal-net__pulse {
+  fill: var(--wpds-color-fg-content-neutral);
+  stroke: var(--wpds-color-bg-surface-neutral-strong);
+  stroke-width: 2px;
+  pointer-events: none;
+}
+
+/* The trends: a faint daily line under the blue average, the area fading from white, dots by outcome. */
+
+.wpsignal-trend__weekend {
+  fill: var(--wpds-color-bg-surface-neutral-weak);
+  opacity: 0.85;
+}
+
+.wpsignal-trend__area {
+  fill: url("#wpsignal-trend-fade");
+}
+
+.wpsignal-trend__raw {
+  fill: none;
+  stroke: var(--wpsignal-chart-accent);
+  stroke-opacity: 0.35;
+  stroke-width: 1.5px;
+}
+
+.wpsignal-trend__avg {
+  fill: none;
+  stroke: var(--wpsignal-chart-accent);
+  stroke-width: 2.5px;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.wpsignal-trend__dot {
+  stroke: var(--wpds-color-bg-surface-neutral-strong);
+  stroke-width: 1.5px;
+  fill-opacity: 0.8;
+  cursor: default;
+
+  &.is-on {
+    stroke: var(--wpds-color-fg-content-neutral);
+    stroke-width: 2px;
+    fill-opacity: 1;
+  }
+}
+
+/* The hours: a single-hue ramp, empty cells outlined, the hovered one marked. */
+
+.wpsignal-hours__cell {
+  stroke: var(--wpds-color-bg-surface-neutral-strong);
+  stroke-width: 2px;
+
+  &.is-empty {
+    fill: var(--wpds-color-bg-surface-neutral-strong);
+    stroke: var(--wpds-color-stroke-surface-neutral-weak);
+    stroke-width: 1px;
+  }
+
+  &.is-on {
+    stroke: var(--wpds-color-fg-content-neutral);
+    stroke-width: 2px;
+  }
+}
+
+.wpsignal-hours__bar {
+  fill: var(--wpsignal-chart-accent);
+  fill-opacity: 0.55;
+}
+
+.wpsignal-hours__ramp {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--wpds-dimension-gap-sm);
+  font-size: var(--wpds-font-size-sm);
+  color: var(--wpds-color-fg-content-neutral);
+  padding-bottom: var(--wpds-dimension-padding-sm);
+}
+
+.wpsignal-hours__steps {
+  display: inline-flex;
+  height: 10px;
+  border-radius: 2px;
+  overflow: hidden;
+
+  i {
+    display: block;
+    width: 18px;
+    height: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wpsignal-chart__tip,
+  .wpsignal-net__journey {
+    transition: none;
+  }
+}

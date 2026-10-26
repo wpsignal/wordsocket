@@ -1224,6 +1224,8 @@ class Rules {
 	/**
 	 * The client's `wpSignalConfig.rules`.
 	 *
+	 * @since 0.31.0 Prints `firedUrl` while History is on as well as while something listens.
+	 *
 	 * @return array
 	 */
 	public function config(): array {
@@ -1232,7 +1234,7 @@ class Rules {
 		$config['liveUrl']    = rest_url( 'wpsignal/v1/rules/live' );
 		$config['taxonomies'] = array_keys( $this->taxonomy_kinds() );
 		$config['timezone']   = wp_timezone_string();
-		if ( has_action( 'wpsignal_rule_fired' ) ) {
+		if ( WPS::journeys()->enabled() || has_action( 'wpsignal_rule_fired' ) ) {
 			$config['firedUrl'] = rest_url( 'wpsignal/v1/fired' );
 		}
 		return $config;
@@ -1428,7 +1430,9 @@ class Rules {
 	}
 
 	/**
-	 * `POST /fired`: a browser reports a firing of an enabled rule; whoever stores it listens to `wpsignal_rule_fired`.
+	 * `POST /fired`: a browser reports a firing of an enabled rule; the journey keeps it while History is on, and `wpsignal_rule_fired` follows.
+	 *
+	 * @since 0.31.0 Stores the firing on the journey before the action.
 	 *
 	 * @since 0.31.0 Takes `ms` and `kind`.
 	 *
@@ -1450,8 +1454,9 @@ class Rules {
 			'user_id'    => get_current_user_id(),
 			'data'       => Presence::sanitize_data( (array) $request->get_param( 'data' ) ),
 		);
+		WPS::journeys()->on_fired( $report );
 		/**
-		 * Fires when a visitor's browser reports that a rule fired. WordSocket stores nothing; an extension does.
+		 * Fires when a visitor's browser reports that a rule fired, after WordSocket has stored it (History on).
 		 *
 		 * @param array{visitor: string, journey_id: string, rule_id: string, action: string, step: int, ms: int, kind: string, user_id: int, data: array} $report The report: `ms` the elapsed time of the step, `kind` one of FIRING_KINDS.
 		 */
