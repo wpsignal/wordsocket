@@ -3,14 +3,20 @@ const DependencyExtractionWebpackPlugin = require("@wordpress/dependency-extract
 const path = require("path");
 
 /*
- * Two compilations over one `build/`: the settings entry bundles `@wordpress/ui`,
- * `@wordpress/theme` and `@wordpress/private-apis` together (they unlock each other, and `wp-theme`
- * exists only from WordPress 7), while the client entries keep core's `wp-private-apis` for the Yjs
- * provider. Each cleans `build/` but keeps the other's files.
+ * Two compilations over one `build/`: the settings entry bundles every `@wordpress` package but the
+ * ones below, while the client entries keep core's `wp-private-apis` for the Yjs provider. Each cleans
+ * `build/` but keeps the other's files.
  */
-const SETTINGS_BUNDLED = new Set([
-  "@wordpress/theme",
-  "@wordpress/private-apis",
+const SETTINGS_FROM_CORE = new Set([
+  "@wordpress/element",
+  "@wordpress/i18n",
+  "@wordpress/hooks",
+  "@wordpress/api-fetch",
+  "@wordpress/data",
+  "@wordpress/notices",
+  "@wordpress/plugins",
+  "@wordpress/dom-ready",
+  "@wordpress/date",
 ]);
 
 const base = {
@@ -61,10 +67,10 @@ module.exports = [
       rules: [
         ...base.module.rules,
         /*
-         * @wordpress/theme declares no side effects, which would drop its token sheet; the settings
-         * stylesheet reads those tokens.
+         * These packages declare no side effects, which would drop the stylesheets the app imports:
+         * the theme's tokens, the components' and DataViews' styles.
          */
-        { test: /@wordpress[\\/]theme[\\/].*\.css$/, sideEffects: true },
+        { test: /@wordpress[\\/](theme|components|dataviews)[\\/].*\.css$/, sideEffects: true },
       ],
     },
     plugins: [
@@ -72,11 +78,12 @@ module.exports = [
       new DependencyExtractionWebpackPlugin({
         requestToExternal(request) {
           /*
-           * A sub-path of a bundled package (the theme's token sheet) is bundled with it, never
-           * mapped to a `wp.*` global.
+           * A `@wordpress` package outside the core set is bundled, sub-paths (a stylesheet) with
+           * it, never mapped to a `wp.*` global.
            */
           const pkg = request.split("/").slice(0, 2).join("/");
-          return SETTINGS_BUNDLED.has(pkg) ? false : undefined;
+          if (pkg.startsWith("@wordpress/") && !SETTINGS_FROM_CORE.has(pkg)) return false;
+          return undefined;
         },
       }),
     ],

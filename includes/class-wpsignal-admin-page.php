@@ -81,15 +81,17 @@ class Admin_Page {
 	 * link blue, until the stylesheet caught up. Scripts stay in the render
 	 * callback, where `wordsocket_settings_enqueue` fires.
 	 *
+	 * @since 0.25.0
+	 * @since 0.31.0 Enqueues the bundled components' and DataViews' styles first.
+	 *
 	 * @return void
 	 */
 	public function enqueue_styles() {
-		wp_enqueue_style(
-			'wpsignal-settings',
-			URL . 'build/settings.css',
-			array(),
-			$this->settings_asset()['version']
-		);
+		$version = $this->settings_asset()['version'];
+		// wp-scripts writes the bundled components' and DataViews' styles to style-settings.css.
+		wp_enqueue_style( 'wpsignal-settings-vendor', URL . 'build/style-settings.css', array(), $version );
+		wp_style_add_data( 'wpsignal-settings-vendor', 'rtl', 'replace' );
+		wp_enqueue_style( 'wpsignal-settings', URL . 'build/settings.css', array( 'wpsignal-settings-vendor' ), $version );
 		wp_style_add_data( 'wpsignal-settings', 'rtl', 'replace' );
 	}
 

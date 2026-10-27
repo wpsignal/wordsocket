@@ -36,7 +36,6 @@ export function DeveloperToolsCard() {
             checked={developerMode.checked}
             disabled={developerMode.isPending}
             onChange={developerMode.change}
-            __nextHasNoMarginBottom
           />
         </Stack>
       </CollapsibleCard.Content>

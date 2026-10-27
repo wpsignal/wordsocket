@@ -11,11 +11,10 @@ import { __, sprintf } from "@wordpress/i18n";
 import { useEffect, useMemo, useRef, useState } from "@wordpress/element";
 import {
   Button,
-  Notice,
   ProgressBar,
   ToggleControl,
 } from "@wordpress/components";
-import { AlertDialog, Badge, Card, Stack, Text } from "@wordpress/ui";
+import { AlertDialog, Badge, Card, Stack, Text, Notice } from "@wordpress/ui";
 
 /**
  * Internal dependencies.
@@ -191,9 +190,9 @@ export function TabRules({ title }: { title: string }) {
     return (
       <Stack direction="column" gap="lg" className="wpsignal-rules-tab">
         <TabHeading title={title} />
-        <Notice status="error" isDismissible={false}>
-          {loadError}
-        </Notice>
+        <Notice.Root intent="error">
+          <Notice.Description>{loadError}</Notice.Description>
+        </Notice.Root>
       </Stack>
     );
   }
@@ -319,8 +318,8 @@ export function TabRules({ title }: { title: string }) {
                           {rule.frequency === "page"
                             ? __("per page view", "wordsocket")
                             : rule.frequency === "visit"
-                            ? __("once per visit", "wordsocket")
-                            : __("once per visitor", "wordsocket")}
+                              ? __("once per visit", "wordsocket")
+                              : __("once per visitor", "wordsocket")}
                         </Badge>
                       )}
                       {rule.source && (
@@ -331,17 +330,6 @@ export function TabRules({ title }: { title: string }) {
                               "wordsocket",
                             ),
                             rule.source,
-                          )}
-                        </Badge>
-                      )}
-                      {unavailable.length > 0 && (
-                        <Badge intent="high">
-                          {sprintf(
-                            /* translators: %s: condition or action keys */ __(
-                              "needs %s",
-                              "wordsocket",
-                            ),
-                            unavailable.join(", "),
                           )}
                         </Badge>
                       )}
@@ -361,12 +349,24 @@ export function TabRules({ title }: { title: string }) {
                       gap="lg"
                       className="wpsignal-rule-item"
                     >
+                      {unavailable.length > 0 && (
+                        <Notice.Root intent="error">
+                          <Notice.Description>
+                            {sprintf(
+                              /* translators: %s: condition or action keys */ __(
+                                "Contains invalid conditions: %s",
+                                "wordsocket",
+                              ),
+                              unavailable.join(", "),
+                            )}
+                          </Notice.Description>
+                        </Notice.Root>
+                      )}
                       <ToggleControl
                         label={__("Enabled", "wordsocket")}
                         checked={rule.enabled}
                         disabled={save.isPending || unavailable.length > 0}
                         onChange={(enabled) => setEnabled(rule, enabled)}
-                        __nextHasNoMarginBottom
                       />
                       <Text
                         variant="body-sm"

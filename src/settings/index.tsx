@@ -5,6 +5,9 @@ import domReady from "@wordpress/dom-ready";
 import { createRoot } from "@wordpress/element";
 /* Defines the --wpds-* tokens on :root for the whole page. */
 import "@wordpress/theme/design-tokens.css";
+/* The bundled components and DataViews bring their own styles (wp-scripts writes them to build/style-settings.css). */
+import "@wordpress/components/build-style/style.css";
+import "@wordpress/dataviews/build-style/style.css";
 
 /**
  * Internal dependencies.

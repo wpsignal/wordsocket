@@ -62,7 +62,6 @@ export function CollaborationCard() {
               label={__("Enable?", "wordsocket")}
               checked={provider.checked}
               onChange={provider.change}
-              __nextHasNoMarginBottom
             />
           ) : (
             <Notice status="warning" isDismissible={false}>

@@ -51,7 +51,7 @@ export function ExtensionPanel({
             <Stack direction="row" gap="sm" align="center">
               {icon &&
                 (typeof icon === "string" ? <Icon icon={icon as any} /> : icon)}
-              <Card.Title>
+              <Card.Title render={<h3 />}>
                 {firstPart}
                 <span className="wpsignal-extension__brand">{secondPart}</span>
               </Card.Title>
