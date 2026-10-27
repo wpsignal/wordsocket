@@ -75,8 +75,11 @@ test.describe("Journeys", () => {
     await hours.locator("[role=combobox]").first().click();
     await page.getByRole("option", { name: "Visits", exact: true }).click();
     await expect.poll(() => page.locator(".wpsignal-hours__cell:not(.is-empty)").count()).toBeGreaterThan(0);
-    await page.locator(".wpsignal-visual").nth(1).locator(".wpsignal-chart__table summary").click();
-    await expect(page.locator(".wpsignal-visual").nth(1).locator(".wpsignal-chart__table tbody tr")).toHaveCount(28);
+    const trends = page.locator(".wpsignal-visual").nth(1);
+    await trends.getByRole("tab", { name: "Table" }).click();
+    await expect(trends.locator(".wpsignal-chart__table tbody tr")).toHaveCount(28);
+    await trends.getByRole("tab", { name: "Chart" }).click();
+    await expect(trends.locator("svg[role=img]")).toBeVisible();
 
     // The Moments tab's replay has WordSocket's own provider.
     await admin.visitAdminPage("admin.php", "page=wordsocket&tab=moments&moment=new");
@@ -91,7 +94,7 @@ test.describe("Journeys", () => {
       await expect(page.getByLabel("Keep a history of journeys")).not.toBeChecked();
       await expect(page.locator(".wpsignal-visual")).toHaveCount(0);
       await admin.visitAdminPage("admin.php", "page=wordsocket&tab=moments&moment=new");
-      await expect(page.getByRole("heading", { name: "Moments" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "New Moment" })).toBeVisible();
       await expect(page.locator(".wpsignal-rule-replay")).toHaveCount(0);
       // The switch turns it on and the visuals appear.
       await admin.visitAdminPage("admin.php", TAB);

@@ -70,7 +70,22 @@ export interface VisualJourney {
 export const NETWORK_STEPS = 12;
 
 /** The page kinds in row order; any other kind follows, alphabetically. */
-const KIND_ORDER = ["home", "shop", "category", "product", "cart", "checkout", "thanks", "search", "page", "post", "archive", "other", "admin", "away"];
+const KIND_ORDER = [
+  "home",
+  "shop",
+  "category",
+  "product",
+  "cart",
+  "checkout",
+  "thanks",
+  "search",
+  "page",
+  "post",
+  "archive",
+  "other",
+  "admin",
+  "away",
+];
 
 /* The eight categorical hues by page kind; every other kind and an unregistered outcome are grey. */
 const KIND_COLOR: Record<string, string> = {
@@ -195,12 +210,14 @@ export interface NetworkFilters {
   through: string;
   /** The least journeys a transition needs for its journeys to be drawn. */
   min: number;
+  /** The fewest pages a journey must have opened to be drawn. */
+  pages: number;
 }
 
 /**
  * @since 0.31.0
  */
-export const DEFAULT_FILTERS: NetworkFilters = { outcome: "", through: "", min: 1 };
+export const DEFAULT_FILTERS: NetworkFilters = { outcome: "", through: "", min: 1, pages: 1 };
 
 /** The transitions a journey makes, keyed by step position, as the network draws them. */
 function edgeKeys(j: VisualJourney): string[] {
@@ -215,7 +232,10 @@ function edgeKeys(j: VisualJourney): string[] {
  */
 export function applyFilters(journeys: VisualJourney[], f: NetworkFilters): VisualJourney[] {
   let shown = journeys.filter(
-    (j) => (!f.outcome || j.outcome === f.outcome) && (!f.through || j.steps.some((s) => s.kind === f.through)),
+    (j) =>
+      (!f.outcome || j.outcome === f.outcome) &&
+      (!f.through || j.steps.some((s) => s.kind === f.through)) &&
+      (f.pages <= 1 || j.steps.filter((s) => s.kind !== "away").length >= f.pages),
   );
   if (f.min > 1) {
     const keys = new Map(shown.map((j) => [j.index, edgeKeys(j)]));
@@ -381,9 +401,7 @@ export function duration(ms: number): string {
  * @since 0.31.0
  */
 export function describeSteps(steps: Step[], kinds: Kinds): string {
-  return steps
-    .map((s) => `${kindLabel(s.kind, kinds).toLowerCase()}${s.id ? ` ${s.id}` : ""} ${duration(s.ms)}`)
-    .join(" › ");
+  return steps.map((s) => `${kindLabel(s.kind, kinds).toLowerCase()}${s.id ? ` ${s.id}` : ""} ${duration(s.ms)}`).join(" › ");
 }
 
 /**

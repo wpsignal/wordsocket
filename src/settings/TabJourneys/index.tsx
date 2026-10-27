@@ -109,12 +109,13 @@ function VisualCard({ title, lede, children }: { title: string; lede: string; ch
   );
 }
 
-/** The network's filters from the URL (`&outcome=left&through=product&min=2`), as a link into the tab sets them. */
+/** The network's filters from the URL (`&outcome=left&through=product&min=2&pages=2`), as a link into the tab sets them. */
 function filtersFromUrl(): NetworkFilters {
   return {
     outcome: (readUrlParam("outcome") ?? "") as Outcome | "",
     through: readUrlParam("through") ?? "",
     min: Number(readUrlParam("min")) || DEFAULT_FILTERS.min,
+    pages: Number(readUrlParam("pages")) || DEFAULT_FILTERS.pages,
   };
 }
 
@@ -142,21 +143,44 @@ function Visuals() {
     <Stack direction="column" gap="lg">
       <VisualCard
         title={__("Where journeys go", "wordsocket")}
-        lede={__("Every visit as a path through your pages to how it ended. Find the paths that end well and the ones that leak.", "wordsocket")}
+        lede={__(
+          "Every visit as a path through your pages to how it ended. Find the paths that end well and the ones that leak.",
+          "wordsocket",
+        )}
       >
-        <Network journeys={journeys} filters={filters} onFilters={setFilters} total={data.total} outcomes={data.outcomes} kinds={data.kinds} />
+        <Network
+          journeys={journeys}
+          filters={filters}
+          onFilters={setFilters}
+          total={data.total}
+          outcomes={data.outcomes}
+          kinds={data.kinds}
+        />
       </VisualCard>
       <VisualCard
         title={__("How the weeks are going", "wordsocket")}
-        lede={__("Visits and outcomes day by day, with the 7-day average. Act in the week something changes, not a month later.", "wordsocket")}
+        lede={__(
+          "Visits and outcomes day by day, with the 7-day average. Act in the week something changes, not a month later.",
+          "wordsocket",
+        )}
       >
         <Trends days={data.days} journeys={journeys} total={data.total} outcomes={data.outcomes} ref={data.ref} kinds={data.kinds} />
       </VisualCard>
       <VisualCard
         title={__("When visitors are here", "wordsocket")}
-        lede={__("The week by hour on your clock. Publish, staff live chat and time promotions for the hours visitors are here.", "wordsocket")}
+        lede={__(
+          "The week by hour on your clock.",
+          "wordsocket",
+        )}
       >
-        <Hours hours={data.hours} weekStart={data.week_start} timezone={data.timezone} listed={journeys.length} total={data.total} outcomes={data.outcomes} />
+        <Hours
+          hours={data.hours}
+          weekStart={data.week_start}
+          timezone={data.timezone}
+          listed={journeys.length}
+          total={data.total}
+          outcomes={data.outcomes}
+        />
       </VisualCard>
     </Stack>
   );
@@ -173,7 +197,10 @@ export function TabJourneys({ title }: { title: string }) {
     <Stack direction="column" gap="lg">
       <TabHeading
         title={title}
-        help={__("A journey is one visit: the pages a visitor opened, with the time on each, and how it ended. The last 28 days are drawn below while History is on.", "wordsocket")}
+        help={__(
+          "A journey is one visit: the pages a visitor opened, with the time on each, and how it ended. The last 28 days are drawn below while History is on.",
+          "wordsocket",
+        )}
       />
       <HistoryCard />
       {historyEnabled && <Visuals />}

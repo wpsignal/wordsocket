@@ -522,13 +522,26 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
 
 /* Journeys tab: the chart frame, its tooltip, the legend, the table view and the marks of the three visuals. */
 
-.wpsignal-visual .wpsignal-chart__filters > * {
-  min-width: 160px;
-  flex: 1 1 calc(33.33% - var(--wpds-dimension-gap-lg));
+/* A visual's card spans the tab whatever its tab shows; the chart's width must not decide it. */
+.wpsignal-visual {
+  width: 100%;
 }
 
-.wpsignal-chart__note {
-  min-height: 2.8rem;
+/* The filter row: every control shares the width evenly, wrapping when there is no room. */
+.wpsignal-visual .wpsignal-chart__filters > * {
+  flex: 1 1 160px;
+  min-width: 160px;
+}
+
+/* The pages radio group: its legend above a row of options; the control sets the column direction inline. */
+.wpsignal-chart__radios [role="radiogroup"] {
+  flex-direction: row !important;
+  flex-wrap: wrap;
+  gap: var(--wpds-dimension-gap-lg, 16px) !important;
+
+  > :first-child {
+    flex-basis: 100%;
+  }
 }
 
 .wpsignal-chart,
@@ -544,6 +557,7 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
   align-items: flex-start;
   width: 100%;
   overflow-x: auto;
+  container-type: scroll-state;
 
   svg {
     display: block;
@@ -553,21 +567,60 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
   }
 }
 
-/* Row labels beside a drawing: pinned to the left edge while the drawing scrolls under them. */
+/* The plot takes what the labels leave; its width is what the drawing is sized to. */
+.wpsignal-chart__plot {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/*
+ * Row labels beside a drawing, pinned to the left edge while the drawing scrolls under them: a grid whose
+ * rows the chart names (a spacer for the header, then one row per label), each label centred in its row.
+ */
 .wpsignal-chart__labels {
   position: sticky;
   left: 0;
   z-index: 1;
   flex: none;
+  display: grid;
+  align-items: center;
+  justify-items: end;
+  padding-right: var(--wpds-dimension-padding-md);
   background: var(--wpds-color-bg-surface-neutral-strong);
   font-size: var(--wpds-font-size-sm);
   color: var(--wpds-color-fg-content-neutral);
+  white-space: nowrap;
 
-  span {
-    position: absolute;
-    right: var(--wpds-dimension-padding-md);
-    transform: translateY(-50%);
-    white-space: nowrap;
+  &::before {
+    content: "";
+  }
+}
+
+@container scroll-state(scrollable: left) {
+  .wpsignal-chart__labels {
+    &::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: -1rem;
+      width: 1rem;
+      height: 100%;
+      /* A shadow at the labels' edge while the drawing is scrolled. */
+      background: linear-gradient(to right, rgba(0, 0, 0, 0.1), transparent);
+    }
+  }
+}
+
+.wpsignal-net__labels {
+  grid-template-rows: var(--wpsignal-top) repeat(var(--wpsignal-rows), var(--wpsignal-row));
+}
+
+/* Seven weekdays, the gap, then the all-days strip. */
+.wpsignal-hours__labels {
+  grid-template-rows: var(--wpsignal-top) repeat(7, var(--wpsignal-cell)) var(--wpsignal-gap) var(--wpsignal-strip);
+
+  span:last-child {
+    grid-row: 10;
   }
 }
 
@@ -679,62 +732,56 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
   }
 }
 
-.wpsignal-chart__table {
-  font-size: var(--wpds-font-size-sm);
+/* The Chart and Table tabs of a visual: the list sits above either panel. */
+.wpsignal-chart-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-sm);
+}
 
-  summary {
-    cursor: pointer;
-    color: var(--wpds-color-fg-content-neutral);
-  }
+.wpsignal-chart__table {
+  overflow-x: auto;
 
   table {
-    border-collapse: collapse;
-    margin-top: var(--wpds-dimension-gap-sm);
     font-variant-numeric: tabular-nums;
-  }
-
-  th,
-  td {
-    padding: var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm);
-    border-bottom: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
-    text-align: right;
-    white-space: nowrap;
-  }
-
-  th {
-    color: var(--wpds-color-fg-content-neutral-weak);
-    font-weight: 500;
-  }
-
-  tbody th,
-  thead th:first-child {
-    text-align: left;
   }
 }
 
-/* The network: edges grey, a journey lit only while hovered, the pulse behind the nodes. */
+/* The network: edges grey and dimmed while anything is hovered, the lit path drawing the hovered journey, the dot and its trail (the journey's stroke width) behind the nodes, a step bouncing as the dot reaches it. */
 
 .wpsignal-net__edge {
   fill: none;
   stroke: var(--wpds-color-fg-content-neutral-weak);
 }
 
-.wpsignal-net.is-focus .wpsignal-net__edge {
+.wpsignal-net:has(.wpsignal-net__journey:hover, .wpsignal-net__node:hover) .wpsignal-net__edge {
   stroke-opacity: 0.05;
-}
-
-.wpsignal-net__journey {
-  fill: none;
-  stroke: var(--wpds-color-fg-content-neutral);
-  stroke-width: 3px;
-  stroke-linecap: round;
-  opacity: 0;
-  transition: opacity 180ms;
-  pointer-events: stroke;
 
   &.is-on {
-    opacity: 0.9;
+    stroke: var(--wpds-color-fg-content-neutral);
   }
+}
+
+.wpsignal-net {
+  --wpsignal-journey-stroke: 1px;
+}
+
+/* A journey path is its hit area alone: wide and invisible; the lit path draws the hovered one. */
+.wpsignal-net__journey {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 8px;
+  stroke-linecap: round;
+  pointer-events: stroke;
+}
+
+.wpsignal-net__lit {
+  fill: none;
+  stroke: var(--wpds-color-fg-content-neutral);
+  stroke-width: var(--wpsignal-journey-stroke);
+  stroke-linecap: round;
+  stroke-opacity: 0.9;
+  pointer-events: none;
 }
 
 .wpsignal-net__node {
@@ -745,9 +792,42 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
 
 .wpsignal-net__pulse {
   fill: var(--wpds-color-fg-content-neutral);
-  stroke: var(--wpds-color-bg-surface-neutral-strong);
-  stroke-width: 2px;
   pointer-events: none;
+}
+
+.wpsignal-net__trail {
+  fill: none;
+  stroke: var(--wpds-color-fg-content-neutral);
+  stroke-width: var(--wpsignal-journey-stroke);
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.wpsignal-net__ruler {
+  fill: none;
+  stroke: none;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.wpsignal-net__node.is-bounce {
+  animation: wpsignal-net-bounce 360ms ease-out;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes wpsignal-net-bounce {
+  0% {
+    transform: scale(1);
+  }
+
+  40% {
+    transform: scale(1.6);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* The trends: a faint daily line under the blue average, the area fading from white, dots by outcome. */
@@ -757,8 +837,11 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
   opacity: 0.85;
 }
 
-.wpsignal-trend__area {
-  fill: url("#wpsignal-trend-fade");
+/* The fade under the average: white strips the band draws, fainter as they go down. */
+.wpsignal-trend__fade path {
+  fill: none;
+  stroke: var(--wpds-color-bg-surface-neutral-strong);
+  stroke-linejoin: round;
 }
 
 .wpsignal-trend__raw {
@@ -782,18 +865,18 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
   fill-opacity: 0.8;
   cursor: default;
 
-  &.is-on {
+  &:hover {
+    r: 7.5px;
     stroke: var(--wpds-color-fg-content-neutral);
     stroke-width: 2px;
     fill-opacity: 1;
   }
 }
 
-/* The hours: a single-hue ramp, empty cells outlined, the hovered one marked. */
+/* The hours: a single-hue ramp with a gap between cells, empty cells outlined, the hovered one outlined dark. */
 
 .wpsignal-hours__cell {
-  stroke: var(--wpds-color-bg-surface-neutral-strong);
-  stroke-width: 2px;
+  stroke: none;
 
   &.is-empty {
     fill: var(--wpds-color-bg-surface-neutral-strong);
@@ -801,7 +884,7 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
     stroke-width: 1px;
   }
 
-  &.is-on {
+  &:hover {
     stroke: var(--wpds-color-fg-content-neutral);
     stroke-width: 2px;
   }
@@ -835,8 +918,7 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wpsignal-chart__tip,
-  .wpsignal-net__journey {
+  .wpsignal-chart__tip {
     transition: none;
   }
 }

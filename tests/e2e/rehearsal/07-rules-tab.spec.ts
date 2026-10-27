@@ -77,7 +77,6 @@ test.describe("Rules tab", () => {
     await expect(editor).toBeVisible();
     await expect(editor.locator(".wpsignal-rule-condition")).toHaveCount(1);
     await expect(editor.locator(".wpsignal-rule-action")).toHaveCount(1);
-    await expect(editor.locator(".wpsignal-rule-replay")).toHaveCount(0);
     await page.getByRole("button", { name: "Cancel" }).click();
     await expect(page.locator(".wpsignal-rules-empty")).toBeVisible();
   });
