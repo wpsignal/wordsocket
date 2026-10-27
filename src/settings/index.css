@@ -763,7 +763,7 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
 }
 
 .wpsignal-net {
-  --wpsignal-journey-stroke: 1px;
+  --wpsignal-journey-stroke: 1.25px;
 }
 
 /* A journey path is its hit area alone: wide and invisible; the lit path draws the hovered one. */
@@ -780,7 +780,8 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
   stroke: var(--wpds-color-fg-content-neutral);
   stroke-width: var(--wpsignal-journey-stroke);
   stroke-linecap: round;
-  stroke-opacity: 0.9;
+  stroke-opacity: 0.75;
+  shape-rendering: geometricPrecision;
   pointer-events: none;
 }
 
@@ -797,6 +798,7 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
 
 .wpsignal-net__trail {
   fill: none;
+  shape-rendering: geometricPrecision;
   stroke: var(--wpds-color-fg-content-neutral);
   stroke-width: var(--wpsignal-journey-stroke);
   stroke-linecap: round;

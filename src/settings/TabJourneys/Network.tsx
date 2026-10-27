@@ -67,7 +67,7 @@ const ROW_H = 58;
 /** The narrowest a step column goes before the chart scrolls sideways. */
 const MIN_COL_W = 60;
 /** How long the pulse takes to cross one column, the distance between neighbouring steps. */
-const STEP_MS = 400;
+const STEP_MS = 250;
 /** The edges lit while no node is hovered. */
 const NO_EDGES = new Map<string, number>();
 
