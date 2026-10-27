@@ -203,11 +203,22 @@ final class JourneysTest extends WordSocketTestCase {
 		do_action( 'wpsignal_visitor_visit', $this->report( 'cart:0:100', false, self::N2 ) );
 
 		$this->assertSame( 0, $this->journeys()->end_by_ref( 'cart0001', 'bogus' ), 'an outcome nobody registered is refused' );
-		$this->assertSame( 1, $this->journeys()->end_by_ref( 'cart0001', 'converted', 40.0 ), 'the open journey of the cart; the one already left stays left' );
+		$this->assertSame( 1, $this->journeys()->end_by_ref( 'cart0001', 'converted', 40.0, array( 'order' => 77 ) ), 'the open journey of the cart; the one already left stays left' );
 		$this->assertSame( 'left', $this->row( self::N )['outcome'] );
 		$this->assertSame( 'converted', $this->row( self::N2 )['outcome'] );
 		$this->assertSame( 40.0, (float) $this->row( self::N2 )['value'] );
+		$this->assertSame( array( 'order' => 77 ), json_decode( $this->row( self::N2 )['data'], true ), 'the data merged over the row\'s' );
+		$this->assertNull( $this->row( self::N )['data'], 'the left journey\'s untouched' );
 		$this->assertSame( 0, $this->journeys()->end_by_ref( 'cart0001', 'converted' ), 'nothing open is left' );
+		// The thank-you page's report, the cart emptied: the converted journey keeps its value and data.
+		add_filter( 'wpsignal_journey_record', static fn(): array => array( 'ref' => 'cart0001', 'value' => 0.0, 'data' => array( 'i' => array() ) ), 20 );
+		do_action( 'wpsignal_visitor_visit', $this->report( 'cart:0:100>thanks:0:0', false, self::N2 ) );
+		$this->assertSame( 40.0, (float) $this->row( self::N2 )['value'] );
+		$this->assertSame( array( 'order' => 77 ), json_decode( $this->row( self::N2 )['data'], true ) );
+		$this->assertSame( 'cart:0:100>thanks:0:0', $this->row( self::N2 )['journey'], 'the journey itself still grows' );
+		$answer = apply_filters( 'wpsignal_visitor_visit_response', array(), $this->report( 'cart:0:100>thanks:0:0', false, self::N2 ) );
+		$this->assertSame( array( 'ended' => true ), $answer['journey'], 'and the browser is told to start a new one' );
+		$this->assertArrayNotHasKey( 'journey', apply_filters( 'wpsignal_visitor_visit_response', array(), $this->report( 'home:1:100', false ) ), 'a journey merely left is not ended' );
 
 		$this->assertSame( 1, $this->journeys()->credit( 'cart0001', 77, 40.0 ) );
 		$firings = json_decode( $this->row( self::N )['firings'], true );
@@ -226,7 +237,7 @@ final class JourneysTest extends WordSocketTestCase {
 	}
 
 	public function test_the_feed_carries_the_extensions_context_and_the_routes_are_staff_only(): void {
-		add_filter( 'wpsignal_journey_record', static fn(): array => array( 'ref' => 'cart0001', 'value' => 9.5 ) );
+		add_filter( 'wpsignal_journey_record', static fn(): array => array( 'ref' => 'cart0001', 'value' => 9.5, 'data' => array( 'items' => array( 7 => 2 ) ) ) );
 		add_filter( 'wpsignal_journey_context', static fn( array $context, array $row ): array => array( 'cart' => array( 'count' => '' === (string) $row['ref'] ? 0 : 1 ) ), 10, 2 );
 		add_filter( 'wpsignal_journeys_currency', static fn(): string => 'EUR' );
 		do_action( 'wpsignal_visitor_visit', $this->report( 'home:1:100>post:2:200', false ) );
@@ -246,6 +257,7 @@ final class JourneysTest extends WordSocketTestCase {
 		$this->assertSame( 'open', $mine[0]['outcome'] );
 		$this->assertSame( 9.5, $mine[0]['value'] );
 		$this->assertTrue( $mine[0]['has_ref'] );
+		$this->assertArrayNotHasKey( 'data', $mine[0], 'the data stays on the server; the context filter reads it from the row' );
 		$this->assertSame( array( 'cart' => array( 'count' => 1 ) ), $mine[0]['context'] );
 		$this->assertSame( array(), $mine[0]['firings'] );
 

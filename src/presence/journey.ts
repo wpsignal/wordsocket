@@ -60,6 +60,8 @@ export interface Journey {
    * the away outlasted the gap.
    */
   back(): EndedJourney | null;
+  /** Begin a new journey on this page: a new id, the page its first step, opened now. */
+  restart(): void;
 }
 
 function storage(): Storage | null {
@@ -207,6 +209,10 @@ export function createJourney(
       renew();
       arrive(page.kind, page.id);
       return ended;
+    },
+    restart() {
+      renew();
+      if (page) arrive(page.kind, page.id);
     },
   };
 }

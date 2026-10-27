@@ -37,6 +37,11 @@ export interface PresenceTracker {
   /** Replace the plugin's fields: presence is announced again at once. */
   update(state: Record<string, unknown>): void;
   /**
+   * Send the visit report again for the current journey, so a change the plugin saw (a cart
+   * edited) reaches the row at once; `onVisit` handlers hear the answer. Nothing when not reporting.
+   */
+  report(): void;
+  /**
    * Called after every change to the journey (a step, away, back, a new visit). Returns the
    * unsubscribe.
    */
@@ -56,7 +61,8 @@ export interface PresenceTracker {
  * The tracker behind `WPS.presence.track()`.
  *
  * @since 0.30.0
- * @since 0.31.0 `report` may be a predicate, `onVisit()` hands out the visit answer, a same-site
+ * @since 0.31.0 `report` may be a predicate, `onVisit()` hands out the visit answer, `report()` sends
+ *               the visit again (coalesced, a failure not handed on), a journey WordPress answers as ended starts a new one, a same-site
  *               navigation sends no leave, a null channel enters no presence, and a site that keeps
  *               journeys reports every visitor.
  */
@@ -114,14 +120,40 @@ export function createTracker(
     };
     return sendReport(url, body, nonce, keepalive);
   };
-  const visit = () => {
-    void send(config?.visitUrl, journey.id(), journey.current(), false).then(
-      (answer) => {
-        if (stopped) return;
-        lastVisit = answer;
-        visitHandlers.forEach((fn) => fn(answer));
-      },
-    );
+  /* A `report()` while one is in flight queues exactly one more. */
+  let inFlight = false;
+  let queued = false;
+  const visit = (requested = false) => {
+    if (requested && inFlight) {
+      queued = true;
+      return;
+    }
+    inFlight = true;
+    const n = journey.id();
+    void send(config?.visitUrl, n, journey.current(), false).then((answer) => {
+      inFlight = false;
+      if (stopped) return;
+      /*
+       * WordPress says an extension ended this journey (an order placed): what the visitor does next
+       * is a new visit, reported under a new id.
+       */
+      const ended = (answer?.journey as { ended?: boolean } | undefined)?.ended;
+      if (ended && n === journey.id()) {
+        journey.restart();
+        announce();
+        visit();
+        return;
+      }
+      if (queued) {
+        queued = false;
+        visit(true);
+        return;
+      }
+      /* A failed `report()` keeps the last answer: handlers hear only answers, never a retry's null. */
+      if (requested && answer === null) return;
+      lastVisit = answer;
+      visitHandlers.forEach((fn) => fn(answer));
+    });
   };
 
   // The page's step has already been opened by `pageJourney()`: announce and report it.
@@ -168,6 +200,9 @@ export function createTracker(
     update(next) {
       state = next;
       announce();
+    },
+    report() {
+      if (!stopped) visit(true);
     },
     onChange(handler) {
       handlers.add(handler);

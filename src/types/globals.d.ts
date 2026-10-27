@@ -339,11 +339,18 @@ interface WPSPresenceTracker {
   journey(): string;
   /** Replace the plugin's fields; presence is announced again at once. */
   update(state: Record<string, unknown>): void;
+  /**
+   * Send the visit report again for the current journey (0.31), so a change the plugin saw reaches
+   * the journey's row at once and `onVisit` handlers hear the new answer. Calls made while one is in
+   * flight collapse into one more; a failed one is not handed to the handlers. Nothing when not reporting.
+   */
+  report(): void;
   /** Called after every change to the journey (a step, away, back, a new visit). Returns the unsubscribe. */
   onChange(handler: (journey: string, journeyId: string) => void): () => void;
   /**
    * Called with what WordPress answered each visit report (0.31): `ok` plus the fields plugins add
-   * through `wpsignal_visitor_visit_response`, each under its own key. The latest answer is replayed
+   * through `wpsignal_visitor_visit_response`, each under its own key (`journey: { ended: true }` is
+   * WordSocket's own, and never reaches a handler: the tracker starts a new journey on it). The latest answer is replayed
    * to a late subscriber; null means none is coming (no reporting, or the report failed), so fetch
    * your own. Returns the unsubscribe.
    */

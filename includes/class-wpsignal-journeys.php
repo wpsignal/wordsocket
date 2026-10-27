@@ -35,7 +35,7 @@ class Journeys {
 	 *
 	 * @since 0.31.0
 	 */
-	const DB_VERSION = '2';
+	const DB_VERSION = '3';
 
 	/**
 	 * The daily prune.
@@ -105,6 +105,20 @@ class Journeys {
 	const COLOR_PATTERN   = '/^#[0-9a-f]{6}$/i';
 
 	/**
+	 * Longest `data` an extension may put on a row, as JSON.
+	 *
+	 * @since 0.31.0
+	 */
+	const MAX_DATA_BYTES = 4000;
+
+	/**
+	 * The outcomes a journey can still move on from; every other outcome is final.
+	 *
+	 * @since 0.31.0
+	 */
+	const NOT_FINAL = array( 'open', 'left' );
+
+	/**
 	 * Configuration accessor.
 	 *
 	 * @var Config
@@ -147,8 +161,9 @@ class Journeys {
 		add_action( 'plugins_loaded', array( $this, 'install' ) );
 		add_action( 'init', array( $this, 'register_defaults' ), 5 );
 		add_action( 'init', array( $this, 'schedule' ) );
-		add_action( 'wpsignal_visitor_visit', array( $this, 'on_report' ) );
-		add_action( 'wpsignal_visitor_leave', array( $this, 'on_report' ) );
+		add_action( 'wpsignal_visitor_visit', array( $this, 'on_report' ), 5 );
+		add_action( 'wpsignal_visitor_leave', array( $this, 'on_report' ), 5 );
+		add_filter( 'wpsignal_visitor_visit_response', array( $this, 'answer_visit' ), 5, 2 );
 		add_action( self::CRON_HOOK, array( $this, 'prune' ) );
 		add_filter( 'wp_privacy_personal_data_exporters', array( $this, 'register_exporter' ) );
 		add_filter( 'wp_privacy_personal_data_erasers', array( $this, 'register_eraser' ) );
@@ -207,6 +222,7 @@ class Journeys {
 			last_seen datetime NOT NULL,
 			ended_at datetime NULL,
 			firings text NULL,
+			data text NULL,
 			PRIMARY KEY  (journey_id),
 			KEY visitor_started (visitor, started_at),
 			KEY user_id (user_id),
@@ -380,24 +396,27 @@ class Journeys {
 	 * @since 0.31.0
 	 *
 	 * @param array $report The report.
-	 * @return array{ref: string, value: float|null}
+	 * @return array{ref: string, value: float|null, data: string}
 	 */
 	private function record_of( array $report ): array {
 		/**
 		 * Filters what a journey row keeps of a visit or leave report beyond the journey itself:
 		 * `ref`, an extension's own id for what the visitor carries (ShopSocket's cart id, up to 32
-		 * characters of `[A-Za-z0-9_-]`), and `value`, what it is worth.
+		 * characters of `[A-Za-z0-9_-]`), `value`, what it is worth, and `data`, the extension's
+		 * own facts about it (ShopSocket: the cart's items and currency), an array stored as JSON
+		 * of at most MAX_DATA_BYTES, kept on the row until a later report replaces it.
 		 *
 		 * @since 0.31.0
 		 *
-		 * @param array{ref: string, value: float|null} $record Empty to begin with.
-		 * @param array                                   $report The report, as `wpsignal_visitor_visit` hands it.
+		 * @param array{ref: string, value: float|null, data: array} $record Empty to begin with.
+		 * @param array                                                $report The report, as `wpsignal_visitor_visit` hands it.
 		 */
 		$record = (array) apply_filters(
 			'wpsignal_journey_record',
 			array(
 				'ref'   => '',
 				'value' => null,
+				'data'  => array(),
 			),
 			$report
 		);
@@ -405,13 +424,32 @@ class Journeys {
 		return array(
 			'ref'   => 1 === preg_match( self::REF_PATTERN, $ref ) ? $ref : '',
 			'value' => isset( $record['value'] ) && is_numeric( $record['value'] ) ? round( (float) $record['value'], 4 ) : null,
+			'data'  => self::encode_data( $record['data'] ?? null ),
 		);
+	}
+
+	/**
+	 * An extension's `data` as the JSON the row stores: '' for nothing, an empty array, or more than
+	 * MAX_DATA_BYTES.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param mixed $data What the filter returned.
+	 * @return string
+	 */
+	private static function encode_data( $data ): string {
+		if ( ! is_array( $data ) || empty( $data ) ) {
+			return '';
+		}
+		$json = wp_json_encode( $data );
+		return is_string( $json ) && strlen( $json ) <= self::MAX_DATA_BYTES ? $json : '';
 	}
 
 	/**
 	 * Write a visit or leave report: the first report creates the row, a later one from the same
 	 * visitor that is at least as far along updates it, and a visit that creates a row ends the
-	 * visitor's other open journeys.
+	 * visitor's other open journeys. A journey an extension ended keeps its outcome, value and data.
+	 * Hooked at priority 5, so an extension on the default priority reads the written row.
 	 *
 	 * @since 0.31.0
 	 *
@@ -433,15 +471,16 @@ class Journeys {
 		$now     = self::now();
 		$owned   = 'visitor = VALUES(visitor)';
 		$ahead   = $owned . ' AND VALUES(steps) >= steps';
-		$final   = "outcome NOT IN ('open', 'left')";
+		$final   = "outcome NOT IN ('" . implode( "', '", self::NOT_FINAL ) . "')";
 		$wpdb->query(
 			$wpdb->prepare(
-				'INSERT INTO ' . self::table() . " (journey_id, visitor, user_id, ref, journey, steps, outcome, value, started_at, last_seen, ended_at)
-				VALUES (%s, %s, IF(%d > 0, %d, NULL), NULLIF(%s, ''), %s, %d, %s, IF(%d = 1, %f, NULL), %s, %s, NULLIF(%s, ''))
+				'INSERT INTO ' . self::table() . " (journey_id, visitor, user_id, ref, journey, steps, outcome, value, data, started_at, last_seen, ended_at)
+				VALUES (%s, %s, IF(%d > 0, %d, NULL), NULLIF(%s, ''), %s, %d, %s, IF(%d = 1, %f, NULL), NULLIF(%s, ''), %s, %s, NULLIF(%s, ''))
 				ON DUPLICATE KEY UPDATE
 					user_id = IF(" . $owned . ' AND VALUES(user_id) IS NOT NULL, VALUES(user_id), user_id),
 					ref = IF(' . $owned . ' AND VALUES(ref) IS NOT NULL, VALUES(ref), ref),
-					value = IF(' . $owned . ' AND VALUES(value) IS NOT NULL, VALUES(value), value),
+					value = IF(' . $owned . ' AND VALUES(value) IS NOT NULL AND NOT (' . $final . '), VALUES(value), value),
+					data = IF(' . $owned . ' AND VALUES(data) IS NOT NULL AND NOT (' . $final . '), VALUES(data), data),
 					last_seen = IF(' . $ahead . ', VALUES(last_seen), last_seen),
 					journey = IF(' . $ahead . ', VALUES(journey), journey),
 					outcome = IF(' . $final . ' OR NOT (' . $ahead . '), outcome, VALUES(outcome)),
@@ -457,6 +496,7 @@ class Journeys {
 				$leaving ? 'left' : 'open',
 				null === $record['value'] ? 0 : 1,
 				(float) $record['value'],
+				$record['data'],
 				$now,
 				$now,
 				$leaving ? $now : ''
@@ -473,6 +513,34 @@ class Journeys {
 				$journey_id
 			)
 		);
+	}
+
+	/**
+	 * Tell the browser when the journey it reported was ended by an extension (`journey: { ended }`),
+	 * so the tracker starts a new one for what the visitor does next.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param array $answer The visit answer so far.
+	 * @param array $report The report.
+	 * @return array
+	 */
+	public function answer_visit( array $answer, array $report ): array {
+		global $wpdb;
+		if ( ! $this->enabled() ) {
+			return $answer;
+		}
+		$outcome = (string) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT outcome FROM ' . self::table() . ' WHERE journey_id = %s AND visitor = %s',
+				(string) $report['journey_id'],
+				(string) $report['visitor']
+			)
+		);
+		if ( '' !== $outcome && ! in_array( $outcome, self::NOT_FINAL, true ) ) {
+			$answer['journey'] = array( 'ended' => true );
+		}
+		return $answer;
 	}
 
 	/**
@@ -563,15 +631,16 @@ class Journeys {
 	 * @param string     $ref     The ref.
 	 * @param string     $outcome A registered outcome.
 	 * @param float|null $value   What the journey came to, kept as it was when null.
+	 * @param array      $data    Fields merged over each ended row's `data` (ShopSocket: the order id); a row is left as it was when the merge would pass MAX_DATA_BYTES.
 	 * @return int Journeys ended.
 	 */
-	public function end_by_ref( string $ref, string $outcome, ?float $value = null ): int {
+	public function end_by_ref( string $ref, string $outcome, ?float $value = null, array $data = array() ): int {
 		global $wpdb;
 		if ( ! $this->enabled() || '' === $ref || ! isset( $this->outcomes[ $outcome ] ) ) {
 			return 0;
 		}
-		$now = self::now();
-		return (int) $wpdb->query(
+		$now   = self::now();
+		$ended = (int) $wpdb->query(
 			$wpdb->prepare(
 				'UPDATE ' . self::table() . " SET outcome = %s, value = IF(%d = 1, %f, value), ended_at = %s, last_seen = %s WHERE ref = %s AND outcome = 'open'",
 				$outcome,
@@ -582,6 +651,22 @@ class Journeys {
 				$ref
 			)
 		);
+		if ( $ended < 1 || empty( $data ) ) {
+			return $ended;
+		}
+		/* The rows this call ended: final now, so no report changes their data before the merge lands. */
+		$rows = (array) $wpdb->get_results(
+			$wpdb->prepare( 'SELECT journey_id, data FROM ' . self::table() . ' WHERE ref = %s AND outcome = %s AND ended_at = %s', $ref, $outcome, $now ),
+			ARRAY_A
+		);
+		foreach ( $rows as $row ) {
+			$was    = json_decode( (string) ( $row['data'] ?? '' ), true );
+			$merged = self::encode_data( array_merge( is_array( $was ) ? $was : array(), $data ) );
+			if ( '' !== $merged ) {
+				$wpdb->update( self::table(), array( 'data' => $merged ), array( 'journey_id' => (string) $row['journey_id'] ), array( '%s' ), array( '%s' ) );
+			}
+		}
+		return $ended;
 	}
 
 	/**
@@ -683,7 +768,7 @@ class Journeys {
 		$since = gmdate( 'Y-m-d H:i:s', time() - min( self::FEED_MAX_DAYS, max( 1, $days ) ) * DAY_IN_SECONDS );
 		$rows  = (array) $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT journey, started_at, outcome, value, ref, firings FROM ' . self::table() . ' WHERE started_at >= %s ORDER BY started_at DESC LIMIT %d',
+				'SELECT journey, started_at, outcome, value, ref, firings, data FROM ' . self::table() . ' WHERE started_at >= %s ORDER BY started_at DESC LIMIT %d',
 				$since,
 				min( self::FEED_MAX_LIMIT, max( 1, $limit ) )
 			),
@@ -707,7 +792,7 @@ class Journeys {
 				 * @since 0.31.0
 				 *
 				 * @param array $context Empty to begin with.
-				 * @param array $row     The row: `journey`, `started_at`, `outcome`, `value`, `ref`, `firings`.
+				 * @param array $row     The row: `journey`, `started_at`, `outcome`, `value`, `ref`, `firings`, `data` (JSON).
 				 */
 				$entry['context'] = (array) apply_filters( 'wpsignal_journey_context', array(), $row );
 				return $entry;
@@ -988,7 +1073,7 @@ class Journeys {
 		$data = array();
 		if ( $user ) {
 			$rows = (array) $wpdb->get_results(
-				$wpdb->prepare( 'SELECT journey_id, journey, outcome, value, started_at, ended_at FROM ' . self::table() . ' WHERE user_id = %d ORDER BY started_at', $user->ID ),
+				$wpdb->prepare( 'SELECT journey_id, journey, outcome, value, started_at, ended_at, data FROM ' . self::table() . ' WHERE user_id = %d ORDER BY started_at', $user->ID ),
 				ARRAY_A
 			);
 			foreach ( $rows as $row ) {
@@ -1016,6 +1101,10 @@ class Journeys {
 						array(
 							'name'  => __( 'Pages', 'wordsocket' ),
 							'value' => (string) $row['journey'],
+						),
+						array(
+							'name'  => __( 'Details', 'wordsocket' ),
+							'value' => (string) ( $row['data'] ?? '' ),
 						),
 					),
 				);
@@ -1059,7 +1148,7 @@ class Journeys {
 		wp_add_privacy_policy_content(
 			'WordSocket',
 			wp_kses_post(
-				'<p>' . __( 'With journey history on, WordSocket keeps the pages each visitor opened on this site and how long they stayed on each, as page ids and durations under a random browser id, for the number of months set in its settings. The record is linked to your account for the visits you were logged in. Nothing of this leaves the site, and the privacy tools here can export and erase it.', 'wordsocket' ) . '</p>'
+				'<p>' . __( 'With journey history on, WordSocket keeps the pages each visitor opened on this site and how long they stayed on each, as page ids and durations under a random browser id, for the number of months set in its settings. An extension may add what the visit carried (ShopSocket: the contents of the cart and the order it became). The record is linked to your account for the visits you were logged in. Nothing of this leaves the site, and the privacy tools here can export and erase what is linked to an account; the visits of someone who was not logged in are known only by that random id.', 'wordsocket' ) . '</p>'
 			)
 		);
 	}
