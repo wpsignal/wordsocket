@@ -81,15 +81,17 @@ class Admin_Page {
 	 * link blue, until the stylesheet caught up. Scripts stay in the render
 	 * callback, where `wordsocket_settings_enqueue` fires.
 	 *
+	 * @since 0.25.0
+	 * @since 0.31.0 Enqueues the bundled components' and DataViews' styles first.
+	 *
 	 * @return void
 	 */
 	public function enqueue_styles() {
-		wp_enqueue_style(
-			'wpsignal-settings',
-			URL . 'build/settings.css',
-			array(),
-			$this->settings_asset()['version']
-		);
+		$version = $this->settings_asset()['version'];
+		// wp-scripts writes the bundled components' and DataViews' styles to style-settings.css.
+		wp_enqueue_style( 'wpsignal-settings-vendor', URL . 'build/style-settings.css', array(), $version );
+		wp_style_add_data( 'wpsignal-settings-vendor', 'rtl', 'replace' );
+		wp_enqueue_style( 'wpsignal-settings', URL . 'build/settings.css', array( 'wpsignal-settings-vendor' ), $version );
 		wp_style_add_data( 'wpsignal-settings', 'rtl', 'replace' );
 	}
 
@@ -119,6 +121,8 @@ class Admin_Page {
 
 	/**
 	 * Render the Settings page: mounts the React settings app.
+	 *
+	 * @since 0.31.0 Prints `history` for the replay's provider.
 	 *
 	 * @return void
 	 */
@@ -205,11 +209,17 @@ class Admin_Page {
 					 * Settings tab then waited for data that never came.
 					 */
 					'rtc'           => array(
-						'available' => $this->config->is_wp_sync_available(),
-						'enabled'   => $this->config->is_wp_rtc_enabled(),
+						'available'      => $this->config->is_wp_sync_available(),
+						'enabled'        => $this->config->is_wp_rtc_enabled(),
+						'experimentsUrl' => admin_url( 'admin.php?page=gutenberg-experiments' ),
 					),
 					// Known before the first render, so a link to a developer tab opens it.
 					'developerMode' => $this->config->developer_mode(),
+					// The Moments tab's replay registers its history provider from this before the app mounts.
+					'history'       => array(
+						'enabled'  => $this->config->history_enabled(),
+						'currency' => WPS::journeys()->currency(),
+					),
 				),
 				JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
 			) . ';',

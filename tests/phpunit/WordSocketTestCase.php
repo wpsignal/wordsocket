@@ -17,6 +17,8 @@ abstract class WordSocketTestCase extends TestCase {
 		'wpsignal_last_publish_error',
 		'wpsignal_yjs_provider_enabled',
 		'wpsignal_developer_mode',
+		'wpsignal_history_enabled',
+		'wpsignal_journeys_retention_months',
 	);
 
 	/** @var array<string, mixed> */
@@ -33,6 +35,8 @@ abstract class WordSocketTestCase extends TestCase {
 		foreach ( self::OPTIONS as $name ) {
 			$this->snapshot[ $name ] = get_option( $name, self::MISSING );
 		}
+		// Every test starts with History on its default, off, whatever the site was left with.
+		delete_option( 'wpsignal_history_enabled' );
 		$this->requests = array();
 		\WPSignal\Notices::clear();
 		wp_set_current_user( 0 );

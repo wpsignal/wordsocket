@@ -6,7 +6,9 @@ import {
   useState,
   useContext,
   createContext,
+  useCallback,
   useEffect,
+  useMemo,
 } from "@wordpress/element";
 import { __experimentalTruncate as Truncate } from "@wordpress/components";
 
@@ -19,7 +21,7 @@ import type { ReactNode } from "react";
  * Internal dependencies.
  */
 import { useTask } from "./useTask";
-import type { NoticeState } from "./types";
+import type { NoticeState, Trigger } from "./types";
 import { disconnect, getSettings } from "./api";
 
 const { isSsl = false } = window.wpSignalConfig ?? {};
@@ -33,11 +35,9 @@ type FetchStatus =
   | "disconnecting"
   | "error";
 
+/** What a tab keeps across tab switches: the Triggers tab's rows, so a return does not refetch them. */
 type TabsCached = {
-  connection: any | null;
-  rtc: any | null;
-  triggers: any[];
-  explorer: any | null;
+  triggers: Trigger[];
 };
 
 type SettingsState = {
@@ -48,12 +48,21 @@ type SettingsState = {
   connectionType: "automatic" | "manual" | null;
   fetchStatus: FetchStatus;
   /** Last publish failure reported by the server-side publisher, if any. */
-  lastError: { code: string; message: string; detail: string; time: number } | null;
+  lastError: {
+    code: string;
+    message: string;
+    detail: string;
+    time: number;
+  } | null;
   /** The Connect tab is showing the "are you sure" row for Disconnect. */
   confirmDisconnect: boolean;
   yjsProviderEnabled: boolean;
   /** The Triggers and Explorer tabs are shown. */
   developerMode: boolean;
+  /** Journeys are kept on the site. */
+  historyEnabled: boolean;
+  /** How many months a journey is kept. */
+  journeysRetentionMonths: number;
   tabsCache: TabsCached;
   setTabsCache: (tabs: TabsCached) => void;
   setSetting: (
@@ -79,12 +88,9 @@ const DEFAULT_STATE: SettingsState = {
   yjsProviderEnabled: false,
   // Seeded from PHP so a link to a developer tab is honoured on first render.
   developerMode: window.wpsignalSettings?.developerMode === true,
-  tabsCache: {
-    connection: null,
-    rtc: null,
-    triggers: [],
-    explorer: null,
-  },
+  historyEnabled: window.wpsignalSettings?.history?.enabled === true,
+  journeysRetentionMonths: 3,
+  tabsCache: { triggers: [] },
   setTabsCache: () => {},
   setSetting: () => {},
   handleDisconnect: async () => {},
@@ -95,7 +101,7 @@ const DEFAULT_STATE: SettingsState = {
 function successMessage(siteKey: string): React.ReactNode {
   return (
     <>
-      &#10003; {__("Connected", "wordsocket")} &mdash;{" "}
+      &#10003; {__("Connected:", "wordsocket")}{" "}
       <code>
         <Truncate limit={16} ellipsizeMode="middle" ellipsis="...">
           {siteKey}
@@ -111,13 +117,15 @@ function successMessage(siteKey: string): React.ReactNode {
 const SettingsContext = createContext<SettingsState>(DEFAULT_STATE);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [tabsCache, setTabsCache] = useState<TabsCached>({
-    connection: null,
-    rtc: null,
-    triggers: [],
-    explorer: null,
-  });
+  const [tabsCache, setTabsCache] = useState<TabsCached>({ triggers: [] });
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_STATE);
+
+  const setSetting = useCallback(
+    (key: keyof SettingsState, value: SettingsState[keyof SettingsState]) => {
+      setSettings((prev) => ({ ...prev, [key]: value }));
+    },
+    [],
+  );
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -129,6 +137,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setSetting("isConnected", res.is_connected);
         setSetting("yjsProviderEnabled", res.yjs_provider_enabled);
         setSetting("developerMode", res.developer_mode);
+        setSetting("historyEnabled", res.history_enabled === true);
+        setSetting("journeysRetentionMonths", Number(res.journeys_retention_months) || 3);
         setSetting("lastError", res.last_error ?? null);
       } catch (error: any) {
         setSetting("noticeMessage", {
@@ -141,14 +151,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       }
     };
     fetchSettings();
-  }, []);
-
-  function setSetting(
-    key: keyof SettingsState,
-    value: SettingsState[keyof SettingsState],
-  ) {
-    setSettings((prev) => ({ ...prev, [key]: value }));
-  }
+  }, [setSetting]);
 
   const disconnectTask = useTask(disconnect, {
     success: __("Disconnected from WPSignal.", "wordsocket"),
@@ -159,30 +162,39 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       setSetting("isConnected", false);
       setSetting("fetchStatus", "disconnected");
     },
-    // The server refused or was unreachable: credentials are still stored,
-    // so the site stays connected and the user can retry.
+    /*
+     * The server refused or was unreachable: credentials are still stored, so the site stays
+     * connected and the user can retry.
+     */
     onError: () => setSetting("fetchStatus", "idle"),
   });
 
-  const handleDisconnect = async (): Promise<void> => {
-    // The confirmation row has served its purpose once Disconnect is clicked;
-    // clearing it here means a later reconnect starts from the plain button.
+  const runDisconnect = disconnectTask.run;
+  const handleDisconnect = useCallback(async (): Promise<void> => {
+    /*
+     * The confirmation row has served its purpose once Disconnect is clicked; clearing it here
+     * means a later reconnect starts from the plain button.
+     */
     setSetting("confirmDisconnect", false);
     setSetting("fetchStatus", "disconnecting");
     setSetting("noticeMessage", null);
-    await disconnectTask.run();
-  };
+    await runDisconnect();
+  }, [runDisconnect, setSetting]);
+
+  /* One value per change of state, so every tab and extension does not re-render per keystroke elsewhere. */
+  const value = useMemo(
+    () => ({
+      ...settings,
+      setSetting,
+      handleDisconnect,
+      tabsCache,
+      setTabsCache,
+    }),
+    [settings, setSetting, handleDisconnect, tabsCache],
+  );
 
   return (
-    <SettingsContext.Provider
-      value={{
-        ...settings,
-        setSetting,
-        handleDisconnect,
-        tabsCache,
-        setTabsCache,
-      }}
-    >
+    <SettingsContext.Provider value={value}>
       {children}
     </SettingsContext.Provider>
   );

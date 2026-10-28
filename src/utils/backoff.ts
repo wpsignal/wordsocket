@@ -29,7 +29,10 @@ export class Backoff {
 
   /** Register a failure and return the delay to wait before the next attempt. */
   next(): number {
-    const ceiling = Math.min(this.capMs, this.baseMs * this.factor ** this.attempts);
+    const ceiling = Math.min(
+      this.capMs,
+      this.baseMs * this.factor ** this.attempts,
+    );
     this.attempts += 1;
     this.lastDelay = Math.round(ceiling / 2 + Math.random() * (ceiling / 2));
     return this.lastDelay;

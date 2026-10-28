@@ -24,15 +24,17 @@
   "dependencies": {
     "@noble/ciphers": "^2.4.0",
     "@wordpress/api-fetch": "^7.0.0",
-    "@wordpress/components": "^28.0.0",
+    "@wordpress/components": "^40.1.0",
     "@wordpress/data": "^10.57.0",
+    "@wordpress/dataviews": "^19.1.0",
     "@wordpress/i18n": "^5.0.0",
+    "@wordpress/icons": "^18.0.0",
     "@wordpress/notices": "^5.57.0",
-    "@wordpress/ui": "^0.10.0",
+    "@wordpress/ui": "^0.24.0",
     "y-protocols": "^1.0.7"
   },
   "engines": {
     "node": ">=22.19.0",
-    "npm": "^10"
+    "npm": "^10 || ^11"
   }
 }

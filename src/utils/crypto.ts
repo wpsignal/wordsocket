@@ -26,7 +26,13 @@ export type Decryptor = (payload: Bytes) => Promise<Uint8Array>;
 export async function createDecryptor(rawKey: Bytes): Promise<Decryptor> {
   if (typeof crypto !== "undefined" && crypto.subtle) {
     try {
-      const key = await crypto.subtle.importKey("raw", rawKey, { name: "AES-GCM" }, false, ["decrypt"]);
+      const key = await crypto.subtle.importKey(
+        "raw",
+        rawKey,
+        { name: "AES-GCM" },
+        false,
+        ["decrypt"],
+      );
       return async (payload) => {
         const plain = await crypto.subtle.decrypt(
           { name: "AES-GCM", iv: payload.slice(0, IV_BYTES) },
@@ -39,5 +45,6 @@ export async function createDecryptor(rawKey: Bytes): Promise<Decryptor> {
       // A key SubtleCrypto refuses is still a valid AES key: fall through.
     }
   }
-  return async (payload) => gcm(rawKey, payload.slice(0, IV_BYTES)).decrypt(payload.slice(IV_BYTES));
+  return async (payload) =>
+    gcm(rawKey, payload.slice(0, IV_BYTES)).decrypt(payload.slice(IV_BYTES));
 }

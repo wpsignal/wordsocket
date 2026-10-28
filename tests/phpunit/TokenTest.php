@@ -49,6 +49,15 @@ final class TokenTest extends WordSocketTestCase {
 		$this->assertSame( array( 'site:' . $site_id . ':' ), $payload['allowed_publish_prefixes'] );
 		$this->assertSame( 300, $payload['exp'] - $payload['iat'] );
 		$this->assertSame( $payload['exp'], $minted['exp'] );
+
+		$shorter = static fn(): int => 120;
+		add_filter( 'wpsignal_token_lifetime', $shorter );
+		try {
+			$short = $this->token()->mint();
+		} finally {
+			remove_filter( 'wpsignal_token_lifetime', $shorter );
+		}
+		$this->assertSame( 120, $short['exp'] - time(), 'the lifetime follows the filter' );
 		$this->assertSame( array( 'site:' . $site_id . ':events' ), $minted['channels'] );
 
 		list( $h, $p ) = explode( '.', $minted['token'] );

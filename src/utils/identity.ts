@@ -22,12 +22,18 @@ export function uuid(): string {
   if (crypto?.getRandomValues) {
     crypto.getRandomValues(bytes);
   } else {
-    for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+    for (let i = 0; i < bytes.length; i++)
+      bytes[i] = Math.floor(Math.random() * 256);
   }
   bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
   bytes[8] = (bytes[8] & 0x3f) | 0x80; // RFC 4122 variant
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
+    "",
+  );
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(
+    12,
+    16,
+  )}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 /*
@@ -60,4 +66,17 @@ export function visitorId(): string {
  */
 export function onChannel(channel: string, expected: string): boolean {
   return channel === expected || channel.endsWith(`:${expected}`);
+}
+
+/* User agents of crawlers, link previewers and page-speed tools; never `navigator.webdriver` or a headless agent. */
+const CRAWLER =
+  /bot(?:[/\-;)]|$)|crawl|spider|slurp|bingpreview|facebookexternalhit|lighthouse|pagespeed|gtmetrix|pingdom/i;
+
+/**
+ * Whether this browser announces itself as a crawler, so nothing live should run for it.
+ *
+ * @since 0.31.0
+ */
+export function isCrawler(): boolean {
+  return CRAWLER.test(navigator.userAgent ?? "");
 }

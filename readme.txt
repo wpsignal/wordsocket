@@ -169,6 +169,14 @@ Each plan has a monthly message quota. When it is reached the server answers pub
 
 The client falls back to SSE for receiving events. `window.WPS.subscribe()` and `window.WPS.unsubscribe()` work on SSE connections: channel changes are tracked and applied immediately via a lightweight SSE reconnect (50 ms debounce). Collaborative editing needs WebSocket, because SSE is receive-only: if the editor opens while the client is on SSE, collaboration stays off for that editor until the page is reloaded with WebSocket available. You can also disable the collaboration provider from the **WordSocket Settings tab** to use Gutenberg's HTTP polling for all editors instead.
 
+= What does History keep? =
+
+Nothing until you switch it on (Journeys tab). On, each visit is kept as a journey: the pages opened as ids with the time on each, when the tab was hidden, how the visit ended, and the moments that fired, under a random browser id, linked to the account for the visits the visitor was logged in. Never a URL, a title or a search term. It stays in your own database for the months you set (3 by default) and the privacy tools under Tools can export and erase a person's journeys.
+
+= What are moments? =
+
+A moment watches each visitor in their own browser and steps in when its conditions come true: show text or a synced pattern as a modal, banner, bar, toast or panel, and, with "Flash the tab title" switched on, follow the visitor to a hidden tab (the title flashes and the favicon is badged until they return; the prompt is already there when they do). A synced pattern a switched-on moment shows is served to any visitor who asks for it. Conditions cover the page (its kind, a page id, a term id, a taxonomy archive), time on it while visible or while hidden, pages so far, what was seen earlier, the time of day on the site's clock or the visitor's, the day of the week, new or returning, logged in, and the device. Extensions add their own, and ShopSocket adds the cart.
+
 == Screenshots ==
 
 1. Connect tab (Automatic): one-click connection flow. Log in to your WPSignal dashboard and authorize the site with a single button.
@@ -179,6 +187,24 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 6. Explorer tab (connected): live Event Log showing an active WebSocket connection and an incoming encrypted event, with a test event published successfully.
 
 == Changelog ==
+
+= 0.31.0 =
+* New for extensions: `WPS.recovery` shows a prompt as a modal, banner, bar, toast or slide-in panel, flashes the tab title, badges the favicon or plays a chime, and `WPS.attention` says whether the visitor is on the page, in another window or on a hidden tab. Nothing shows until a moment or an extension asks
+* New: moments. A moment names conditions about the visitor (the page, including a post type's archive, a taxonomy or a date or author archive, a page or term id, time on the page while visible or while hidden, pages so far, what was seen earlier, the time of day by the site's clock or the visitor's, the day of the week, new or returning, logged in, the device) and shows text or a synced pattern as a modal, banner, bar, toast or panel. "Flash the tab title" makes a moment that fires on a hidden tab flash the title and badge the favicon until the visitor returns; the prompt opens when its action runs and is there on the return. Only enabled moments reach browsers, and nothing shows until one is on.
+* New for extensions: the visit report a tracked page sends now answers with whatever `wpsignal_visitor_visit_response` adds, read in the browser through `tracker.onVisit()`, so a plugin gets its own state in the request every page already makes instead of a second one. The `report` option may be a function, so a plugin reports only the visitors it would store.
+* New: beside the builder, "Where it fired" shows what a moment has done over the stored journeys: how often it showed, how many came back, dismissed it or clicked, and the orders it led to, each on the shopper's journey; the Moments list says how often each fired.
+* New: Journeys. Switch on "Keep a history of journeys" on the new Journeys tab and WordSocket keeps each visit on your own site: the pages a visitor opened and how long they stayed, under a random browser id, linked to their account for the visits they were logged in, for the months you choose (3 by default). The tab then shows the last 28 days three ways: where journeys go (every visit as a path through your pages to how it ended), how the weeks are going (visits day by day with the 7-day average, and every journey as a dot), and when visitors are here (the week by hour, on your clock), each with a table beside the chart. Moments are recorded on the journey they fired in, so the Moments tab can replay a moment over your own visitors before you switch it on and show what it did afterwards. WordPress's privacy tools export and erase a visitor's journeys; nothing leaves your site. Off by default; off, WordSocket keeps nothing of a visit, as before.
+* New for extensions: `WPS::journeys()` to put a reference and a value on a journey, end it with an outcome of their own (an order), credit the moments that led there, and have it drawn and named on the Journeys tab.
+* Fewer requests per page: moving between pages of your site no longer sends a leave report, and a visitor's browser keeps its connection token for the next page rather than asking for a new one on every page a cache serves. The token's 5-minute life can be changed with the `wpsignal_token_lifetime` filter, at the cost of a longer window before a logged-out user's grants lapse.
+* New for extensions: a firing report says how far into its step the moment fired, so a store can place it exactly on the journey, and the same route reports what the visitor did with the prompt: came back to the tab, dismissed it, or clicked something inside it.
+* Fixed: a crawler rendering a page (Bing, Google, link previews, page-speed tools) no longer opens a connection, counts as a visitor or triggers a moment.
+* Fixed: a link to an extension's settings tab (`&tab=shopsocket`) opens that tab every time; it used to land on Connect more often than not.
+* Fixed: the trigger builder's file now refuses direct access, the one error WordPress's Plugin Check reported.
+
+= 0.30.0 =
+* New for extensions: `WPS.presence.track( channel )` follows a visitor's journey across the site over relay presence (the pages they open, with times, and when the tab is hidden) and reports each visit and leave to WordPress, where the `wpsignal_visitor_visit` and `wpsignal_visitor_leave` actions let a plugin store it. WordSocket stores nothing itself
+* New: the `wpsignal_page_step` filter names the step a page is in a journey
+* Fixed: a visitor page served from a full-page cache could fail to refresh its connection token because it carried a stale REST nonce; the nonce is now printed for logged-in visitors only
 
 = 0.29.1 =
 * Fixed: "Connect with WPSignal" on the Connect tab led to "The link you followed has expired" since 0.29.0, because the authorization link's nonce was HTML-escaped. Manual connection with an API key was unaffected

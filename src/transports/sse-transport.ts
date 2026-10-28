@@ -38,7 +38,10 @@ export class SseTransport implements WPSTransport {
     this.token = token;
     channels.forEach((channel) => this.channels.add(channel));
 
-    const url = withQuery(this.sseUrl, { token, channels: [...this.channels].join(",") });
+    const url = withQuery(this.sseUrl, {
+      token,
+      channels: [...this.channels].join(","),
+    });
     const source = new EventSource(url);
     this.source = source;
 
@@ -68,7 +71,11 @@ export class SseTransport implements WPSTransport {
        */
       this.browserRetries += 1;
       if (this.browserRetries >= MAX_BROWSER_RETRIES) {
-        wpsDebug(`SSE unreachable after ${this.browserRetries} browser retries, handing over to the client`, null, "warn");
+        wpsDebug(
+          `SSE unreachable after ${this.browserRetries} browser retries, handing over to the client`,
+          null,
+          "warn",
+        );
         source.close();
         this.source = null;
         this.callbacks.onClose({ wasOpen: this.didOpen });
@@ -87,7 +94,11 @@ export class SseTransport implements WPSTransport {
      */
     source.addEventListener("message", (event: MessageEvent) => {
       try {
-        const frame = JSON.parse(event.data) as { event?: unknown; channel?: unknown; data?: unknown };
+        const frame = JSON.parse(event.data) as {
+          event?: unknown;
+          channel?: unknown;
+          data?: unknown;
+        };
         if (typeof frame.event !== "string") {
           wpsDebug("SSE frame without an event name", event.data, "warn");
           return;

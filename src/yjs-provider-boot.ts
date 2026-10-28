@@ -17,11 +17,15 @@
  */
 
 import { addFilter } from "@wordpress/hooks";
-import { wpsignalProviderCreator, SSE_FALLBACK_ERROR_CODE } from "./yjs-provider";
+import {
+  wpsignalProviderCreator,
+  SSE_FALLBACK_ERROR_CODE,
+} from "./yjs-provider";
 import { wpsDebug } from "./utils";
 
-const rtcFlag = (window as { __experimentalEnableRealTimeCollaboration?: boolean })
-  .__experimentalEnableRealTimeCollaboration;
+const rtcFlag = (
+  window as { __experimentalEnableRealTimeCollaboration?: boolean }
+).__experimentalEnableRealTimeCollaboration;
 
 if (rtcFlag === false) {
   wpsDebug(

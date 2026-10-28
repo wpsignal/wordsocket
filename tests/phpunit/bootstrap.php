@@ -32,6 +32,19 @@ $_SERVER['HTTP_HOST']      = $_SERVER['HTTP_HOST'] ?? 'localhost';
 $_SERVER['REQUEST_METHOD'] = 'GET';
 $_SERVER['REQUEST_URI']    = '/';
 
+/*
+ * Load WordPress with WordSocket as the only active plugin.
+ */
+$GLOBALS['wp_filter']['option_active_plugins'][10][] = array(
+	'function'      => static fn( $plugins ) => array_values(
+		array_filter(
+			(array) $plugins,
+			static fn( $plugin ): bool => is_string( $plugin ) && str_starts_with( $plugin, 'wordsocket/' )
+		)
+	),
+	'accepted_args' => 1,
+);
+
 require_once $wp_root . '/wp-load.php';
 
 if ( ! in_array( wp_get_environment_type(), array( 'local', 'development' ), true ) ) {

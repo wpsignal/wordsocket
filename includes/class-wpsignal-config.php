@@ -233,18 +233,85 @@ class Config {
 	}
 
 	/**
-	 * Whether the settings page shows its developer tabs (Triggers, Explorer).
-	 *
-	 * Off by default: a site owner installing an extension has no use for
-	 * hook wiring or a live event console, and both read as "what is this
-	 * for" (tester feedback, 2026-10-15). A developer switches it on once,
-	 * on the Settings tab.
+	 * Whether the settings page shows its developer tabs (Triggers, Explorer); off by default.
 	 *
 	 * @return bool
 	 */
 	public function developer_mode(): bool {
 		return (bool) get_option( 'wpsignal_developer_mode', false );
 	}
+
+	/**
+	 * Whether journeys are kept on the site (the Journeys tab's switch); off by default.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return bool
+	 */
+	public function history_enabled(): bool {
+		return (bool) get_option( 'wpsignal_history_enabled', false );
+	}
+
+	/**
+	 * How many months a journey is kept, 1 to 36; 3 by default.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return int
+	 */
+	public function journeys_retention_months(): int {
+		return min( 36, max( 1, (int) get_option( 'wpsignal_journeys_retention_months', 3 ) ) );
+	}
+
+	/**
+	 * The journeys table's `dbDelta` version as installed, empty before the first install.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return string
+	 */
+	public function db_version(): string {
+		return (string) get_option( 'wpsignal_db_version', '' );
+	}
+
+	/**
+	 * Record the journeys table's version; autoloaded, since every request compares it.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string $version The version installed.
+	 * @return void
+	 */
+	public function save_db_version( string $version ): void {
+		update_option( 'wpsignal_db_version', $version, true );
+	}
+
+	/**
+	 * The saved rules (0.31): `{ version, rules, removed }`, in shape whatever is stored.
+	 *
+	 * @return array{version: int, rules: array, removed: string[]}
+	 */
+	public function rules(): array {
+		$saved = get_option( 'wpsignal_rules', array() );
+		$saved = is_array( $saved ) ? $saved : array();
+		return array(
+			'version' => (int) ( $saved['version'] ?? 0 ),
+			'rules'   => array_values( array_filter( (array) ( $saved['rules'] ?? array() ), 'is_array' ) ),
+			'removed' => array_values( array_map( 'strval', (array) ( $saved['removed'] ?? array() ) ) ),
+		);
+	}
+
+	/**
+	 * Write the rules option.
+	 *
+	 * @param array $saved `{ version, rules, removed }`.
+	 * @return void
+	 */
+	public function save_rules( array $saved ): void {
+		// Autoloaded: `Rules::config()` reads it on every front-end page view.
+		update_option( 'wpsignal_rules', $saved, true );
+	}
+
 
 	/**
 	 * Check whether the WordPress sync engine (real-time collaboration) is

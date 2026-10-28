@@ -5,6 +5,9 @@ import { readFile, writeFile } from "node:fs/promises";
 import { existsSync, symlinkSync } from "node:fs";
 import { resolve } from "node:path";
 
+/** Plugins the setup deactivated for the run, for the teardown to reactivate. */
+export const PARKED_PLUGINS_FILE = resolve(__dirname, "../../artifacts/parked-plugins.json");
+
 /**
  * Same job as @wordpress/scripts' global setup (log in through RequestUtils
  * and store the session), plus the rehearsal wiring:
@@ -46,6 +49,23 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   }
   // The specs open the Explorer tab, which only developer mode lists.
   wp("option", "update", "wpsignal_developer_mode", "1");
+
+  /*
+   * WordSocket and its stub alone: the specs assert what a bare site does (an
+   * anonymous visitor gets no token, a token lists only the stub's channels),
+   * and another plugin on the site (the presence lab opens the token route to
+   * guests) would fail them. Whatever is parked here is reactivated by the
+   * global teardown; the list lives in a file so a killed run can be repaired.
+   */
+  const keep = new Set(["wordsocket", "wordsocket-stub-extension"]);
+  const parked = wp("plugin", "list", "--status=active", "--field=name")
+    .split("\n")
+    .map((name) => name.trim())
+    .filter((name) => name !== "" && !keep.has(name));
+  await writeFile(PARKED_PLUGINS_FILE, JSON.stringify(parked), "utf8");
+  for (const name of parked) {
+    wp("plugin", "deactivate", name);
+  }
 
   if (wp("user", "list", `--login=${WP_USERNAME}`, "--field=user_login") !== WP_USERNAME) {
     wp("user", "create", WP_USERNAME, `${WP_USERNAME}@example.com`, "--role=administrator", `--user_pass=${WP_PASSWORD}`);

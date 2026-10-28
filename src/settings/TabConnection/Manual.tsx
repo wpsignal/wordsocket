@@ -3,6 +3,7 @@
  */
 import { __ } from "@wordpress/i18n";
 import { Button, TextControl } from "@wordpress/components";
+import { Stack, Text } from "@wordpress/ui";
 import { createInterpolateElement } from "@wordpress/element";
 
 /**
@@ -61,11 +62,18 @@ export default function Manual({ title = null }: { title?: string | null }) {
   }
 
   return (
-    <>
-      {title && <h3>{title}</h3>}
-      <p>
-      {!isSsl &&
-          __("To use automatic OAuth, you'll need to enable SSL for this site.", "wordsocket")}{" "}
+    <Stack direction="column" gap="md" align="stretch">
+      {title && (
+        <Text variant="heading-md" render={<h3 />}>
+          {title}
+        </Text>
+      )}
+      <Text render={<p />}>
+        {!isSsl &&
+          __(
+            "To use automatic OAuth, you'll need to enable SSL for this site.",
+            "wordsocket",
+          )}{" "}
         {createInterpolateElement(
           __(
             "Alternatively, copy your API key from the <a>WPSignal dashboard</a> and paste it here.",
@@ -80,26 +88,27 @@ export default function Manual({ title = null }: { title?: string | null }) {
               />
             ),
           },
-        )}       
-      </p>
+        )}
+      </Text>
       <TextControl
-        className={`wpsignal-connection-input${
-          fetchStatus === "connecting" ? " is-loading" : ""
-        }`}
         label={__("API Key", "wordsocket")}
+        disabled={fetchStatus === "connecting"}
         value={apiKey}
         maxLength={64}
         onChange={(value: string) => setSetting("apiKey", value)}
         help={
           isMaskedKey(apiKey)
-            ? __("A key is already saved. Paste a new one to replace it.", "wordsocket")
+            ? __(
+                "A key is already saved. Paste a new one to replace it.",
+                "wordsocket",
+              )
             : undefined
         }
         type={isMaskedKey(apiKey) ? "text" : "password"}
         __nextHasNoMarginBottom
         __next40pxDefaultSize
       />
-      <div className="wpsignal-connection-actions">
+      <Stack direction="row" gap="sm">
         <Button
           variant="secondary"
           onClick={handleApiKeyConnect}
@@ -108,7 +117,7 @@ export default function Manual({ title = null }: { title?: string | null }) {
         >
           {__("Save Settings", "wordsocket")}
         </Button>
-      </div>
-    </>
+      </Stack>
+    </Stack>
   );
 }
