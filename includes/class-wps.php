@@ -192,6 +192,7 @@ class WPS {
 		add_action( 'init', array( $this->rules_instance, 'register_defaults' ), 5 );
 		$this->journeys_instance = new Journeys( $this->config_instance );
 		$this->journeys_instance->init();
+		Cli::register();
 		$this->client_instance  = new Client( $this->config_instance, $this->token_instance, $this->presence_instance, $this->rules_instance );
 		$this->admin_instance   = new Admin_Page( $this->config_instance );
 		$this->connect_instance = new Connect( $this->config_instance );
