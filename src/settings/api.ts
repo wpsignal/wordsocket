@@ -91,6 +91,15 @@ export function getJourneyVisuals(): Promise<import("./types").JourneyVisuals | 
 }
 
 /**
+ * One page of the window's journeys for the network, newest first; null with History off.
+ *
+ * @since 0.31.0
+ */
+export function getJourneyPage(page: number): Promise<{ journeys: import("./types").JourneyRow[] | null }> {
+  return apiFetch({ path: `/wpsignal/v1/journeys/visuals/journeys?page=${page}` });
+}
+
+/**
  * The stored journeys for the Moments tab's replay.
  *
  * @since 0.31.0

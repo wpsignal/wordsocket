@@ -835,17 +835,16 @@ class Journeys {
 		if ( is_array( $cached ) ) {
 			return $cached;
 		}
-		$tz    = wp_timezone();
-		$start = ( new \DateTimeImmutable( 'now', $tz ) )->setTime( 0, 0 )->sub( new \DateInterval( 'P' . ( self::VISUALS_DAYS - 1 ) . 'D' ) );
-		$since = $start->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
-		$days  = array();
-		for ( $i = 0; $i < self::VISUALS_DAYS; $i++ ) {
-			$days[ $start->add( new \DateInterval( 'P' . $i . 'D' ) )->format( 'Y-m-d' ) ] = array(
+		list( $tz, $since, $dates ) = self::window();
+
+		$days  = array_fill_keys(
+			$dates,
+			array(
 				'visits'   => 0,
 				'left_ref' => 0,
 				'outcomes' => array(),
-			);
-		}
+			)
+		);
 		$hours = array_fill(
 			0,
 			7,
@@ -860,7 +859,7 @@ class Journeys {
 			)
 		);
 		$total = $this->bucket( $since, $tz, $days, $hours );
-		$list  = $this->newest( $since, $tz, array_keys( $days ), $hours );
+		$list  = $this->listed( $since, $tz, $dates, 0, $hours );
 		foreach ( $hours as &$row ) {
 			foreach ( $row as &$cell ) {
 				$cell['minutes'] = (int) round( $cell['minutes'] );
@@ -883,6 +882,40 @@ class Journeys {
 		);
 		set_transient( self::VISUALS_TRANSIENT, $visuals, self::CACHE_TTL );
 		return $visuals;
+	}
+
+	/**
+	 * One page of the window's journeys for the network, VISUALS_JOURNEYS to a page, newest first;
+	 * null with History off.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param int $page The page, 1 the newest.
+	 * @return array<int, array<string, mixed>>|null
+	 */
+	public function visuals_page( int $page ): ?array {
+		if ( ! $this->enabled() ) {
+			return null;
+		}
+		list( $tz, $since, $dates ) = self::window();
+		return $this->listed( $since, $tz, $dates, max( 0, $page - 1 ) * self::VISUALS_JOURNEYS );
+	}
+
+	/**
+	 * The visuals' window: the site's timezone, its start as SQL UTC, and its local dates, oldest first.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return array{0: \DateTimeZone, 1: string, 2: string[]}
+	 */
+	private static function window(): array {
+		$tz    = wp_timezone();
+		$start = ( new \DateTimeImmutable( 'now', $tz ) )->setTime( 0, 0 )->sub( new \DateInterval( 'P' . ( self::VISUALS_DAYS - 1 ) . 'D' ) );
+		$dates = array();
+		for ( $i = 0; $i < self::VISUALS_DAYS; $i++ ) {
+			$dates[] = $start->add( new \DateInterval( 'P' . $i . 'D' ) )->format( 'Y-m-d' );
+		}
+		return array( $tz, $start->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' ), $dates );
 	}
 
 	/**
@@ -931,24 +964,26 @@ class Journeys {
 	}
 
 	/**
-	 * The newest journeys of the window for the network, each placed on its local day and minute,
-	 * pouring their time on the site into the grid's minutes.
+	 * VISUALS_JOURNEYS of the window's journeys from an offset, newest first, each placed on its local
+	 * day and minute, pouring their time on the site into the grid's minutes when a grid is given.
 	 *
 	 * @since 0.31.0
 	 *
-	 * @param string        $since Window start, SQL UTC.
-	 * @param \DateTimeZone $tz    The site's timezone.
-	 * @param string[]      $dates The window's local dates, oldest first.
-	 * @param array         $hours Weekday by hour cells, minutes added in place.
+	 * @param string        $since  Window start, SQL UTC.
+	 * @param \DateTimeZone $tz     The site's timezone.
+	 * @param string[]      $dates  The window's local dates, oldest first.
+	 * @param int           $offset Journeys to skip.
+	 * @param array|null    $hours  Weekday by hour cells, minutes added in place.
 	 * @return array<int, array<string, mixed>>
 	 */
-	private function newest( string $since, \DateTimeZone $tz, array $dates, array &$hours ): array {
+	private function listed( string $since, \DateTimeZone $tz, array $dates, int $offset = 0, ?array &$hours = null ): array {
 		global $wpdb;
 		$rows  = (array) $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT journey, started_at, outcome, ref, value FROM ' . self::table() . ' WHERE started_at >= %s ORDER BY started_at DESC LIMIT %d',
+				'SELECT journey, started_at, outcome, ref, value FROM ' . self::table() . ' WHERE started_at >= %s ORDER BY started_at DESC, journey_id LIMIT %d OFFSET %d',
 				$since,
-				self::VISUALS_JOURNEYS
+				self::VISUALS_JOURNEYS,
+				$offset
 			),
 			ARRAY_A
 		);
@@ -967,7 +1002,9 @@ class Journeys {
 				'day'        => $index[ $local->format( 'Y-m-d' ) ] ?? -1,
 				'minute'     => 60 * (int) $local->format( 'G' ) + (int) $local->format( 'i' ),
 			);
-			self::pour( (string) $row['journey'], $started->getTimestamp(), $tz, $hours );
+			if ( null !== $hours ) {
+				self::pour( (string) $row['journey'], $started->getTimestamp(), $tz, $hours );
+			}
 		}
 		return $list;
 	}
@@ -1154,7 +1191,7 @@ class Journeys {
 	}
 
 	/**
-	 * Register `GET /wpsignal/v1/journeys` (the replay's feed) and `/journeys/visuals` (the Journeys tab).
+	 * Register `GET /wpsignal/v1/journeys` (the replay's feed), `/journeys/visuals` and `/journeys/visuals/journeys` (the Journeys tab).
 	 *
 	 * @since 0.31.0
 	 *
@@ -1197,6 +1234,25 @@ class Journeys {
 			array(
 				'methods'             => 'GET',
 				'callback'            => fn() => rest_ensure_response( $this->visuals() ),
+				'permission_callback' => $staff,
+			)
+		);
+		register_rest_route(
+			'wpsignal/v1',
+			'/journeys/visuals/journeys',
+			array(
+				'methods'             => 'GET',
+				'args'                => array(
+					'page' => array(
+						'type'     => 'integer',
+						'required' => true,
+						'minimum'  => 1,
+						'maximum'  => 1000,
+					),
+				),
+				'callback'            => fn( WP_REST_Request $request ) => rest_ensure_response(
+					array( 'journeys' => $this->visuals_page( (int) $request->get_param( 'page' ) ) )
+				),
 				'permission_callback' => $staff,
 			)
 		);

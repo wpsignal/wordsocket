@@ -6,7 +6,7 @@
 /**
  * WordPress dependencies.
  */
-import { __ } from "@wordpress/i18n";
+import { __, sprintf } from "@wordpress/i18n";
 import { useEffect, useMemo, useState } from "@wordpress/element";
 import { TextControl, ToggleControl } from "@wordpress/components";
 import { Card, CollapsibleCard, Spinner, Stack, Text } from "@wordpress/ui";
@@ -16,17 +16,28 @@ import { Card, CollapsibleCard, Spinner, Stack, Text } from "@wordpress/ui";
  */
 import { TabHeading } from "../TabHeading";
 import { saveSettings } from "../api";
+import type { JourneyRow } from "../types";
 import { useSettings } from "../context";
 import { useSettingSwitch } from "../TabSettings/useSettingSwitch";
 import { useTask } from "../useTask";
 import { readUrlParam } from "../useUrlParam";
-import { DEFAULT_FILTERS, parseJourneys, type NetworkFilters, type Outcome } from "./journeys";
+import {
+  DEFAULT_FILTERS,
+  parseJourneys,
+  type NetworkFilters,
+  type Outcome,
+  type VisualJourney,
+} from "./journeys";
 import { Network } from "./Network";
+import { dayLabel } from "./chart";
 import { Trends } from "./Trends";
 import { Hours } from "./Hours";
-import { useVisuals } from "./useVisuals";
+import { useJourneyPage, useVisuals } from "./useVisuals";
 
 const MONTHS_MIN = 1;
+/** Journeys to a page of the network, as `Journeys::VISUALS_JOURNEYS` lists them. */
+const PAGE_SIZE = 1000;
+const NO_ROWS: JourneyRow[] = [];
 const MONTHS_MAX = 36;
 
 /** The History card: the switch, and the months while it is on. */
@@ -37,14 +48,27 @@ function HistoryCard() {
   });
   const { journeysRetentionMonths, setSetting } = useSettings();
   const [draft, setDraft] = useState(String(journeysRetentionMonths));
-  useEffect(() => setDraft(String(journeysRetentionMonths)), [journeysRetentionMonths]);
-  const saveMonths = useTask((months: number) => saveSettings({ journeys_retention_months: months }), {
-    success: __("Settings saved.", "wordsocket"),
-    error: __("Failed to save settings.", "wordsocket"),
-    onSuccess: (res) => setSetting("journeysRetentionMonths", Number(res.journeys_retention_months) || journeysRetentionMonths),
-  });
+  useEffect(
+    () => setDraft(String(journeysRetentionMonths)),
+    [journeysRetentionMonths],
+  );
+  const saveMonths = useTask(
+    (months: number) => saveSettings({ journeys_retention_months: months }),
+    {
+      success: __("Settings saved.", "wordsocket"),
+      error: __("Failed to save settings.", "wordsocket"),
+      onSuccess: (res) =>
+        setSetting(
+          "journeysRetentionMonths",
+          Number(res.journeys_retention_months) || journeysRetentionMonths,
+        ),
+    },
+  );
   const commit = () => {
-    const months = Math.min(MONTHS_MAX, Math.max(MONTHS_MIN, Number(draft) || MONTHS_MIN));
+    const months = Math.min(
+      MONTHS_MAX,
+      Math.max(MONTHS_MIN, Number(draft) || MONTHS_MIN),
+    );
     setDraft(String(months));
     if (months !== journeysRetentionMonths) void saveMonths.run(months);
   };
@@ -54,13 +78,15 @@ function HistoryCard() {
         <Card.Title>{__("History", "wordsocket")}</Card.Title>
       </CollapsibleCard.Header>
       <CollapsibleCard.Content>
-        <Stack direction="column" gap="md">
+        <Stack direction="column" gap="lg">
+          <Text variant="body-sm" className="wpsignal-muted" render={<p />}>
+            {__(
+              "History keeps a record of every visit to your site, including the pages they visited and how long they stayed. It helps you understand your visitors and their behavior, and can be used to improve your conversion rate.",
+            "wordsocket",
+            )}
+          </Text>
           <ToggleControl
             label={__("Keep a history of journeys", "wordsocket")}
-            help={__(
-              "Off: WordSocket keeps nothing of a visit. On: the pages each visitor opens and how long they stay, as page ids and durations under a random browser id, stay in your own database for the months you choose, linked to the account for the visits they were logged in. Nothing leaves your site; WordPress's privacy tools export and erase it. Moments are recorded on the journey they fired in.",
-              "wordsocket",
-            )}
             checked={history.checked}
             disabled={history.isPending}
             onChange={history.change}
@@ -91,7 +117,15 @@ function HistoryCard() {
 }
 
 /** One visual in its card: a title, the one sentence on what it is for, the chart. */
-function VisualCard({ title, lede, children }: { title: string; lede: string; children: React.ReactNode }) {
+function VisualCard({
+  title,
+  lede,
+  children,
+}: {
+  title: string;
+  lede: string;
+  children: React.ReactNode;
+}) {
   return (
     <Card.Root className="wpsignal-visual">
       <Card.Header>
@@ -119,23 +153,49 @@ function filtersFromUrl(): NetworkFilters {
   };
 }
 
+/** The local days a page of journeys spans, oldest first, as "21 Oct to 27 Oct". */
+function rangeOf(
+  journeys: VisualJourney[],
+  days: Array<{ date: string }>,
+): string {
+  const newest = days[journeys[0]?.day ?? -1]?.date;
+  const oldest = days[journeys[journeys.length - 1]?.day ?? -1]?.date;
+  if (!newest || !oldest) return "";
+  if (newest === oldest) return dayLabel(newest, false);
+  /* translators: 1: the oldest day, 2: the newest day */
+  return sprintf(
+    __("%1$s to %2$s", "wordsocket"),
+    dayLabel(oldest, false),
+    dayLabel(newest, false),
+  );
+}
+
 /** The three visuals over the loaded figures. */
 function Visuals() {
   const { data, loading, error } = useVisuals(true);
   const [filters, setFilters] = useState<NetworkFilters>(filtersFromUrl);
   const journeys = useMemo(() => parseJourneys(data?.journeys ?? []), [data]);
+  const [page, setPage] = useState(1);
+  const paged = useJourneyPage(page, data?.journeys ?? NO_ROWS);
+  const pageJourneys = useMemo(() => parseJourneys(paged.rows), [paged.rows]);
   if (loading) return <Spinner />;
   if (error) {
     return (
       <Text variant="body-sm" className="wpsignal-muted">
-        {__("The journeys could not be loaded. Reload the page to try again.", "wordsocket")}
+        {__(
+          "The journeys could not be loaded. Reload the page to try again.",
+          "wordsocket",
+        )}
       </Text>
     );
   }
   if (!data || data.total === 0) {
     return (
       <Text variant="body-sm" className="wpsignal-muted">
-        {__("No journey in the last 28 days yet. A journey is written for every visit while History is on.", "wordsocket")}
+        {__(
+          "No journey in the last 28 days yet. A journey is written for every visit while History is on.",
+          "wordsocket",
+        )}
       </Text>
     );
   }
@@ -149,9 +209,18 @@ function Visuals() {
         )}
       >
         <Network
-          journeys={journeys}
+          journeys={pageJourneys}
           filters={filters}
           onFilters={setFilters}
+          pager={{
+            page: paged.page,
+            pages: Math.ceil(data.total / PAGE_SIZE),
+            size: PAGE_SIZE,
+            range: rangeOf(pageJourneys, data.days),
+            loading: paged.loading,
+            error: paged.error,
+            onPage: setPage,
+          }}
           total={data.total}
           outcomes={data.outcomes}
           kinds={data.kinds}
@@ -164,14 +233,18 @@ function Visuals() {
           "wordsocket",
         )}
       >
-        <Trends days={data.days} journeys={journeys} total={data.total} outcomes={data.outcomes} ref={data.ref} kinds={data.kinds} />
+        <Trends
+          days={data.days}
+          journeys={journeys}
+          total={data.total}
+          outcomes={data.outcomes}
+          ref={data.ref}
+          kinds={data.kinds}
+        />
       </VisualCard>
       <VisualCard
         title={__("When visitors are here", "wordsocket")}
-        lede={__(
-          "The week by hour on your clock.",
-          "wordsocket",
-        )}
+        lede={__("The week by hour on your clock.", "wordsocket")}
       >
         <Hours
           hours={data.hours}

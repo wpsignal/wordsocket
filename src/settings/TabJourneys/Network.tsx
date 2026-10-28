@@ -17,7 +17,8 @@ import {
   useRef,
   useState,
 } from "@wordpress/element";
-import { RadioGroupControl, Stack, Text } from "@wordpress/ui";
+import { IconButton, RadioGroupControl, Stack, Text } from "@wordpress/ui";
+import { chevronLeft, chevronRight } from "@wordpress/icons";
 
 /**
  * Internal dependencies.
@@ -67,7 +68,7 @@ const ROW_H = 58;
 /** The narrowest a step column goes before the chart scrolls sideways. */
 const MIN_COL_W = 60;
 /** How long the pulse takes to cross one column, the distance between neighbouring steps. */
-const STEP_MS = 250;
+const STEP_MS = 75;
 /** The edges lit while no node is hovered. */
 const NO_EDGES = new Map<string, number>();
 
@@ -190,6 +191,75 @@ const Journeys = memo(function Journeys({
 });
 
 /**
+ * Where the network's page sits in the window's journeys.
+ *
+ * @since 0.31.0
+ */
+export interface Pager {
+  /** The page shown, 1 the newest. */
+  page: number;
+  pages: number;
+  /** Journeys to a page. */
+  size: number;
+  /** The days the page spans, as a label. */
+  range: string;
+  loading: boolean;
+  error: boolean;
+  onPage: (page: number) => void;
+}
+
+/** The count of journeys drawn, and the pager when the window holds more than one page. */
+function Count({ shown, listed, total, pager }: { shown: number; listed: number; total: number; pager: Pager }) {
+  const n = (v: number) => v.toLocaleString();
+  const from = (pager.page - 1) * pager.size + 1;
+  return (
+    <Stack direction="row" gap="md" align="center" justify="space-between" wrap="wrap">
+      <Text variant="body-sm" className="wpsignal-muted">
+        {pager.error
+          ? __("That page of journeys could not be loaded.", "wordsocket")
+          : sprintf(
+              /* translators: 1: journeys drawn, 2: journeys on this page */
+              _n("Showing %1$s of %2$s journey.", "Showing %1$s of %2$s journeys.", listed, "wordsocket"),
+              n(shown),
+              n(listed),
+            )}
+      </Text>
+      {pager.pages > 1 && (
+        <Stack direction="row" gap="xs" align="center" className="wpsignal-net__pager">
+          <IconButton
+            variant="minimal"
+            size="compact"
+            tone="neutral"
+            icon={chevronLeft}
+            label={__("Newer journeys", "wordsocket")}
+            disabled={pager.page <= 1 || pager.loading}
+            onClick={() => pager.onPage(pager.page - 1)}
+          />
+          <Text variant="body-sm" className="wpsignal-muted" aria-live="polite">
+            {sprintf(
+              /* translators: 1: first journey on the page, 2: last journey on the page, 3: journeys in the window */
+              __("%1$s\u2013%2$s of %3$s", "wordsocket"),
+              n(from),
+              n(Math.min(total, from + pager.size - 1)),
+              n(total),
+            ) + (pager.range ? ` \u00b7 ${pager.range}` : "")}
+          </Text>
+          <IconButton
+            variant="minimal"
+            size="compact"
+            tone="neutral"
+            icon={chevronRight}
+            label={__("Older journeys", "wordsocket")}
+            disabled={pager.page >= pager.pages || pager.loading}
+            onClick={() => pager.onPage(pager.page + 1)}
+          />
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
+/**
  * The network with its filters.
  *
  * @since 0.31.0
@@ -198,6 +268,7 @@ export function Network({
   journeys,
   filters,
   onFilters,
+  pager,
   total,
   outcomes,
   kinds,
@@ -205,6 +276,7 @@ export function Network({
   journeys: VisualJourney[];
   filters: NetworkFilters;
   onFilters: (filters: NetworkFilters) => void;
+  pager: Pager;
   /** Journeys in the window, listed or not. */
   total: number;
   outcomes: Outcomes;
@@ -419,7 +491,7 @@ export function Network({
     );
 
   return (
-    <Stack direction="column" gap="sm">
+    <Stack direction="column" gap="sm" className={pager.loading ? "is-loading" : undefined}>
       <Stack
         direction="row"
         gap="lg"
@@ -488,6 +560,7 @@ export function Network({
                 ),
         }))}
       />
+      <Count shown={shown.length} listed={journeys.length} total={total} pager={pager} />
       {shown.length === 0 ? (
         <Text variant="body-sm" className="wpsignal-muted">
           {__("No journeys match.", "wordsocket")}

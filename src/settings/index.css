@@ -924,3 +924,9 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
     transition: none;
   }
 }
+
+/* The network while another page of journeys loads. */
+.wpsignal-visual .is-loading .wpsignal-net {
+  opacity: 0.4;
+  transition: opacity 0.15s;
+}
