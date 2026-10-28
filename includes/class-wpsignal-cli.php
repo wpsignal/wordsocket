@@ -2,7 +2,7 @@
 /**
  * WPSignal\Cli: WordSocket's WP-CLI commands.
  *
- * - `wp wordsocket journeys seed [--count=<n>]` fills the journeys table with made-up visits for a look at the Journeys tab.
+ * - `wp wordsocket journeys seed [--count=<n>] [--months=<n>]` fills the journeys table with made-up visits for a look at the Journeys tab.
  * - `wp wordsocket journeys unseed` deletes them again.
  * - Seeded visitor ids start with `5eed0000-`, which no browser makes, so only seeded rows are ever removed.
  * - Seeding refuses a production environment (`wp_get_environment_type()`).
@@ -58,7 +58,7 @@ class Cli {
 			'wordsocket journeys seed',
 			array( $cli, 'seed' ),
 			array(
-				'shortdesc' => 'Fill the journeys table with made-up visits from the last 28 days, for a look at the Journeys tab.',
+				'shortdesc' => 'Fill the journeys table with made-up visits spread over the last months, for a look at the Journeys tab.',
 				'synopsis'  => array(
 					array(
 						'type'        => 'assoc',
@@ -66,6 +66,12 @@ class Cli {
 						'description' => 'How many journeys to seed.',
 						'optional'    => true,
 						'default'     => (string) self::DEFAULT_COUNT,
+					),
+					array(
+						'type'        => 'assoc',
+						'name'        => 'months',
+						'description' => 'How many months back to spread them, at most the retention. Defaults to the retention.',
+						'optional'    => true,
 					),
 				),
 			)
@@ -83,7 +89,7 @@ class Cli {
 	 * @since 0.31.0
 	 *
 	 * @param array $args       Positional arguments.
-	 * @param array $assoc_args `count`.
+	 * @param array $assoc_args `count`, `months`.
 	 * @return void
 	 */
 	public function seed( array $args, array $assoc_args ): void {
@@ -96,6 +102,11 @@ class Cli {
 		if ( $count < 1 || $count > self::MAX_COUNT ) {
 			WP_CLI::error( sprintf( '--count must be between 1 and %d.', self::MAX_COUNT ) );
 		}
+		$retention = WPS::instance()->config()->journeys_retention_months();
+		$months    = (int) ( $assoc_args['months'] ?? $retention );
+		if ( $months < 1 || $months > $retention ) {
+			WP_CLI::error( sprintf( '--months must be between 1 and the retention, %d; older journeys are pruned daily.', $retention ) );
+		}
 		if ( ! WPS::journeys()->enabled() ) {
 			WP_CLI::warning( 'History is off, so the daily prune will delete these rows. Switch it on in the Journeys tab to keep them.' );
 		}
@@ -103,7 +114,7 @@ class Cli {
 		$catalogue = $this->catalogue();
 		$walk      = $catalogue['shop'] ? self::shop_walk() : self::blog_walk();
 		mt_srand( 42 );
-		$days  = self::day_weights();
+		$days  = self::day_weights( $months );
 		$hours = array_combine( range( 0, 23 ), array( 1, 0.6, 0.4, 0.3, 0.3, 0.5, 1, 2, 3, 3.5, 3.5, 3.5, 4, 3.5, 3.2, 3, 3, 3.5, 4, 4.5, 5, 4.5, 3.5, 2 ) );
 		$table = Journeys::table();
 		$made  = 0;
@@ -129,7 +140,7 @@ class Cli {
 			);
 		}
 		delete_transient( Journeys::VISUALS_TRANSIENT );
-		WP_CLI::success( sprintf( 'Seeded %d journeys (%s walk). Remove them with `wp wordsocket journeys unseed`.', $made, $catalogue['shop'] ? 'shop' : 'blog' ) );
+		WP_CLI::success( sprintf( 'Seeded %d journeys over %d month(s) (%s walk). Remove them with `wp wordsocket journeys unseed`.', $made, $months, $catalogue['shop'] ? 'shop' : 'blog' ) );
 	}
 
 	/**
@@ -382,17 +393,19 @@ class Cli {
 	}
 
 	/**
-	 * Weights for the last 28 days: busier lately, quieter at weekends.
+	 * Weights for each day of the last `$months` months, by days ago: busier lately, quieter at weekends.
 	 *
 	 * @since 0.31.0
 	 *
+	 * @param int $months How many months back the days reach.
 	 * @return array<int, float>
 	 */
-	private static function day_weights(): array {
+	private static function day_weights( int $months ): array {
+		$span    = max( 1, (int) floor( ( time() - (int) strtotime( "-{$months} months" ) ) / DAY_IN_SECONDS ) );
 		$weights = array();
-		for ( $d = 0; $d < 28; $d++ ) {
+		for ( $d = 0; $d < $span; $d++ ) {
 			$weekend       = in_array( (int) gmdate( 'N', (int) strtotime( "-{$d} days" ) ), array( 6, 7 ), true );
-			$weights[ $d ] = ( 1 + 0.02 * ( 27 - $d ) ) * ( $weekend ? 0.55 : 1 );
+			$weights[ $d ] = ( 1 + 0.5 * ( $span - 1 - $d ) / $span ) * ( $weekend ? 0.55 : 1 );
 		}
 		return $weights;
 	}
