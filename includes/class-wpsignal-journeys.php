@@ -103,6 +103,12 @@ class Journeys {
 	const OUTCOME_PATTERN = '/^[a-z][a-z_]{0,19}$/';
 	const REF_PATTERN     = '/^[A-Za-z0-9_-]{1,32}$/';
 	const COLOR_PATTERN   = '/^#[0-9a-f]{6}$/i';
+	/**
+	 * A `YYYY-MM` month as the page route takes it.
+	 *
+	 * @since 0.31.0
+	 */
+	const MONTH_PATTERN = '/^\d{4}-(0[1-9]|1[0-2])\z/';
 
 	/**
 	 * Longest `data` an extension may put on a row, as JSON.
@@ -820,8 +826,8 @@ class Journeys {
 	}
 
 	/**
-	 * The Journeys tab's figures over the last VISUALS_DAYS days on the site's clock, null with
-	 * History off; a computed answer is kept CACHE_TTL seconds.
+	 * The Journeys tab's figures over the last VISUALS_DAYS days on the site's clock, with the months
+	 * that hold journeys, null with History off; a computed answer is kept CACHE_TTL seconds.
 	 *
 	 * @since 0.31.0
 	 *
@@ -859,7 +865,7 @@ class Journeys {
 			)
 		);
 		$total = $this->bucket( $since, $tz, $days, $hours );
-		$list  = $this->listed( $since, $tz, $dates, 0, $hours );
+		$list  = $this->listed( $since, null, $tz, 0, $hours );
 		foreach ( $hours as &$row ) {
 			foreach ( $row as &$cell ) {
 				$cell['minutes'] = (int) round( $cell['minutes'] );
@@ -873,8 +879,9 @@ class Journeys {
 			'week_start' => (int) get_option( 'start_of_week', 1 ),
 			'days'       => array_map( static fn( string $date, array $counts ): array => array( 'date' => $date ) + $counts, array_keys( $days ), $days ),
 			'hours'      => $hours,
-			'journeys'   => $list,
+			'listed'     => count( $list ),
 			'total'      => $total,
+			'months'     => $this->months( $tz ),
 			'outcomes'   => $this->outcomes(),
 			'ref'        => $this->ref,
 			'kinds'      => WPS::rules()->kinds(),
@@ -885,20 +892,94 @@ class Journeys {
 	}
 
 	/**
-	 * One page of the window's journeys for the network, VISUALS_JOURNEYS to a page, newest first;
-	 * null with History off.
+	 * One page of a month's journeys for the network, VISUALS_JOURNEYS to a page, newest first, with
+	 * the month's total; null with History off or a month that is not `YYYY-MM`.
 	 *
 	 * @since 0.31.0
 	 *
-	 * @param int $page The page, 1 the newest.
-	 * @return array<int, array<string, mixed>>|null
+	 * @param string $month The month on the site's clock, `YYYY-MM`.
+	 * @param int    $page  The page, 1 the newest.
+	 * @return array{journeys: array<int, array<string, mixed>>}|null
 	 */
-	public function visuals_page( int $page ): ?array {
-		if ( ! $this->enabled() ) {
+	public function visuals_page( string $month, int $page ): ?array {
+		$tz     = wp_timezone();
+		$bounds = self::month_bounds( $month, $tz );
+		if ( ! $this->enabled() || null === $bounds ) {
 			return null;
 		}
-		list( $tz, $since, $dates ) = self::window();
-		return $this->listed( $since, $tz, $dates, max( 0, $page - 1 ) * self::VISUALS_JOURNEYS );
+		list( $since, $until ) = $bounds;
+		return array(
+			'journeys' => $this->listed( $since, $until, $tz, max( 0, $page - 1 ) * self::VISUALS_JOURNEYS ),
+		);
+	}
+
+	/**
+	 * The months on the site's clock that hold journeys, newest first, each `{ month, count }`, from the
+	 * month the retention reaches back to.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param \DateTimeZone $tz The site's timezone.
+	 * @return array<int, array{month: string, count: int}>
+	 */
+	private function months( \DateTimeZone $tz ): array {
+		global $wpdb;
+		$utc    = new \DateTimeZone( 'UTC' );
+		$floor  = ( new \DateTimeImmutable( $this->retention_floor(), $utc ) )->setTimezone( $tz )->modify( 'first day of this month midnight' );
+		$rows   = (array) $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT DATE_FORMAT(started_at, %s) AS h, COUNT(*) AS n FROM ' . self::table() . ' WHERE started_at >= %s GROUP BY h',
+				'%Y-%m-%d %H',
+				$floor->setTimezone( $utc )->format( 'Y-m-d H:i:s' )
+			),
+			ARRAY_A
+		);
+		$counts = array();
+		foreach ( $rows as $row ) {
+			$month            = ( new \DateTimeImmutable( $row['h'] . ':00:00', $utc ) )->setTimezone( $tz )->format( 'Y-m' );
+			$counts[ $month ] = ( $counts[ $month ] ?? 0 ) + (int) $row['n'];
+		}
+		krsort( $counts );
+		$months = array();
+		foreach ( $counts as $month => $count ) {
+			$months[] = array(
+				'month' => $month,
+				'count' => $count,
+			);
+		}
+		return $months;
+	}
+
+	/**
+	 * The oldest moment the retention keeps, as SQL UTC.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return string
+	 */
+	private function retention_floor(): string {
+		return gmdate( 'Y-m-d H:i:s', (int) strtotime( '-' . $this->config->journeys_retention_months() . ' months' ) );
+	}
+
+	/**
+	 * A `YYYY-MM` month's start and end on the site's clock as SQL UTC, null when it is not one.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string        $month The month.
+	 * @param \DateTimeZone $tz    The site's timezone.
+	 * @return array{0: string, 1: string}|null
+	 */
+	private static function month_bounds( string $month, \DateTimeZone $tz ): ?array {
+		if ( ! preg_match( self::MONTH_PATTERN, $month ) ) {
+			return null;
+		}
+		$utc   = new \DateTimeZone( 'UTC' );
+		$start = new \DateTimeImmutable( $month . '-01 00:00:00', $tz );
+		return array(
+			$start->setTimezone( $utc )->format( 'Y-m-d H:i:s' ),
+			$start->modify( '+1 month' )->setTimezone( $utc )->format( 'Y-m-d H:i:s' ),
+		);
 	}
 
 	/**
@@ -964,46 +1045,41 @@ class Journeys {
 	}
 
 	/**
-	 * VISUALS_JOURNEYS of the window's journeys from an offset, newest first, each placed on its local
-	 * day and minute, pouring their time on the site into the grid's minutes when a grid is given.
+	 * VISUALS_JOURNEYS journeys started from `$since` up to `$until` (or ever) from an offset, newest first,
+	 * pouring their time on the site into the grid's minutes when a grid is given.
 	 *
 	 * @since 0.31.0
 	 *
-	 * @param string        $since  Window start, SQL UTC.
+	 * @param string        $since  Range start, SQL UTC.
+	 * @param string|null   $until  Range end, SQL UTC, exclusive; null for no end.
 	 * @param \DateTimeZone $tz     The site's timezone.
-	 * @param string[]      $dates  The window's local dates, oldest first.
 	 * @param int           $offset Journeys to skip.
 	 * @param array|null    $hours  Weekday by hour cells, minutes added in place.
 	 * @return array<int, array<string, mixed>>
 	 */
-	private function listed( string $since, \DateTimeZone $tz, array $dates, int $offset = 0, ?array &$hours = null ): array {
+	private function listed( string $since, ?string $until, \DateTimeZone $tz, int $offset = 0, ?array &$hours = null ): array {
 		global $wpdb;
-		$rows  = (array) $wpdb->get_results(
+		$rows = (array) $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT journey, started_at, outcome, ref, value FROM ' . self::table() . ' WHERE started_at >= %s ORDER BY started_at DESC, journey_id LIMIT %d OFFSET %d',
+				'SELECT journey, started_at, outcome, ref, value FROM ' . self::table() . ' WHERE started_at >= %s AND started_at < %s ORDER BY started_at DESC, journey_id DESC LIMIT %d OFFSET %d',
 				$since,
+				$until ?? '9999-12-31 23:59:59',
 				self::VISUALS_JOURNEYS,
 				$offset
 			),
 			ARRAY_A
 		);
-		$index = array_flip( $dates );
-		$utc   = new \DateTimeZone( 'UTC' );
-		$list  = array();
+		$list = array();
 		foreach ( $rows as $row ) {
-			$started = new \DateTimeImmutable( (string) $row['started_at'], $utc );
-			$local   = $started->setTimezone( $tz );
-			$list[]  = array(
+			$list[] = array(
 				'journey'    => (string) $row['journey'],
 				'started_at' => self::rfc3339( (string) $row['started_at'] ),
 				'outcome'    => (string) $row['outcome'],
 				'has_ref'    => '' !== (string) ( $row['ref'] ?? '' ),
 				'value'      => round( (float) ( $row['value'] ?? 0 ), 2 ),
-				'day'        => $index[ $local->format( 'Y-m-d' ) ] ?? -1,
-				'minute'     => 60 * (int) $local->format( 'G' ) + (int) $local->format( 'i' ),
 			);
 			if ( null !== $hours ) {
-				self::pour( (string) $row['journey'], $started->getTimestamp(), $tz, $hours );
+				self::pour( (string) $row['journey'], (int) strtotime( $row['started_at'] . ' UTC' ), $tz, $hours );
 			}
 		}
 		return $list;
@@ -1056,7 +1132,7 @@ class Journeys {
 	public function prune(): void {
 		global $wpdb;
 		$where = $this->enabled()
-			? $wpdb->prepare( 'started_at < %s', gmdate( 'Y-m-d H:i:s', (int) strtotime( '-' . $this->config->journeys_retention_months() . ' months' ) ) )
+			? $wpdb->prepare( 'started_at < %s', $this->retention_floor() )
 			: '1 = 1';
 		$began = microtime( true );
 		do {
@@ -1243,7 +1319,12 @@ class Journeys {
 			array(
 				'methods'             => 'GET',
 				'args'                => array(
-					'page' => array(
+					'month' => array(
+						'type'              => 'string',
+						'required'          => true,
+						'validate_callback' => fn( $value ) => is_string( $value ) && 1 === preg_match( self::MONTH_PATTERN, $value ),
+					),
+					'page'  => array(
 						'type'     => 'integer',
 						'required' => true,
 						'minimum'  => 1,
@@ -1251,7 +1332,7 @@ class Journeys {
 					),
 				),
 				'callback'            => fn( WP_REST_Request $request ) => rest_ensure_response(
-					array( 'journeys' => $this->visuals_page( (int) $request->get_param( 'page' ) ) )
+					$this->visuals_page( (string) $request->get_param( 'month' ), (int) $request->get_param( 'page' ) )
 				),
 				'permission_callback' => $staff,
 			)

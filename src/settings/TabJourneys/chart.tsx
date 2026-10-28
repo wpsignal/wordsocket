@@ -225,33 +225,25 @@ export function TableView({
   head: string[];
   rows: Array<Array<string | number>>;
 }) {
-  const ids = useMemo(() => head.map((_, i) => `c${i}`), [head]);
-  const items = useMemo(
-    () =>
-      rows.map(
-        (row, i) =>
-          ({
-            id: String(i),
-            ...Object.fromEntries(row.map((cell, k) => [ids[k], cell])),
-          }) as TableRow,
-      ),
-    [rows, ids],
+  const ids = head.map((_, i) => `c${i}`);
+  const items = rows.map(
+    (row, i) =>
+      ({
+        id: String(i),
+        ...Object.fromEntries(row.map((cell, k) => [ids[k], cell])),
+      }) as TableRow,
   );
-  const fields = useMemo<Field<TableRow>[]>(
-    () =>
-      head.map((label, i) => ({
-        id: ids[i],
-        label,
-        type:
-          i === 0 || rows.some((row) => typeof row[i] !== "number")
-            ? "text"
-            : "integer",
-        enableSorting: true,
-        enableHiding: i !== 0,
-        getValue: ({ item }) => item[ids[i]],
-      })),
-    [head, ids, rows],
-  );
+  const fields: Field<TableRow>[] = head.map((label, i) => ({
+    id: ids[i],
+    label,
+    type:
+      i === 0 || rows.some((row) => typeof row[i] !== "number")
+        ? "text"
+        : "integer",
+    enableSorting: true,
+    enableHiding: i !== 0,
+    getValue: ({ item }) => item[ids[i]],
+  }));
   const [view, setView] = useState<View>({
     type: "table",
     fields: ids.slice(1),
@@ -262,10 +254,7 @@ export function TableView({
     filters: [],
     layout: { density: "compact" },
   });
-  const { data, paginationInfo } = useMemo(
-    () => filterSortAndPaginate(items, view, fields),
-    [items, view, fields],
-  );
+  const { data, paginationInfo } = filterSortAndPaginate(items, view, fields);
   return (
     <DataViews<TableRow>
       data={data}
@@ -321,6 +310,54 @@ export function dayLabel(date: string, weekday = true): string {
       ? { weekday: "short", day: "numeric", month: "short" }
       : { day: "numeric", month: "short" },
   ).format(at);
+}
+
+/** The "21 Oct" formatter of each zone asked for, the browser's own when a zone is unknown. */
+const DAY_IN = new Map<string, Intl.DateTimeFormat>();
+
+/**
+ * "21 Oct", the day an RFC 3339 instant fell on in `timezone`, or in the browser's when that is not a zone
+ * the browser knows.
+ *
+ * @since 0.31.0
+ */
+export function dayIn(iso: string, timezone: string): string {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return "";
+  let format = DAY_IN.get(timezone);
+  if (!format) {
+    const options: Intl.DateTimeFormatOptions = {
+      day: "numeric",
+      month: "short",
+    };
+    try {
+      format = new Intl.DateTimeFormat(undefined, {
+        ...options,
+        timeZone: timezone,
+      });
+    } catch {
+      format = new Intl.DateTimeFormat(undefined, options);
+    }
+    DAY_IN.set(timezone, format);
+  }
+  return format.format(at);
+}
+
+/** The "October 2026" formatter. */
+const MONTH_FORMAT = new Intl.DateTimeFormat(undefined, {
+  month: "long",
+  year: "numeric",
+});
+
+/**
+ * "October 2026" for a `YYYY-MM` month.
+ *
+ * @since 0.31.0
+ */
+export function monthLabel(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  if (!y || !m) return month;
+  return MONTH_FORMAT.format(new Date(y, m - 1, 1));
 }
 
 /**

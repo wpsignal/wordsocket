@@ -62,10 +62,6 @@ export interface JourneyRow {
   outcome: string;
   has_ref: boolean;
   value: number;
-  /** Index into `days`, -1 when outside the window. */
-  day: number;
-  /** Minute of the local day it started. */
-  minute: number;
 }
 
 /**
@@ -91,10 +87,12 @@ export interface JourneyVisuals {
   days: Array<{ date: string; visits: number; left_ref: number; outcomes: OutcomeCounts }>;
   /** Weekday (0 Sunday) by hour of the local day. */
   hours: Array<Array<{ visits: number; minutes: number; outcomes: OutcomeCounts }>>;
-  /** The newest journeys of the window, at most `Journeys::VISUALS_JOURNEYS`. */
-  journeys: JourneyRow[];
+  /** Journeys of the window the minutes came from, at most `Journeys::VISUALS_JOURNEYS`. */
+  listed: number;
   /** Journeys in the window, listed or not. */
   total: number;
+  /** The months that hold journeys, newest first, `YYYY-MM` on the site's clock. */
+  months: Array<{ month: string; count: number }>;
   /** The registered outcomes, the built-in ones first. */
   outcomes: Record<string, { label: string; color: string; series: string }>;
   /** What a journey's ref is, when an extension said. */

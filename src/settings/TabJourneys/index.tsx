@@ -16,7 +16,6 @@ import { Card, CollapsibleCard, Spinner, Stack, Text } from "@wordpress/ui";
  */
 import { TabHeading } from "../TabHeading";
 import { saveSettings } from "../api";
-import type { JourneyRow } from "../types";
 import { useSettings } from "../context";
 import { useSettingSwitch } from "../TabSettings/useSettingSwitch";
 import { useTask } from "../useTask";
@@ -29,7 +28,7 @@ import {
   type VisualJourney,
 } from "./journeys";
 import { Network } from "./Network";
-import { dayLabel } from "./chart";
+import { dayIn } from "./chart";
 import { Trends } from "./Trends";
 import { Hours } from "./Hours";
 import { useJourneyPage, useVisuals } from "./useVisuals";
@@ -37,7 +36,6 @@ import { useJourneyPage, useVisuals } from "./useVisuals";
 const MONTHS_MIN = 1;
 /** Journeys to a page of the network, as `Journeys::VISUALS_JOURNEYS` lists them. */
 const PAGE_SIZE = 1000;
-const NO_ROWS: JourneyRow[] = [];
 const MONTHS_MAX = 36;
 
 /** The History card: the switch, and the months while it is on. */
@@ -81,8 +79,8 @@ function HistoryCard() {
         <Stack direction="column" gap="lg">
           <Text variant="body-sm" className="wpsignal-muted" render={<p />}>
             {__(
-              "History keeps a record of every visit to your site, including the pages they visited and how long they stayed. It helps you understand your visitors and their behavior, and can be used to improve your conversion rate.",
-            "wordsocket",
+              "See how people move through your site: the pages they look at, how long they stay and where they leave. Visits are stored in your own site's database and deleted after the months you choose.",
+              "wordsocket",
             )}
           </Text>
           <ToggleControl
@@ -98,7 +96,10 @@ function HistoryCard() {
               min={MONTHS_MIN}
               max={MONTHS_MAX}
               label={__("Keep journeys for (months)", "wordsocket")}
-              help={__("Older journeys are deleted once a day.", "wordsocket")}
+              help={__(
+                "Older journeys are deleted automatically.",
+                "wordsocket",
+              )}
               value={draft}
               onChange={setDraft}
               onBlur={commit}
@@ -153,47 +154,42 @@ function filtersFromUrl(): NetworkFilters {
   };
 }
 
-/** The local days a page of journeys spans, oldest first, as "21 Oct to 27 Oct". */
-function rangeOf(
-  journeys: VisualJourney[],
-  days: Array<{ date: string }>,
-): string {
-  const newest = days[journeys[0]?.day ?? -1]?.date;
-  const oldest = days[journeys[journeys.length - 1]?.day ?? -1]?.date;
+/** The days a page of journeys spans on the site's clock, oldest first, as "21 Oct to 27 Oct". */
+function rangeOf(journeys: VisualJourney[], timezone: string): string {
+  if (!journeys.length) return "";
+  const newest = dayIn(journeys[0].startedAt, timezone);
+  const oldest = dayIn(journeys[journeys.length - 1].startedAt, timezone);
   if (!newest || !oldest) return "";
-  if (newest === oldest) return dayLabel(newest, false);
+  if (newest === oldest) return newest;
   /* translators: 1: the oldest day, 2: the newest day */
-  return sprintf(
-    __("%1$s to %2$s", "wordsocket"),
-    dayLabel(oldest, false),
-    dayLabel(newest, false),
-  );
+  return sprintf(__("%1$s to %2$s", "wordsocket"), oldest, newest);
 }
 
 /** The three visuals over the loaded figures. */
 function Visuals() {
   const { data, loading, error } = useVisuals(true);
   const [filters, setFilters] = useState<NetworkFilters>(filtersFromUrl);
-  const journeys = useMemo(() => parseJourneys(data?.journeys ?? []), [data]);
-  const [page, setPage] = useState(1);
-  const paged = useJourneyPage(page, data?.journeys ?? NO_ROWS);
+  const [chosen, setChosen] = useState({ month: "", page: 1 });
+  /* The newest month with journeys until one is chosen. */
+  const month = chosen.month || data?.months[0]?.month || "";
+  const paged = useJourneyPage(month, chosen.page);
   const pageJourneys = useMemo(() => parseJourneys(paged.rows), [paged.rows]);
   if (loading) return <Spinner />;
   if (error) {
     return (
       <Text variant="body-sm" className="wpsignal-muted">
         {__(
-          "The journeys could not be loaded. Reload the page to try again.",
+          "The journeys couldn't be loaded. Reload the page to try again.",
           "wordsocket",
         )}
       </Text>
     );
   }
-  if (!data || data.total === 0) {
+  if (!data || data.months.length === 0) {
     return (
       <Text variant="body-sm" className="wpsignal-muted">
         {__(
-          "No journey in the last 28 days yet. A journey is written for every visit while History is on.",
+          "No journeys yet. They appear here as people visit your site.",
           "wordsocket",
         )}
       </Text>
@@ -204,7 +200,7 @@ function Visuals() {
       <VisualCard
         title={__("Where journeys go", "wordsocket")}
         lede={__(
-          "Every visit as a path through your pages to how it ended. Find the paths that end well and the ones that leak.",
+          "Each line is one visit, from the first page to how it ended. Spot the routes that end well and the pages where people drop off.",
           "wordsocket",
         )}
       >
@@ -213,15 +209,17 @@ function Visuals() {
           filters={filters}
           onFilters={setFilters}
           pager={{
-            page: paged.page,
-            pages: Math.ceil(data.total / PAGE_SIZE),
+            month,
+            months: data.months,
+            page: chosen.page,
             size: PAGE_SIZE,
-            range: rangeOf(pageJourneys, data.days),
+            total: data.months.find((m) => m.month === month)?.count ?? 0,
+            range: rangeOf(pageJourneys, data.timezone),
             loading: paged.loading,
             error: paged.error,
-            onPage: setPage,
+            onMonth: (next) => setChosen({ month: next, page: 1 }),
+            onPage: (page) => setChosen({ month, page }),
           }}
-          total={data.total}
           outcomes={data.outcomes}
           kinds={data.kinds}
         />
@@ -229,28 +227,24 @@ function Visuals() {
       <VisualCard
         title={__("How the weeks are going", "wordsocket")}
         lede={__(
-          "Visits and outcomes day by day, with the 7-day average. Act in the week something changes, not a month later.",
+          "Visits and how they ended, day by day, with a weekly average, so you notice a change the week it happens.",
           "wordsocket",
         )}
       >
-        <Trends
-          days={data.days}
-          journeys={journeys}
-          total={data.total}
-          outcomes={data.outcomes}
-          ref={data.ref}
-          kinds={data.kinds}
-        />
+        <Trends days={data.days} outcomes={data.outcomes} refInfo={data.ref} />
       </VisualCard>
       <VisualCard
         title={__("When visitors are here", "wordsocket")}
-        lede={__("The week by hour on your clock.", "wordsocket")}
+        lede={__(
+          "Your busiest days and hours, in your site's time zone.",
+          "wordsocket",
+        )}
       >
         <Hours
           hours={data.hours}
           weekStart={data.week_start}
           timezone={data.timezone}
-          listed={journeys.length}
+          listed={data.listed}
           total={data.total}
           outcomes={data.outcomes}
         />
@@ -271,7 +265,7 @@ export function TabJourneys({ title }: { title: string }) {
       <TabHeading
         title={title}
         help={__(
-          "A journey is one visit: the pages a visitor opened, with the time on each, and how it ended. The last 28 days are drawn below while History is on.",
+          "A journey is one visit to your site: the pages someone looked at, how long they stayed on each, and how the visit ended. With History on, the journeys are drawn below a month at a time, and the weeks and hours over the last four weeks.",
           "wordsocket",
         )}
       />

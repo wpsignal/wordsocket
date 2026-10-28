@@ -24,10 +24,12 @@ import { chevronLeft, chevronRight } from "@wordpress/icons";
  * Internal dependencies.
  */
 import { Choice } from "../TabRules/ValueControl";
+import type { JourneyVisuals } from "../types";
 import {
   ChartFrame,
   RowLabels,
   TableView,
+  monthLabel,
   reducedMotion,
   useChart,
   type Tip,
@@ -68,7 +70,7 @@ const ROW_H = 58;
 /** The narrowest a step column goes before the chart scrolls sideways. */
 const MIN_COL_W = 60;
 /** How long the pulse takes to cross one column, the distance between neighbouring steps. */
-const STEP_MS = 75;
+const STEP_MS = 175;
 /** The edges lit while no node is hovered. */
 const NO_EDGES = new Map<string, number>();
 
@@ -91,33 +93,6 @@ const EDGE_MIN = [1, 2, 5, 10, 25, 50];
 const PAGE_MIN = [1, 2, 3, 5];
 /** The select item that means no filter. */
 const ANY = "*";
-
-/** The column headers; re-rendered only when the layout changes. */
-const Headers = memo(function Headers({
-  columns,
-  W,
-  header,
-}: {
-  columns: number;
-  W: number;
-  header: (c: number) => string;
-}) {
-  return (
-    <g>
-      {Array.from({ length: columns + 1 }, (_, c) => (
-        <text
-          key={c}
-          x={LEFT + ((W - LEFT - RIGHT) * c) / columns}
-          y={18}
-          textAnchor="middle"
-          className="is-strong"
-        >
-          {header(c)}
-        </text>
-      ))}
-    </g>
-  );
-});
 
 /** The transitions, as grey curves, the lit ones dark by how many of the focused node's journeys took them. */
 const Edges = memo(function Edges({
@@ -191,41 +166,74 @@ const Journeys = memo(function Journeys({
 });
 
 /**
- * Where the network's page sits in the window's journeys.
+ * The month the network shows and where its page sits in that month's journeys.
  *
  * @since 0.31.0
  */
 export interface Pager {
+  /** The month shown, `YYYY-MM`. */
+  month: string;
+  /** The months that hold journeys, newest first. */
+  months: JourneyVisuals["months"];
   /** The page shown, 1 the newest. */
   page: number;
-  pages: number;
   /** Journeys to a page. */
   size: number;
+  /** Journeys in the month. */
+  total: number;
   /** The days the page spans, as a label. */
   range: string;
   loading: boolean;
   error: boolean;
+  onMonth: (month: string) => void;
   onPage: (page: number) => void;
 }
 
-/** The count of journeys drawn, and the pager when the window holds more than one page. */
-function Count({ shown, listed, total, pager }: { shown: number; listed: number; total: number; pager: Pager }) {
+/** Above the diagram: the count of journeys drawn, and the pager when the month holds more than one page. */
+function Count({
+  shown,
+  listed,
+  pager,
+}: {
+  shown: number;
+  listed: number;
+  pager: Pager;
+}) {
   const n = (v: number) => v.toLocaleString();
   const from = (pager.page - 1) * pager.size + 1;
+  const total = pager.total;
+  const pages = Math.ceil(total / pager.size);
   return (
-    <Stack direction="row" gap="md" align="center" justify="space-between" wrap="wrap">
+    <Stack
+      direction="row"
+      gap="md"
+      align="center"
+      justify="space-between"
+      wrap="wrap"
+    >
       <Text variant="body-sm" className="wpsignal-muted">
         {pager.error
-          ? __("That page of journeys could not be loaded.", "wordsocket")
+          ? __("Those journeys couldn't be loaded. Try again.", "wordsocket")
           : sprintf(
-              /* translators: 1: journeys drawn, 2: journeys on this page */
-              _n("Showing %1$s of %2$s journey.", "Showing %1$s of %2$s journeys.", listed, "wordsocket"),
+              /* translators: 1: journeys drawn, 2: journeys on this page, 3: the month */
+              _n(
+                "Showing %1$s of %2$s journey in %3$s.",
+                "Showing %1$s of %2$s journeys in %3$s.",
+                listed,
+                "wordsocket",
+              ),
               n(shown),
               n(listed),
+              monthLabel(pager.month),
             )}
       </Text>
-      {pager.pages > 1 && (
-        <Stack direction="row" gap="xs" align="center" className="wpsignal-net__pager">
+      {pages > 1 && (
+        <Stack
+          direction="row"
+          gap="xs"
+          align="center"
+          className="wpsignal-net__pager"
+        >
           <IconButton
             variant="minimal"
             size="compact"
@@ -237,7 +245,7 @@ function Count({ shown, listed, total, pager }: { shown: number; listed: number;
           />
           <Text variant="body-sm" className="wpsignal-muted" aria-live="polite">
             {sprintf(
-              /* translators: 1: first journey on the page, 2: last journey on the page, 3: journeys in the window */
+              /* translators: 1: first journey on the page, 2: last journey on the page, 3: journeys in the month */
               __("%1$s\u2013%2$s of %3$s", "wordsocket"),
               n(from),
               n(Math.min(total, from + pager.size - 1)),
@@ -250,7 +258,7 @@ function Count({ shown, listed, total, pager }: { shown: number; listed: number;
             tone="neutral"
             icon={chevronRight}
             label={__("Older journeys", "wordsocket")}
-            disabled={pager.page >= pager.pages || pager.loading}
+            disabled={pager.page >= pages || pager.loading}
             onClick={() => pager.onPage(pager.page + 1)}
           />
         </Stack>
@@ -269,7 +277,6 @@ export function Network({
   filters,
   onFilters,
   pager,
-  total,
   outcomes,
   kinds,
 }: {
@@ -277,8 +284,6 @@ export function Network({
   filters: NetworkFilters;
   onFilters: (filters: NetworkFilters) => void;
   pager: Pager;
-  /** Journeys in the window, listed or not. */
-  total: number;
   outcomes: Outcomes;
   kinds: Kinds;
 }) {
@@ -333,41 +338,33 @@ export function Network({
     Math.max(5, rMax * Math.sqrt(n.count / layout.maxNode));
 
   /* What the focus lights: the hovered journey, or the edges of every journey through the hovered node. */
-  const litEdges = useMemo(() => {
-    if (focus?.on !== "node") return NO_EDGES;
-    const edges = new Map<string, number>();
+  let litEdges = NO_EDGES;
+  if (focus?.on === "node") {
+    litEdges = new Map<string, number>();
     shown.forEach((j) => {
       const chain = layout.chains.get(j.index);
       if (!chain?.nodes.some((n) => n.key === focus.key)) return;
-      chain.edges.forEach((e) => edges.set(e.key, (edges.get(e.key) ?? 0) + 1));
+      chain.edges.forEach((e) =>
+        litEdges.set(e.key, (litEdges.get(e.key) ?? 0) + 1),
+      );
     });
-    return edges;
-  }, [focus, shown, layout]);
-  const labels = useMemo(
-    () =>
-      new Map(
-        shown.map((j) => [
-          j.index,
-          {
-            title: `${stepCount(j.steps.length)} \u00b7 ${outcomeLabel(
-              j.outcome,
-              outcomes,
-            ).toLowerCase()}`,
-            line: describeSteps(j.steps, kinds),
-          },
-        ]),
-      ),
-    [shown, outcomes, kinds],
-  );
+  }
   const items = useMemo<JourneyPath[]>(
     () =>
       shown.flatMap((j) => {
         const chain = layout.chains.get(j.index);
-        const label = labels.get(j.index);
-        if (!chain || chain.edges.length === 0 || !label) return [];
-        return { index: j.index, d: joined(chain.edges), ...label };
+        if (!chain || chain.edges.length === 0) return [];
+        return {
+          index: j.index,
+          d: joined(chain.edges),
+          title: `${stepCount(j.steps.length)} \u00b7 ${outcomeLabel(
+            j.outcome,
+            outcomes,
+          ).toLowerCase()}`,
+          line: describeSteps(j.steps, kinds),
+        };
       }),
-    [shown, layout, labels],
+    [shown, layout, outcomes, kinds],
   );
   const focusJourney = useCallback(
     (index: number | null) =>
@@ -455,19 +452,16 @@ export function Network({
   }, [focus, layout, W, columns]);
 
   const longer = layout.longer;
-  const header = useMemo(
-    () => (c: number) => {
-      if (c === columns) return __("Outcome", "wordsocket");
-      const more = c === columns - 1 && longer ? "+" : "";
-      /* translators: %s: a step number */
-      if (columns <= 10)
-        return sprintf(__("Step %s", "wordsocket"), `${c + 1}${more}`);
-      return c === 0
-        ? sprintf(__("Step %s", "wordsocket"), "1")
-        : `${c + 1}${more}`;
-    },
-    [columns, longer],
-  );
+  const header = (c: number) => {
+    if (c === columns) return __("How it ended", "wordsocket");
+    const more = c === columns - 1 && longer ? "+" : "";
+    /* translators: %s: a step number */
+    if (columns <= 10)
+      return sprintf(__("Step %s", "wordsocket"), `${c + 1}${more}`);
+    return c === 0
+      ? sprintf(__("Step %s", "wordsocket"), "1")
+      : `${c + 1}${more}`;
+  };
   const nodeTitle = (n: NetNode) =>
     n.col === columns
       ? outcomeLabel(n.kind, outcomes)
@@ -481,8 +475,8 @@ export function Network({
     sprintf(
       /* translators: 1: journeys through this node, 2: how many of them ended well */
       _n(
-        "%1$d journey through here, %2$d ended well",
-        "%1$d journeys through here, %2$d ended well",
+        "%1$d journey came through here, %2$d ended well",
+        "%1$d journeys came through here, %2$d ended well",
         n.count,
         "wordsocket",
       ),
@@ -491,7 +485,11 @@ export function Network({
     );
 
   return (
-    <Stack direction="column" gap="sm" className={pager.loading ? "is-loading" : undefined}>
+    <Stack
+      direction="column"
+      gap="sm"
+      className={pager.loading ? "is-loading" : undefined}
+    >
       <Stack
         direction="row"
         gap="lg"
@@ -500,7 +498,16 @@ export function Network({
         className="wpsignal-chart__filters"
       >
         <Choice
-          label={__("Outcome", "wordsocket")}
+          label={__("Month", "wordsocket")}
+          value={pager.month}
+          options={pager.months.map((m) => ({
+            value: m.month,
+            label: `${monthLabel(m.month)} (${m.count.toLocaleString()})`,
+          }))}
+          onChange={pager.onMonth}
+        />
+        <Choice
+          label={__("How it ended", "wordsocket")}
           value={filters.outcome || ANY}
           options={[
             { value: ANY, label: __("All", "wordsocket") },
@@ -514,7 +521,7 @@ export function Network({
           }
         />
         <Choice
-          label={__("Passed through", "wordsocket")}
+          label={__("Visited", "wordsocket")}
           value={filters.through || ANY}
           options={[
             { value: ANY, label: __("Any page", "wordsocket") },
@@ -525,13 +532,13 @@ export function Network({
           }
         />
         <Choice
-          label={__("Paths taken by at least", "wordsocket")}
+          label={__("Show routes taken by at least", "wordsocket")}
           value={String(filters.min)}
           options={EDGE_MIN.map((n) => ({
             value: String(n),
             label:
               n === 1
-                ? __("1 journey (every path)", "wordsocket")
+                ? __("1 journey (all routes)", "wordsocket")
                 : /* translators: %d: journeys */ sprintf(
                     __("%d journeys", "wordsocket"),
                     n,
@@ -544,7 +551,7 @@ export function Network({
       </Stack>
       <RadioGroupControl
         className="wpsignal-chart__radios"
-        label={__("Pages opened", "wordsocket")}
+        label={__("Pages viewed", "wordsocket")}
         value={String(filters.pages)}
         onValueChange={(value) =>
           onFilters({ ...filters, pages: Number(value) || 1 })
@@ -560,10 +567,12 @@ export function Network({
                 ),
         }))}
       />
-      <Count shown={shown.length} listed={journeys.length} total={total} pager={pager} />
+      <Count shown={shown.length} listed={journeys.length} pager={pager} />
       {shown.length === 0 ? (
         <Text variant="body-sm" className="wpsignal-muted">
-          {__("No journeys match.", "wordsocket")}
+          {pager.loading
+            ? __("Loading journeys\u2026", "wordsocket")
+            : __("No journeys match these filters.", "wordsocket")}
         </Text>
       ) : (
         <ChartFrame
@@ -592,7 +601,7 @@ export function Network({
                 .sort((a, b) => a.col - b.col || b.count - a.count)
                 .map((n) => [
                   n.col === columns
-                    ? __("Outcome", "wordsocket")
+                    ? __("How it ended", "wordsocket")
                     : String(n.col + 1),
                   n.col === columns
                     ? outcomeLabel(n.kind, outcomes)
@@ -610,11 +619,23 @@ export function Network({
             height={H}
             role="img"
             aria-label={__(
-              "Journeys as paths through a network of step positions and page kinds, ending in their outcome",
+              "Each visit drawn as a route through your pages, ending in how it went",
               "wordsocket",
             )}
           >
-            <Headers columns={columns} W={W} header={header} />
+            <g>
+              {Array.from({ length: columns + 1 }, (_, c) => (
+                <text
+                  key={c}
+                  x={LEFT + ((W - LEFT - RIGHT) * c) / columns}
+                  y={18}
+                  textAnchor="middle"
+                  className="is-strong"
+                >
+                  {header(c)}
+                </text>
+              ))}
+            </g>
             <Edges
               edges={layout.edges}
               maxEdge={layout.maxEdge}

@@ -86,17 +86,25 @@ export function getExtensions(): Promise<{
  *
  * @since 0.31.0
  */
-export function getJourneyVisuals(): Promise<import("./types").JourneyVisuals | null> {
+export function getJourneyVisuals(): Promise<
+  import("./types").JourneyVisuals | null
+> {
   return apiFetch({ path: "/wpsignal/v1/journeys/visuals" });
 }
 
 /**
- * One page of the window's journeys for the network, newest first; null with History off.
+ * One page of a month's journeys for the network, newest first; null with History off.
  *
  * @since 0.31.0
  */
-export function getJourneyPage(page: number): Promise<{ journeys: import("./types").JourneyRow[] | null }> {
-  return apiFetch({ path: `/wpsignal/v1/journeys/visuals/journeys?page=${page}` });
+export function getJourneyPage(
+  month: string,
+  page: number,
+): Promise<{ journeys: import("./types").JourneyRow[] } | null> {
+  const query = new URLSearchParams({ month, page: String(page) });
+  return apiFetch({
+    path: `/wpsignal/v1/journeys/visuals/journeys?${query}`,
+  });
 }
 
 /**
@@ -107,7 +115,11 @@ export function getJourneyPage(page: number): Promise<{ journeys: import("./type
 export function getJourneys(options: {
   days?: number;
   limit?: number;
-}): Promise<{ enabled: boolean; currency: string; journeys: WPSHistoryJourney[] }> {
+}): Promise<{
+  enabled: boolean;
+  currency: string;
+  journeys: WPSHistoryJourney[];
+}> {
   const query = new URLSearchParams();
   if (options.days) query.set("days", String(options.days));
   if (options.limit) query.set("limit", String(options.limit));
