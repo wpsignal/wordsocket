@@ -55,10 +55,6 @@ export interface VisualJourney {
   outcome: Outcome;
   hasRef: boolean;
   value: number;
-  /** Its day in the window, 0 the oldest, -1 outside. */
-  day: number;
-  /** Minute of its local day. */
-  minute: number;
   startedAt: string;
 }
 
@@ -134,7 +130,10 @@ export function outcomeLabel(outcome: Outcome, outcomes: Outcomes): string {
  *
  * @since 0.31.0
  */
-export function outcomeKeys(outcomes: Outcomes, journeys: VisualJourney[]): Outcome[] {
+export function outcomeKeys(
+  outcomes: Outcomes,
+  journeys: VisualJourney[],
+): Outcome[] {
   const keys = Object.keys(outcomes);
   journeys.forEach((j) => {
     if (!keys.includes(j.outcome)) keys.push(j.outcome);
@@ -194,8 +193,6 @@ export function parseJourneys(rows: JourneyRow[]): VisualJourney[] {
     outcome: row.outcome || "open",
     hasRef: Boolean(row.has_ref),
     value: Number(row.value) || 0,
-    day: Number.isInteger(row.day) ? row.day : -1,
-    minute: Number(row.minute) || 0,
     startedAt: row.started_at,
   }));
 }
@@ -217,12 +214,20 @@ export interface NetworkFilters {
 /**
  * @since 0.31.0
  */
-export const DEFAULT_FILTERS: NetworkFilters = { outcome: "", through: "", min: 1, pages: 1 };
+export const DEFAULT_FILTERS: NetworkFilters = {
+  outcome: "",
+  through: "",
+  min: 1,
+  pages: 1,
+};
 
 /** The transitions a journey makes, keyed by step position, as the network draws them. */
 function edgeKeys(j: VisualJourney): string[] {
   const steps = j.steps.slice(0, NETWORK_STEPS);
-  return steps.map((s, i) => `${i}:${s.kind}>${steps[i + 1] ? steps[i + 1].kind : `out:${j.outcome}`}`);
+  return steps.map(
+    (s, i) =>
+      `${i}:${s.kind}>${steps[i + 1] ? steps[i + 1].kind : `out:${j.outcome}`}`,
+  );
 }
 
 /**
@@ -230,18 +235,26 @@ function edgeKeys(j: VisualJourney): string[] {
  *
  * @since 0.31.0
  */
-export function applyFilters(journeys: VisualJourney[], f: NetworkFilters): VisualJourney[] {
+export function applyFilters(
+  journeys: VisualJourney[],
+  f: NetworkFilters,
+): VisualJourney[] {
   let shown = journeys.filter(
     (j) =>
       (!f.outcome || j.outcome === f.outcome) &&
       (!f.through || j.steps.some((s) => s.kind === f.through)) &&
-      (f.pages <= 1 || j.steps.filter((s) => s.kind !== "away").length >= f.pages),
+      (f.pages <= 1 ||
+        j.steps.filter((s) => s.kind !== "away").length >= f.pages),
   );
   if (f.min > 1) {
     const keys = new Map(shown.map((j) => [j.index, edgeKeys(j)]));
     const counts = new Map<string, number>();
-    keys.forEach((list) => list.forEach((k) => counts.set(k, (counts.get(k) ?? 0) + 1)));
-    shown = shown.filter((j) => (keys.get(j.index) ?? []).every((k) => (counts.get(k) ?? 0) >= f.min));
+    keys.forEach((list) =>
+      list.forEach((k) => counts.set(k, (counts.get(k) ?? 0) + 1)),
+    );
+    shown = shown.filter((j) =>
+      (keys.get(j.index) ?? []).every((k) => (counts.get(k) ?? 0) >= f.min),
+    );
   }
   return shown;
 }
@@ -311,9 +324,15 @@ export function isWin(outcome: Outcome): boolean {
  *
  * @since 0.31.0
  */
-export function columnsFor(journeys: VisualJourney[]): { columns: number; longer: boolean } {
+export function columnsFor(journeys: VisualJourney[]): {
+  columns: number;
+  longer: boolean;
+} {
   const longest = journeys.reduce((n, j) => Math.max(n, j.steps.length), 0);
-  return { columns: Math.min(NETWORK_STEPS, Math.max(1, longest)), longer: longest > NETWORK_STEPS };
+  return {
+    columns: Math.min(NETWORK_STEPS, Math.max(1, longest)),
+    longer: longest > NETWORK_STEPS,
+  };
 }
 
 /**
@@ -322,16 +341,26 @@ export function columnsFor(journeys: VisualJourney[]): { columns: number; longer
  *
  * @since 0.31.0
  */
-export function layoutNetwork(journeys: VisualJourney[], geometry: NetGeometry, rows: string[], known: Outcomes): NetLayout {
+export function layoutNetwork(
+  journeys: VisualJourney[],
+  geometry: NetGeometry,
+  rows: string[],
+  known: Outcomes,
+): NetLayout {
   const { columns, longer } = columnsFor(journeys);
-  const outcomes = outcomeKeys(known, journeys).filter((o) => journeys.some((j) => j.outcome === o));
+  const outcomes = outcomeKeys(known, journeys).filter((o) =>
+    journeys.some((j) => j.outcome === o),
+  );
   const nodes = new Map<string, NetNode>();
   const edges = new Map<string, NetEdge>();
   const nodeAt = (col: number, kind: string): NetNode => {
     const key = `${col}:${kind}`;
     let node = nodes.get(key);
     if (!node) {
-      const y = col === columns ? geometry.outcomeY(kind, outcomes.indexOf(kind), outcomes.length) : geometry.rowY(kind);
+      const y =
+        col === columns
+          ? geometry.outcomeY(kind, outcomes.indexOf(kind), outcomes.length)
+          : geometry.rowY(kind);
       node = { key, col, kind, count: 0, won: 0, x: geometry.colX(col), y };
       nodes.set(key, node);
     }
@@ -355,7 +384,10 @@ export function layoutNetwork(journeys: VisualJourney[], geometry: NetGeometry, 
       n.count += 1;
       if (isWin(j.outcome)) n.won += 1;
     });
-    chains.set(j.index, { nodes: chain, edges: chain.slice(1).map((b, i) => link(chain[i], b)) });
+    chains.set(j.index, {
+      nodes: chain,
+      edges: chain.slice(1).map((b, i) => link(chain[i], b)),
+    });
   });
   const all = [...nodes.values()];
   const allEdges = [...edges.values()];
@@ -376,7 +408,10 @@ export function layoutNetwork(journeys: VisualJourney[], geometry: NetGeometry, 
  *
  * @since 0.31.0
  */
-export function curve(a: { x: number; y: number }, b: { x: number; y: number }): string {
+export function curve(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+): string {
   const mx = (a.x + b.x) / 2;
   return `M${a.x},${a.y}C${mx},${a.y} ${mx},${b.y} ${b.x},${b.y}`;
 }
@@ -388,11 +423,16 @@ export function curve(a: { x: number; y: number }, b: { x: number; y: number }):
  */
 export function duration(ms: number): string {
   /* translators: %s: hours, one decimal */
-  if (ms >= 3_600_000) return sprintf(__("%s h", "wordsocket"), (ms / 3_600_000).toFixed(1));
+  if (ms >= 3_600_000)
+    return sprintf(__("%s h", "wordsocket"), (ms / 3_600_000).toFixed(1));
   /* translators: %s: minutes, one decimal */
-  if (ms >= 60_000) return sprintf(__("%s min", "wordsocket"), (ms / 60_000).toFixed(1));
+  if (ms >= 60_000)
+    return sprintf(__("%s min", "wordsocket"), (ms / 60_000).toFixed(1));
   /* translators: %s: seconds */
-  return sprintf(__("%s s", "wordsocket"), (ms / 1000).toFixed(ms < 10_000 ? 1 : 0));
+  return sprintf(
+    __("%s s", "wordsocket"),
+    (ms / 1000).toFixed(ms < 10_000 ? 1 : 0),
+  );
 }
 
 /**
@@ -401,7 +441,14 @@ export function duration(ms: number): string {
  * @since 0.31.0
  */
 export function describeSteps(steps: Step[], kinds: Kinds): string {
-  return steps.map((s) => `${kindLabel(s.kind, kinds).toLowerCase()}${s.id ? ` ${s.id}` : ""} ${duration(s.ms)}`).join(" › ");
+  return steps
+    .map(
+      (s) =>
+        `${kindLabel(s.kind, kinds).toLowerCase()}${
+          s.id ? ` ${s.id}` : ""
+        } ${duration(s.ms)}`,
+    )
+    .join(" › ");
 }
 
 /**
@@ -423,9 +470,11 @@ export function ticks(max: number, count: number): number[] {
   if (max <= 0) return [0];
   const rough = max / count;
   const power = 10 ** Math.floor(Math.log10(rough));
-  const step = [1, 2, 5, 10].map((m) => m * power).find((s) => s >= rough) ?? power * 10;
+  const step =
+    [1, 2, 5, 10].map((m) => m * power).find((s) => s >= rough) ?? power * 10;
   const out: number[] = [];
-  for (let v = 0; v <= max + step * 0.5; v += step) out.push(Math.round(v * 1e6) / 1e6);
+  for (let v = 0; v <= max + step * 0.5; v += step)
+    out.push(Math.round(v * 1e6) / 1e6);
   return out;
 }
 
@@ -439,16 +488,4 @@ export function rolling(values: number[], width: number): number[] {
     const slice = values.slice(Math.max(0, i - width + 1), i + 1);
     return slice.reduce((s, v) => s + v, 0) / slice.length;
   });
-}
-
-/**
- * The median, 0 of nothing.
- *
- * @since 0.31.0
- */
-export function median(values: number[]): number {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }

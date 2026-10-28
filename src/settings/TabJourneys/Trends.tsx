@@ -1,35 +1,22 @@
 /*
  * "How the weeks are going": small multiples over the window's days (visits, then one series per outcome
  * the site registered with one, and the journeys left with a ref when an extension named it), each a faint
- * daily line under its 7-day average, then every listed journey as a dot on its day, as high as its steps,
- * with the day's median through them.
+ * daily line under its 7-day average.
  */
 
 /**
  * WordPress dependencies.
  */
 import { __, sprintf } from "@wordpress/i18n";
-import { useMemo } from "@wordpress/element";
+import { memo } from "@wordpress/element";
 import { Stack } from "@wordpress/ui";
 
 /**
  * Internal dependencies.
  */
 import type { JourneyVisuals } from "../types";
-import { ChartFrame, clock, dayLabel, TableView, useChart } from "./chart";
-import {
-  describeSteps,
-  median,
-  outcomeColor,
-  outcomeKeys,
-  outcomeLabel,
-  rolling,
-  stepCount,
-  ticks,
-  type Kinds,
-  type Outcomes,
-  type VisualJourney,
-} from "./journeys";
+import { ChartFrame, dayLabel, TableView, useChart } from "./chart";
+import { rolling, ticks, type Outcomes } from "./journeys";
 
 type Day = JourneyVisuals["days"][number];
 
@@ -38,11 +25,8 @@ const RIGHT = 84;
 const TOP = 12;
 const MULTIPLE_H = 124;
 const GAP = 38;
-const DOTS_H = 270;
 const BOTTOM = 34;
 const AVERAGE_DAYS = 7;
-/** The least the steps axis reaches. */
-const STEPS_FLOOR = 10;
 /** How far the fade under the average reaches, in pixels, and the strips it is drawn in. */
 const FADE_PX = 56;
 const FADE_STRIPS = 28;
@@ -69,31 +53,26 @@ function FadeBand({ d, clip }: { d: string; clip: string }) {
 }
 
 /**
- * The trends and the dots.
+ * The trends; re-rendered only when its figures or its width change.
  *
  * @since 0.31.0
  */
-export function Trends({
+export const Trends = memo(function Trends({
   days,
-  journeys,
-  total,
   outcomes,
-  ref,
-  kinds,
+  refInfo,
 }: {
   days: Day[];
-  journeys: VisualJourney[];
-  total: number;
   outcomes: Outcomes;
-  ref: JourneyVisuals["ref"];
-  kinds: Kinds;
+  /** What a journey's ref is, when an extension said. */
+  refInfo: JourneyVisuals["ref"];
 }) {
   const { plotRef, tipRef, width, tip } = useChart();
   const DAYS = days.length;
   const W = Math.max(640, width);
 
   /* The series: visits, then each outcome that asked for one, then the journeys left with a ref. */
-  const measures = useMemo(() => {
+  const measures = (() => {
     const list: Array<{ key: string; label: string; values: number[] }> = [
       {
         key: "visits",
@@ -109,10 +88,10 @@ export function Trends({
           values: days.map((d) => d.outcomes[key] ?? 0),
         });
     });
-    if (ref?.left_series)
+    if (refInfo?.left_series)
       list.push({
         key: "left_ref",
-        label: ref.left_series,
+        label: refInfo.left_series,
         values: days.map((d) => d.left_ref),
       });
     return list.map((m) => {
@@ -120,38 +99,11 @@ export function Trends({
       const scale = ticks(Math.max(...m.values, 1), 3);
       return { ...m, avg, ticks: scale, max: scale[scale.length - 1] };
     });
-  }, [days, outcomes, ref]);
-  const dotsTop = TOP + measures.length * (MULTIPLE_H + GAP);
-  const H = dotsTop + DOTS_H + BOTTOM;
+  })();
+  const plotBottom = TOP + measures.length * (MULTIPLE_H + GAP) - GAP;
+  const H = plotBottom + BOTTOM;
   const x = (d: number) => LEFT + ((W - LEFT - RIGHT) * d) / DAYS;
 
-  const dots = useMemo(
-    () => journeys.filter((j) => j.day >= 0 && j.day < DAYS),
-    [journeys, DAYS],
-  );
-  const medians = useMemo(
-    () =>
-      days.map((_, d) =>
-        median(dots.filter((j) => j.day === d).map((j) => j.steps.length)),
-      ),
-    [days, dots],
-  );
-  /* The axis reaches the 95th percentile of steps; a dot above it sits on the top line. */
-  const { longest, stepTicks, top } = useMemo(() => {
-    const lengths = dots.map((j) => j.steps.length).sort((a, b) => a - b);
-    const limit = Math.max(
-      STEPS_FLOOR,
-      (lengths[Math.floor(0.95 * (lengths.length - 1))] ?? 0) + 1,
-    );
-    const scale = ticks(limit, 4).filter((t) => t > 0);
-    return {
-      longest: lengths[lengths.length - 1] ?? 0,
-      stepTicks: scale,
-      top: Math.max(limit, scale[scale.length - 1] ?? 1),
-    };
-  }, [dots]);
-  const ySteps = (steps: number) =>
-    dotsTop + DOTS_H - ((DOTS_H - 18) * Math.min(steps, top)) / top;
   const weekday = (date: string) => new Date(`${date}T00:00:00`).getDay();
   const line = (points: Array<[number, number]>) =>
     points.map(([px, py], i) => `${i === 0 ? "M" : "L"}${px},${py}`).join("");
@@ -162,31 +114,13 @@ export function Trends({
       measures
         .map((m) => `${m.values[d]} ${m.label.toLowerCase()}`)
         .join(" \u00b7 "),
-      /* translators: 1: the day's median steps per journey, 2: the 7-day average of visits */
+      /* translators: %s: the weekly average of visits */
       sprintf(
-        __("median %1$s steps \u00b7 7-day average %2$s visits", "wordsocket"),
-        String(medians[d]),
+        __("weekly average %s visits", "wordsocket"),
         measures[0].avg[d].toFixed(1),
       ),
     ]);
   };
-  const journeyTip = (
-    evt: { clientX: number; clientY: number },
-    j: VisualJourney,
-  ) =>
-    tip.show(
-      evt,
-      `${dayLabel(days[j.day].date)} ${clock(
-        Math.floor(j.minute / 60),
-        j.minute % 60,
-      )} \u00b7 ${stepCount(j.steps.length)} \u00b7 ${outcomeLabel(
-        j.outcome,
-        outcomes,
-      ).toLowerCase()}`,
-      [describeSteps(j.steps, kinds)],
-      true,
-    );
-
   return (
     <Stack direction="column" gap="sm">
       <ul className="wpsignal-chart__legend">
@@ -196,34 +130,18 @@ export function Trends({
         </li>
         <li>
           <span className="wpsignal-chart__swatch is-line" />
-          {__("7-day average, or the day's median", "wordsocket")}
+          {__("Weekly average", "wordsocket")}
         </li>
-        {outcomeKeys(outcomes, dots)
-          .filter((o) => dots.some((j) => j.outcome === o))
-          .map((o) => (
-            <li key={o}>
-              <span
-                className="wpsignal-chart__swatch is-dot"
-                style={{ background: outcomeColor(o, outcomes) }}
-              />
-              {outcomeLabel(o, outcomes)}
-            </li>
-          ))}
       </ul>
       <ChartFrame
         plotRef={plotRef}
         tipRef={tipRef}
         table={
           <TableView
-            head={[
-              __("Day", "wordsocket"),
-              ...measures.map((m) => m.label),
-              __("Median steps", "wordsocket"),
-            ]}
+            head={[__("Day", "wordsocket"), ...measures.map((m) => m.label)]}
             rows={days.map((d, i) => [
               dayLabel(d.date),
               ...measures.map((m) => m.values[i]),
-              medians[i],
             ])}
           />
         }
@@ -234,7 +152,7 @@ export function Trends({
           height={H}
           role="img"
           aria-label={__(
-            "Daily visits and outcomes over four weeks, with every journey as a dot",
+            "Daily visits and how they ended over four weeks",
             "wordsocket",
           )}
           onMouseMove={(evt) => {
@@ -276,7 +194,7 @@ export function Trends({
                   x={x(i)}
                   width={x(i + 1) - x(i)}
                   y={TOP - 4}
-                  height={dotsTop + DOTS_H - TOP + 4}
+                  height={plotBottom - TOP + 4}
                 />
               ) : null,
             )}
@@ -288,7 +206,7 @@ export function Trends({
                     x1={x(i)}
                     x2={x(i)}
                     y1={TOP - 4}
-                    y2={dotsTop + DOTS_H}
+                    y2={plotBottom}
                   />
                   <text x={x(i) + 4} y={H - 10}>
                     {dayLabel(d.date, false)}
@@ -353,71 +271,13 @@ export function Trends({
                   dy="0.35em"
                   className="is-muted"
                 >
-                  {__("7-day avg", "wordsocket")}
+                  {__("Weekly avg", "wordsocket")}
                 </text>
               </g>
             );
           })}
-          <g>
-            {stepTicks.map((t) => (
-              <g key={t}>
-                <line
-                  className="wpsignal-chart__grid"
-                  x1={LEFT}
-                  x2={W - RIGHT}
-                  y1={ySteps(t)}
-                  y2={ySteps(t)}
-                />
-                <text
-                  x={LEFT - 10}
-                  y={ySteps(t)}
-                  dy="0.35em"
-                  textAnchor="end"
-                  className="is-num"
-                >
-                  {t === top && longest > top ? `${t}+` : t}
-                </text>
-              </g>
-            ))}
-            <text x={LEFT} y={dotsTop + 2} className="is-strong">
-              {total > journeys.length
-                ? /* translators: 1: journeys drawn as dots, 2: journeys in the window */
-                  sprintf(
-                    __(
-                      "Steps per journey, one dot each (the newest %1$d of %2$d), with the day's median",
-                      "wordsocket",
-                    ),
-                    journeys.length,
-                    total,
-                  )
-                : __(
-                    "Steps per journey, one dot each, with the day's median",
-                    "wordsocket",
-                  )}
-            </text>
-            <path
-              className="wpsignal-trend__avg"
-              d={line(medians.map((v, k) => [x(k + 0.5), ySteps(v)]))}
-            />
-            {dots.map((j) => (
-              <circle
-                key={j.index}
-                className="wpsignal-trend__dot"
-                cx={x(j.day + Math.min(0.98, Math.max(0.02, j.minute / 1440)))}
-                cy={ySteps(j.steps.length)}
-                r={4.5}
-                fill={outcomeColor(j.outcome, outcomes)}
-                onMouseEnter={(evt) => journeyTip(evt, j)}
-                onMouseMove={(evt) => {
-                  evt.stopPropagation();
-                  journeyTip(evt, j);
-                }}
-                onMouseLeave={() => tip.hide()}
-              />
-            ))}
-          </g>
         </svg>
       </ChartFrame>
     </Stack>
   );
-}
+});

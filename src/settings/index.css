@@ -613,6 +613,7 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
 
 .wpsignal-net__labels {
   grid-template-rows: var(--wpsignal-top) repeat(var(--wpsignal-rows), var(--wpsignal-row));
+  border-right: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
 }
 
 /* Seven weekdays, the gap, then the all-days strip. */
@@ -723,12 +724,6 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
   &.is-line.is-raw {
     opacity: 0.4;
     height: 1.5px;
-  }
-
-  &.is-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
   }
 }
 
@@ -842,7 +837,7 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
 /* The fade under the average: white strips the band draws, fainter as they go down. */
 .wpsignal-trend__fade path {
   fill: none;
-  stroke: var(--wpds-color-bg-surface-neutral-strong);
+  stroke: var(--wpds-color-bg-interactive-brand-weak-active);
   stroke-linejoin: round;
 }
 
@@ -859,20 +854,6 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
   stroke-width: 2.5px;
   stroke-linejoin: round;
   stroke-linecap: round;
-}
-
-.wpsignal-trend__dot {
-  stroke: var(--wpds-color-bg-surface-neutral-strong);
-  stroke-width: 1.5px;
-  fill-opacity: 0.8;
-  cursor: default;
-
-  &:hover {
-    r: 7.5px;
-    stroke: var(--wpds-color-fg-content-neutral);
-    stroke-width: 2px;
-    fill-opacity: 1;
-  }
 }
 
 /* The hours: a single-hue ramp with a gap between cells, empty cells outlined, the hovered one outlined dark. */
