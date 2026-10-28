@@ -42,14 +42,25 @@ class Client {
 	private $token;
 
 	/**
+	 * Presence API bridge, which names the rooms this page's client joins.
+	 *
+	 * @var Presence_Bridge|null
+	 */
+	private $presence_bridge;
+
+	/**
 	 * Constructor.
 	 *
-	 * @param Config $config Configuration accessor.
-	 * @param Token  $token  Token minter (used to embed an initial JWT server-side).
+	 * @since 0.32.0 Takes the Presence API bridge.
+	 *
+	 * @param Config               $config          Configuration accessor.
+	 * @param Token                $token           Token minter (used to embed an initial JWT server-side).
+	 * @param Presence_Bridge|null $presence_bridge Presence API bridge.
 	 */
-	public function __construct( Config $config, Token $token ) {
-		$this->config = $config;
-		$this->token  = $token;
+	public function __construct( Config $config, Token $token, ?Presence_Bridge $presence_bridge = null ) {
+		$this->config          = $config;
+		$this->token           = $token;
+		$this->presence_bridge = $presence_bridge;
 	}
 
 	/**
@@ -107,6 +118,12 @@ class Client {
 			'version'      => VERSION,
 		);
 
+		// The bridge answers Presence API's `wp.hooks` filter at script evaluation, so the hooks must be on the page first.
+		$presence_api = $this->presence_bridge ? $this->presence_bridge->client_config() : null;
+		if ( $presence_api ) {
+			$asset['dependencies'][] = 'wp-hooks';
+		}
+
 		wp_enqueue_script(
 			'wpsignal',
 			URL . 'build/client.js',
@@ -158,6 +175,10 @@ class Client {
 		$enc_key = $this->config->encryption_key();
 		if ( ! empty( $enc_key ) ) {
 			$localize['encryptionKey'] = base64_encode( $enc_key );
+		}
+
+		if ( $presence_api ) {
+			$localize['presenceApi'] = $presence_api;
 		}
 
 		wp_add_inline_script( 'wpsignal', 'window.wpSignalConfig = ' . wp_json_encode( $localize ) . ';', 'before' );
