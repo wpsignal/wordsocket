@@ -7,7 +7,7 @@
  * WordPress dependencies.
  */
 import { __, _n, sprintf } from "@wordpress/i18n";
-import { useMemo, useState } from "@wordpress/element";
+import { useState } from "@wordpress/element";
 import { Stack, Text } from "@wordpress/ui";
 
 /**
@@ -76,46 +76,34 @@ export function Hours({
 }) {
   const { plotRef, tipRef, width, tip } = useChart();
   const [measure, setMeasure] = useState("minutes");
-  const order = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => (weekStart + i) % 7),
-    [weekStart],
-  );
+  const order = Array.from({ length: 7 }, (_, i) => (weekStart + i) % 7);
   const stripTop = TOP + 7 * CELL_H + GAP_STRIP;
   const H = stripTop + STRIP_H + BOTTOM;
   const W = Math.max(660, width);
   const cellW = (W - LEFT - RIGHT) / 24;
   /* The measures: minutes, visits, then each outcome that is a win for the site. */
-  const measures = useMemo(() => {
-    const list: Array<{
-      key: string;
-      label: string;
-      of: (cell: Cell) => number;
-    }> = [
-      {
-        key: "minutes",
-        label: __("Minutes on the site", "wordsocket"),
-        of: (c) => c.minutes,
-      },
-      { key: "visits", label: __("Visits", "wordsocket"), of: (c) => c.visits },
-    ];
-    Object.keys(outcomes)
+  const measures: Array<{
+    key: string;
+    label: string;
+    of: (cell: Cell) => number;
+  }> = [
+    {
+      key: "minutes",
+      label: __("Minutes on the site", "wordsocket"),
+      of: (c) => c.minutes,
+    },
+    { key: "visits", label: __("Visits", "wordsocket"), of: (c) => c.visits },
+    ...Object.keys(outcomes)
       .filter(isWin)
-      .forEach((key) =>
-        list.push({
-          key,
-          label: outcomeLabel(key, outcomes),
-          of: (c) => c.outcomes[key] ?? 0,
-        }),
-      );
-    return list;
-  }, [outcomes]);
+      .map((key) => ({
+        key,
+        label: outcomeLabel(key, outcomes),
+        of: (c: Cell) => c.outcomes[key] ?? 0,
+      })),
+  ];
   const current = measures.find((m) => m.key === measure) ?? measures[0];
-  const cells = useMemo(
-    () =>
-      order.flatMap((w, row) =>
-        (hours[w] ?? []).map((cell, h) => ({ w, row, h, cell })),
-      ),
-    [order, hours],
+  const cells = order.flatMap((w, row) =>
+    (hours[w] ?? []).map((cell, h) => ({ w, row, h, cell })),
   );
   const max = cells.reduce((n, c) => Math.max(n, current.of(c.cell)), 0);
   const color = (v: number) =>
@@ -125,12 +113,8 @@ export function Hours({
         Math.floor((v / Math.max(1, max)) * RAMP.length),
       )
     ];
-  const byHour = useMemo(
-    () =>
-      Array.from({ length: 24 }, (_, h) =>
-        hours.reduce((sum, row) => sum + (row[h] ? current.of(row[h]) : 0), 0),
-      ),
-    [hours, current],
+  const byHour = Array.from({ length: 24 }, (_, h) =>
+    hours.reduce((sum, row) => sum + (row[h] ? current.of(row[h]) : 0), 0),
   );
   const stripMax = Math.max(1, ...byHour);
   const yBar = (v: number) =>
@@ -199,11 +183,7 @@ export function Hours({
           </span>
         </span>
       </Stack>
-      <Text
-        variant="body-sm"
-        className="wpsignal-muted"
-        render={<p />}
-      >
+      <Text variant="body-sm" className="wpsignal-muted" render={<p />}>
         {/* translators: %s: the site's timezone */}
         {sprintf(
           __("Times are on the site's clock (%s).", "wordsocket"),
@@ -214,7 +194,7 @@ export function Hours({
             /* translators: 1: journeys the minutes came from, 2: journeys in the window */
             sprintf(
               __(
-                "Minutes come from the newest %1$d of %2$d journeys.",
+                "Time on the site is counted from the newest %1$d of %2$d journeys.",
                 "wordsocket",
               ),
               listed,
@@ -260,7 +240,7 @@ export function Hours({
           width={W}
           height={H}
           role="img"
-          aria-label={__("Presence by weekday and hour of day", "wordsocket")}
+          aria-label={__("Visitors by day of the week and hour", "wordsocket")}
         >
           <g>
             {Array.from({ length: 8 }, (_, i) => i * 3).map((h) => (

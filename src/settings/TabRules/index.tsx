@@ -7,13 +7,9 @@
  * WordPress dependencies.
  */
 import apiFetch from "@wordpress/api-fetch";
-import { __, sprintf } from "@wordpress/i18n";
+import { __, _n, sprintf } from "@wordpress/i18n";
 import { useEffect, useMemo, useRef, useState } from "@wordpress/element";
-import {
-  Button,
-  ProgressBar,
-  ToggleControl,
-} from "@wordpress/components";
+import { Button, ProgressBar, ToggleControl } from "@wordpress/components";
 import { AlertDialog, Badge, Card, Stack, Text, Notice } from "@wordpress/ui";
 
 /**
@@ -296,6 +292,7 @@ export function TabRules({ title }: { title: string }) {
         <Stack direction="column" gap="md" className="wpsignal-rules-list">
           {rules.map((rule) => {
             const unavailable = unavailableKeys(rule);
+            const firing = fired.get(rule.id);
             return (
               <Card.Root
                 key={rule.id}
@@ -318,8 +315,8 @@ export function TabRules({ title }: { title: string }) {
                           {rule.frequency === "page"
                             ? __("per page view", "wordsocket")
                             : rule.frequency === "visit"
-                              ? __("once per visit", "wordsocket")
-                              : __("once per visitor", "wordsocket")}
+                            ? __("once per visit", "wordsocket")
+                            : __("once per visitor", "wordsocket")}
                         </Badge>
                       )}
                       {rule.source && (
@@ -411,37 +408,49 @@ export function TabRules({ title }: { title: string }) {
                             "var(--wpds-color-background-surface-neutral-weak)",
                           borderRadius: "0.5rem",
                         }}
-                        title={__(
-                          "Journeys stored in the last 28 days this moment would have happened in",
-                          "wordsocket",
-                        )}
                       >
                         <Text variant="heading-2xl">
                           {reach(rule)?.count ?? 0}
                         </Text>
-                        <Text variant="body-sm" className="wpsignal-muted">
-                          {sprintf(
-                            /* translators: %d: journeys replayed */ __(
-                              "of %d reached",
-                              "wordsocket",
-                            ),
+                        <Text variant="heading-lg">
+                          / {history.journeys.length}
+                        </Text>
+                        <Text variant="body-md" className="wpsignal-muted">
+                          {_n(
+                            "match",
+                            "matches",
                             history.journeys.length,
+                            "wordsocket",
                           )}
                         </Text>
-                        {(fired.get(rule.id)?.shown ?? 0) > 0 && (
+                        {firing && firing.shown > 0 && (
                           <Text variant="body-sm" className="wpsignal-muted">
-                            {(fired.get(rule.id)?.orders ?? 0) > 0
-                              ? sprintf(
-                                  /* translators: 1: times shown, 2: orders credited */
-                                  __("fired %1$d, %2$d orders", "wordsocket"),
-                                  fired.get(rule.id)!.shown,
-                                  fired.get(rule.id)!.orders,
-                                )
-                              : sprintf(
-                                  /* translators: %d: times shown */
-                                  __("fired %d", "wordsocket"),
-                                  fired.get(rule.id)!.shown,
-                                )}
+                            {[
+                              sprintf(
+                                /* translators: %s: times the moment ran */
+                                _n(
+                                  "Seen %s time",
+                                  "Seen %s times",
+                                  firing.shown,
+                                  "wordsocket",
+                                ),
+                                firing.shown.toLocaleString(),
+                              ),
+                              ...(firing.orders > 0
+                                ? [
+                                    sprintf(
+                                      /* translators: %s: orders credited to the moment */
+                                      _n(
+                                        "%s order",
+                                        "%s orders",
+                                        firing.orders,
+                                        "wordsocket",
+                                      ),
+                                      firing.orders.toLocaleString(),
+                                    ),
+                                  ]
+                                : []),
+                            ].join(" \u00b7 ")}
                           </Text>
                         )}
                       </Stack>
