@@ -35,7 +35,7 @@ class Presence_Bridge {
 	const POST_CHANNEL_PREFIX = 'presence:post:';
 
 	/** Channel `presence.room_changed` is published on. */
-	const ROOMS_CHANNEL = 'presence:rooms';
+	const ROOMS_CHANNEL = 'presence-rooms';
 
 	/** Event published on `ROOMS_CHANNEL` after every Presence API write or removal. */
 	const ROOM_CHANGED_EVENT = 'presence.room_changed';
@@ -90,7 +90,22 @@ class Presence_Bridge {
 		add_filter( 'wpsignal_token_channels', array( $this, 'token_channels' ), 10, 3 );
 		add_action( 'set_presence', array( $this, 'on_room_changed' ) );
 		add_action( 'removed_presence', array( $this, 'on_room_changed' ) );
-		add_action( 'post_updated', array( $this, 'on_post_updated' ), 10, 3 );
+		add_action( 'plugins_loaded', array( $this, 'hook_room_changes' ) );
+	}
+
+	/**
+	 * Hook Presence API's `wp_presence_room_changed` where it exists, else the plugin's own `post_updated` handler.
+	 *
+	 * @since 0.32.0
+	 *
+	 * @return void
+	 */
+	public function hook_room_changes() {
+		if ( function_exists( 'wp_presence_room_changed' ) ) {
+			add_action( 'wp_presence_room_changed', array( $this, 'on_room_changed' ) );
+		} else {
+			add_action( 'post_updated', array( $this, 'on_post_updated' ), 10, 3 );
+		}
 	}
 
 	/**
@@ -149,6 +164,7 @@ class Presence_Bridge {
 					$state['post_id'] = $post->ID;
 					$rooms[]          = array(
 						'channel' => self::POST_CHANNEL_PREFIX . $post->ID,
+						'post_id' => $post->ID,
 						'state'   => array( 'screen' => $screen->id ),
 					);
 				}
@@ -184,7 +200,7 @@ class Presence_Bridge {
 	 * @return string[]
 	 */
 	public function token_channels( $channels, $user_id, $site_id ) {
-		if ( $user_id && $this->is_active() ) {
+		if ( $user_id && $this->is_active() && wp_can_access_presence_room( wp_presence_admin_room(), $user_id ) ) {
 			$channels[] = 'site:' . $site_id . ':' . self::ROOMS_CHANNEL;
 		}
 		return $channels;
@@ -210,7 +226,7 @@ class Presence_Bridge {
 	}
 
 	/**
-	 * Publish `presence.room_changed` for a post's room and the admin room when its title or status changes while someone is editing it, since the surfaces print the post, not the row.
+	 * Publish `presence.room_changed` for a post's room and the admin room when its title or status changes while someone is editing it.
 	 *
 	 * @since 0.32.0
 	 *
@@ -372,31 +388,37 @@ class Presence_Bridge {
 	 *
 	 * @param string $channel Site-relative channel, `presence:admin` or `presence:post:{id}`.
 	 * @param int    $user_id The person.
-	 * @param array  $state   The changed connection's presence state.
+	 * @param array  $state   The changed connection's presence state; `leaving` on a post room counts the connection as gone.
 	 * @param array  $others  The person's other connections, `[{ channel, state }]`.
 	 * @param bool   $leaving Whether the changed connection left the channel.
-	 * @return string What happened: `written`, `released`, `skipped` or `ignored`.
+	 * @return string What happened: `written`, `released`, `ended`, `skipped` or `ignored`.
 	 */
 	public function apply( $channel, $user_id, array $state, array $others, $leaving ) {
 		$room = $this->room_for( $channel );
 		if ( ! $room || $user_id <= 0 ) {
 			return 'ignored';
 		}
-		$client_id = ( self::ADMIN_CHANNEL === $channel ? 'user-' : 'editor-' ) . $user_id;
+		$is_post   = self::ADMIN_CHANNEL !== $channel;
+		$client_id = ( $is_post ? 'editor-' : 'user-' ) . $user_id;
+		$gone      = fn( array $s ) => $is_post && ! empty( $s['leaving'] );
 
 		$connections = array();
 		foreach ( $others as $other ) {
-			if ( $other['channel'] === $channel ) {
+			if ( $other['channel'] === $channel && ! $gone( $other['state'] ) ) {
 				$connections[] = $other['state'];
 			}
 		}
-		if ( ! $leaving ) {
+		if ( ! $leaving && ! $gone( $state ) ) {
 			array_unshift( $connections, $state );
 		}
 
 		if ( ! $connections ) {
-			$this->release( $room, $client_id, $user_id );
-			return 'released';
+			if ( $leaving ) {
+				$this->release( $room, $client_id, $user_id );
+				return 'released';
+			}
+			wp_remove_presence( $room, $client_id );
+			return 'ended';
 		}
 		if ( ! $this->has_session( $user_id ) || ! wp_can_access_presence_room( $room, $user_id ) ) {
 			return 'skipped';

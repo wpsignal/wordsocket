@@ -129,4 +129,26 @@ test.describe("Presence API bridge", () => {
       wp("post", "delete", postId, "--force");
     }
   });
+
+  test("moving on from the post editor by a same-site link ends the editor row at once", async ({ page }) => {
+    const postId = wp("post", "create", "--post_title=Presence bridge leaving", "--post_status=draft", "--porcelain").trim();
+    try {
+      await openAdmin(page, `post.php?post=${postId}&action=edit`);
+      const room = `postType/post:${postId}`;
+      await expect.poll(() => presenceRow(room, `editor-${userId}`)?.window ?? 0, { timeout: 15_000 }).toBeGreaterThan(HOUR - 60);
+
+      // Follow an injected same-site link.
+      await page.evaluate(() => {
+        const link = document.createElement("a");
+        link.href = "/wp-admin/index.php";
+        link.textContent = "Dashboard";
+        document.body.append(link);
+        link.click();
+      });
+      await page.waitForURL(/index\.php/);
+      await expect.poll(() => presenceRow(room, `editor-${userId}`), { timeout: 15_000 }).toBeNull();
+    } finally {
+      wp("post", "delete", postId, "--force");
+    }
+  });
 });

@@ -99,6 +99,26 @@ final class PresenceBridgeTest extends WordSocketTestCase {
 		return array( $response->get_status(), $response->get_data() );
 	}
 
+	private function leave( string $channel, array $others = array(), string $id = 'conn-1' ): array {
+		return $this->notify(
+			array(
+				'event'   => 'leave',
+				'channel' => $channel,
+				'id'      => $id,
+				'user_id' => (string) $this->user_id,
+				'state'   => null,
+				'ts'      => 2,
+				'others'  => $others,
+			)
+		);
+	}
+
+	/** The newest publish the bridge made, opened. */
+	private function last_publish(): array {
+		$publishes = array_values( array_filter( $this->requests, fn( $r ) => str_ends_with( $r['url'], '/publish' ) ) );
+		return $this->open_publish( end( $publishes )['args']['body'] );
+	}
+
 	private function join( string $channel, array $state = array(), array $others = array() ): array {
 		return $this->notify(
 			array(
@@ -190,25 +210,18 @@ final class PresenceBridgeTest extends WordSocketTestCase {
 		$room      = wp_presence_admin_room();
 		$client_id = 'user-' . $this->user_id;
 
-		list( , $data ) = $this->notify(
+		list( , $data ) = $this->leave(
+			Presence_Bridge::ADMIN_CHANNEL,
 			array(
-				'event'   => 'leave',
-				'channel' => Presence_Bridge::ADMIN_CHANNEL,
-				'id'      => 'conn-1',
-				'user_id' => (string) $this->user_id,
-				'state'   => null,
-				'ts'      => 2,
-				'others'  => array(
-					array(
-						'id'      => 'conn-2',
-						'channel' => Presence_Bridge::ADMIN_CHANNEL,
-						'state'   => array( 'screen' => 'upload' ),
-					),
-					array(
-						'id'      => 'conn-3',
-						'channel' => Presence_Bridge::POST_CHANNEL_PREFIX . $this->post_id,
-						'state'   => array( 'screen' => 'post' ),
-					),
+				array(
+					'id'      => 'conn-2',
+					'channel' => Presence_Bridge::ADMIN_CHANNEL,
+					'state'   => array( 'screen' => 'upload' ),
+				),
+				array(
+					'id'      => 'conn-3',
+					'channel' => Presence_Bridge::POST_CHANNEL_PREFIX . $this->post_id,
+					'state'   => array( 'screen' => 'post' ),
 				),
 			)
 		);
@@ -217,22 +230,16 @@ final class PresenceBridgeTest extends WordSocketTestCase {
 		$this->assertNotNull( $row, 'another tab of the same person is still on the admin room' );
 		$this->assertSame( 'upload', json_decode( $row->data, true )['screen'], 'the row now describes the connection that remains' );
 
-		list( , $data ) = $this->notify(
+		list( , $data ) = $this->leave(
+			Presence_Bridge::ADMIN_CHANNEL,
 			array(
-				'event'   => 'leave',
-				'channel' => Presence_Bridge::ADMIN_CHANNEL,
-				'id'      => 'conn-2',
-				'user_id' => (string) $this->user_id,
-				'state'   => null,
-				'ts'      => 3,
-				'others'  => array(
-					array(
-						'id'      => 'conn-3',
-						'channel' => Presence_Bridge::POST_CHANNEL_PREFIX . $this->post_id,
-						'state'   => array( 'screen' => 'post' ),
-					),
+				array(
+					'id'      => 'conn-3',
+					'channel' => Presence_Bridge::POST_CHANNEL_PREFIX . $this->post_id,
+					'state'   => array( 'screen' => 'post' ),
 				),
-			)
+			),
+			'conn-2'
 		);
 		$this->assertSame( 'released', $data['result'], 'a connection on another room does not keep this room' );
 		$row = $this->row( $room, $client_id );
@@ -240,22 +247,11 @@ final class PresenceBridgeTest extends WordSocketTestCase {
 		$this->assertLessThanOrEqual( Presence_Bridge::LEAVE_GRACE, $this->window( $row ) );
 		$this->assertSame( 'upload', json_decode( $row->data, true )['screen'], 'the row keeps its last state' );
 
-		$publishes = array_values( array_filter( $this->requests, fn( $r ) => str_ends_with( $r['url'], '/publish' ) ) );
-		$event     = $this->open_publish( end( $publishes )['args']['body'] );
+		$event = $this->last_publish();
 		$this->assertSame( Presence_Bridge::ROOM_CHANGED_EVENT, $event['event'] );
 		$this->assertSame( Presence_Bridge::LEAVE_GRACE * 1000, $event['data']['recheck_in'], 'open tabs are told when to look again' );
 
-		list( , $data ) = $this->notify(
-			array(
-				'event'   => 'leave',
-				'channel' => Presence_Bridge::ADMIN_CHANNEL,
-				'id'      => 'conn-9',
-				'user_id' => (string) $this->user_id,
-				'state'   => null,
-				'ts'      => 4,
-				'others'  => array(),
-			)
-		);
+		list( , $data ) = $this->leave( Presence_Bridge::ADMIN_CHANNEL, array(), 'conn-9' );
 		$this->assertSame( 'released', $data['result'], 'a leave for a person with no row writes nothing' );
 	}
 
@@ -275,6 +271,66 @@ final class PresenceBridgeTest extends WordSocketTestCase {
 
 		list( , $data ) = $this->join( 'carts', array() );
 		$this->assertSame( 'ignored', $data['result'], 'a channel outside the namespace' );
+	}
+
+	public function test_a_post_page_moving_on_ends_its_editor_row_at_once(): void {
+		$channel   = Presence_Bridge::POST_CHANNEL_PREFIX . $this->post_id;
+		$room      = wp_presence_post_room( $this->post_id );
+		$client_id = 'editor-' . $this->user_id;
+		$this->join( $channel, array( 'screen' => 'post' ) );
+		$this->assertNotNull( $this->row( $room, $client_id ) );
+
+		list( , $data ) = $this->join(
+			$channel,
+			array(
+				'screen'  => 'post',
+				'leaving' => true,
+			)
+		);
+		$this->assertSame( 'ended', $data['result'] );
+		$this->assertNull( $this->row( $room, $client_id ), 'the row is removed rather than left to lapse' );
+
+		$event = $this->last_publish();
+		$this->assertSame( Presence_Bridge::ROOM_CHANGED_EVENT, $event['event'] );
+		$this->assertSame( $room, $event['data']['room'] );
+		$this->assertArrayNotHasKey( 'recheck_in', $event['data'], 'nothing is left to lapse, so there is nothing to look at again' );
+
+		list( , $data ) = $this->leave( $channel );
+		$this->assertSame( 'released', $data['result'], 'the socket closing afterwards finds nothing to re-stamp' );
+		$this->assertNull( $this->row( $room, $client_id ) );
+	}
+
+	public function test_leaving_keeps_the_row_for_another_tab_on_the_post_and_means_nothing_on_the_admin_room(): void {
+		$channel        = Presence_Bridge::POST_CHANNEL_PREFIX . $this->post_id;
+		list( , $data ) = $this->join(
+			$channel,
+			array(
+				'screen'  => 'post',
+				'leaving' => true,
+			),
+			array(
+				array(
+					'id'      => 'conn-2',
+					'channel' => $channel,
+					'state'   => array( 'screen' => 'site-editor' ),
+				),
+			)
+		);
+		$this->assertSame( 'written', $data['result'] );
+		$row = $this->row( wp_presence_post_room( $this->post_id ), 'editor-' . $this->user_id );
+		$this->assertSame( 'site-editor', json_decode( $row->data, true )['screen'], 'the row now describes the tab that stays' );
+
+		list( , $data ) = $this->join(
+			Presence_Bridge::ADMIN_CHANNEL,
+			array(
+				'screen'  => 'dashboard',
+				'leaving' => true,
+			)
+		);
+		$this->assertSame( 'written', $data['result'] );
+		$row = $this->row( wp_presence_admin_room(), 'user-' . $this->user_id );
+		$this->assertNotNull( $row, 'every admin page rejoins the admin room, so its row is rewritten rather than ended' );
+		$this->assertArrayNotHasKey( 'leaving', json_decode( $row->data, true ), 'the flag never reaches the row' );
 	}
 
 	public function test_a_person_without_a_session_is_not_written(): void {

@@ -44,7 +44,7 @@ interface WpSignalConfig {
 
 /** The relay presence rooms the Presence API bridge joins on a page, from `Presence_Bridge::client_config()`. */
 interface WpSignalPresenceApi {
-	rooms: Array< { channel: string; state: Record< string, unknown > } >;
+	rooms: Array< { channel: string; state: Record< string, unknown >; post_id?: number } >;
 }
 
 /** Localized by class-wpsignal-admin-page.php (Settings React app) */
