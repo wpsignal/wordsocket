@@ -4,7 +4,7 @@
  *
  * - The browser joins relay presence on `presence:admin` (every signed-in page) and `presence:post:{id}` (the post editor).
  * - The relay posts each join and leave on `presence:*` to `POST /wpsignal/v1/presence`, signed like a publish.
- * - The route writes `user-{id}` and `editor-{id}` with an hour's `expires_in` and removes them on the person's last connection.
+ * - The route writes `user-{id}` and `editor-{id}` with an hour's `expires_in`; the person's last leave leaves the row to lapse within a short grace, so a refresh never drops them.
  * - `set_presence` and `removed_presence` publish `presence.room_changed`, which open tabs turn into `presence-api.roomChanged`.
  *
  * @package WPSignal
@@ -43,6 +43,9 @@ class Presence_Bridge {
 	/** How far a notification's timestamp may be from now, in milliseconds. */
 	const TIMESTAMP_TOLERANCE_MS = 60000;
 
+	/** Seconds a row outlives the person's last connection, covering a page refresh. */
+	const LEAVE_GRACE = 10;
+
 	/**
 	 * Configuration accessor.
 	 *
@@ -56,6 +59,13 @@ class Presence_Bridge {
 	 * @var Publisher
 	 */
 	private $publisher;
+
+	/**
+	 * The room whose row is being left to lapse during the current write, so its `room_changed` carries `recheck_in`.
+	 *
+	 * @var string
+	 */
+	private $releasing = '';
 
 	/**
 	 * Constructor.
@@ -80,6 +90,7 @@ class Presence_Bridge {
 		add_filter( 'wpsignal_token_channels', array( $this, 'token_channels' ), 10, 3 );
 		add_action( 'set_presence', array( $this, 'on_room_changed' ) );
 		add_action( 'removed_presence', array( $this, 'on_room_changed' ) );
+		add_action( 'post_updated', array( $this, 'on_post_updated' ), 10, 3 );
 	}
 
 	/**
@@ -180,7 +191,7 @@ class Presence_Bridge {
 	}
 
 	/**
-	 * Publish `presence.room_changed` for a room that was written or emptied.
+	 * Publish `presence.room_changed` for a room that was written or emptied, with `recheck_in` (ms) when a row was left to lapse.
 	 *
 	 * @since 0.32.0
 	 *
@@ -191,7 +202,36 @@ class Presence_Bridge {
 		if ( ! $this->is_active() ) {
 			return;
 		}
-		$this->publisher->publish( self::ROOMS_CHANNEL, self::ROOM_CHANGED_EVENT, array( 'room' => (string) $room ) );
+		$data = array( 'room' => (string) $room );
+		if ( $this->releasing === (string) $room ) {
+			$data['recheck_in'] = self::LEAVE_GRACE * 1000;
+		}
+		$this->publisher->publish( self::ROOMS_CHANNEL, self::ROOM_CHANGED_EVENT, $data );
+	}
+
+	/**
+	 * Publish `presence.room_changed` for a post's room and the admin room when its title or status changes while someone is editing it, since the surfaces print the post, not the row.
+	 *
+	 * @since 0.32.0
+	 *
+	 * @param int      $post_id The post.
+	 * @param \WP_Post $after   The post as saved.
+	 * @param \WP_Post $before  The post as it was.
+	 * @return void
+	 */
+	public function on_post_updated( $post_id, $after, $before ) {
+		if ( $after->post_title === $before->post_title && $after->post_status === $before->post_status ) {
+			return;
+		}
+		if ( ! $this->is_active() ) {
+			return;
+		}
+		$room = wp_presence_post_room( $after );
+		if ( ! $room || ! wp_get_presence( $room ) ) {
+			return;
+		}
+		$this->on_room_changed( $room );
+		$this->on_room_changed( wp_presence_admin_room() );
 	}
 
 	/**
@@ -335,7 +375,7 @@ class Presence_Bridge {
 	 * @param array  $state   The changed connection's presence state.
 	 * @param array  $others  The person's other connections, `[{ channel, state }]`.
 	 * @param bool   $leaving Whether the changed connection left the channel.
-	 * @return string What happened: `written`, `removed`, `skipped` or `ignored`.
+	 * @return string What happened: `written`, `released`, `skipped` or `ignored`.
 	 */
 	public function apply( $channel, $user_id, array $state, array $others, $leaving ) {
 		$room = $this->room_for( $channel );
@@ -355,8 +395,8 @@ class Presence_Bridge {
 		}
 
 		if ( ! $connections ) {
-			wp_remove_presence( $room, $client_id );
-			return 'removed';
+			$this->release( $room, $client_id, $user_id );
+			return 'released';
 		}
 		if ( ! $this->has_session( $user_id ) || ! wp_can_access_presence_room( $room, $user_id ) ) {
 			return 'skipped';
@@ -381,6 +421,38 @@ class Presence_Bridge {
 			)
 		);
 		return 'written';
+	}
+
+	/**
+	 * Re-stamp a row to lapse within `LEAVE_GRACE`, keeping its state, so a refresh's leave and join never show a gap.
+	 *
+	 * @param string $room      The room.
+	 * @param string $client_id The row's client id.
+	 * @param int    $user_id   The person.
+	 * @return void
+	 */
+	private function release( $room, $client_id, $user_id ) {
+		$state = null;
+		foreach ( wp_get_presence( $room, array( 'client_prefix' => $client_id ) ) as $row ) {
+			if ( $row->client_id === $client_id ) {
+				$state = is_array( $row->data ) ? $row->data : array();
+				break;
+			}
+		}
+		if ( null === $state ) {
+			return;
+		}
+		$this->releasing = $room;
+		wp_set_presence(
+			$room,
+			$client_id,
+			$state,
+			array(
+				'user_id'    => $user_id,
+				'expires_in' => self::LEAVE_GRACE,
+			)
+		);
+		$this->releasing = '';
 	}
 
 	/**

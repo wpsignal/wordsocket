@@ -3,7 +3,7 @@
  *
  * - Answers `presence-api.keepalive` with false from script evaluation, so Heartbeat never writes this tab's rows; flips to true only when the client halts.
  * - Joins relay presence on each room PHP printed, with `hidden: true` while the tab is hidden.
- * - Turns the site's `presence.room_changed` into `presence-api.roomChanged`.
+ * - Turns the site's `presence.room_changed` into `presence-api.roomChanged`, again after `recheck_in` ms when a row was left to lapse.
  */
 
 interface WpHooks {
@@ -45,8 +45,21 @@ export function startPresenceBridge(client: WPSApi, config: WpSignalPresenceApi)
   announce();
   document.addEventListener("visibilitychange", announce);
 
+  const rechecks = new Map<string, ReturnType<typeof setTimeout>>();
   client.on("presence.room_changed", (data, channel) => {
     if (!hooks || !client.onChannel(channel, "presence:rooms")) return;
-    hooks.doAction("presence-api.roomChanged", String(data.room ?? ""));
+    const room = String(data.room ?? "");
+    hooks.doAction("presence-api.roomChanged", room);
+    clearTimeout(rechecks.get(room));
+    rechecks.delete(room);
+    if (typeof data.recheck_in === "number") {
+      rechecks.set(
+        room,
+        setTimeout(() => {
+          rechecks.delete(room);
+          hooks.doAction("presence-api.roomChanged", room);
+        }, data.recheck_in + 1000),
+      );
+    }
   });
 }

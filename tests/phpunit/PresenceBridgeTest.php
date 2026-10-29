@@ -185,7 +185,7 @@ final class PresenceBridgeTest extends WordSocketTestCase {
 		$this->assertEqualsWithDelta( HOUR_IN_SECONDS, $this->window( $row ), 5, 'one visible connection: the hour' );
 	}
 
-	public function test_a_leave_keeps_the_row_while_another_connection_remains_and_removes_it_on_the_last(): void {
+	public function test_a_leave_keeps_the_row_while_another_connection_remains_and_releases_it_on_the_last(): void {
 		$this->join( Presence_Bridge::ADMIN_CHANNEL, array( 'screen' => 'dashboard' ) );
 		$room      = wp_presence_admin_room();
 		$client_id = 'user-' . $this->user_id;
@@ -234,8 +234,29 @@ final class PresenceBridgeTest extends WordSocketTestCase {
 				),
 			)
 		);
-		$this->assertSame( 'removed', $data['result'], 'a connection on another room does not keep this room' );
-		$this->assertNull( $this->row( $room, $client_id ) );
+		$this->assertSame( 'released', $data['result'], 'a connection on another room does not keep this room' );
+		$row = $this->row( $room, $client_id );
+		$this->assertNotNull( $row, 'the row is left to lapse rather than deleted, so a refresh shows no gap' );
+		$this->assertLessThanOrEqual( Presence_Bridge::LEAVE_GRACE, $this->window( $row ) );
+		$this->assertSame( 'upload', json_decode( $row->data, true )['screen'], 'the row keeps its last state' );
+
+		$publishes = array_values( array_filter( $this->requests, fn( $r ) => str_ends_with( $r['url'], '/publish' ) ) );
+		$event     = $this->open_publish( end( $publishes )['args']['body'] );
+		$this->assertSame( Presence_Bridge::ROOM_CHANGED_EVENT, $event['event'] );
+		$this->assertSame( Presence_Bridge::LEAVE_GRACE * 1000, $event['data']['recheck_in'], 'open tabs are told when to look again' );
+
+		list( , $data ) = $this->notify(
+			array(
+				'event'   => 'leave',
+				'channel' => Presence_Bridge::ADMIN_CHANNEL,
+				'id'      => 'conn-9',
+				'user_id' => (string) $this->user_id,
+				'state'   => null,
+				'ts'      => 4,
+				'others'  => array(),
+			)
+		);
+		$this->assertSame( 'released', $data['result'], 'a leave for a person with no row writes nothing' );
 	}
 
 	public function test_the_post_channel_writes_the_editor_row_in_the_post_room(): void {
@@ -301,6 +322,55 @@ final class PresenceBridgeTest extends WordSocketTestCase {
 		$this->assertSame( Presence_Bridge::ROOMS_CHANNEL, $event['channel'] );
 		$this->assertSame( Presence_Bridge::ROOM_CHANGED_EVENT, $event['event'] );
 		$this->assertSame( wp_presence_admin_room(), $event['data']['room'] );
+		$this->assertArrayNotHasKey( 'recheck_in', $event['data'], 'a plain write asks for no recheck' );
+	}
+
+	public function test_a_title_or_status_change_on_a_post_being_edited_publishes_room_changed(): void {
+		$publishes = fn() => array_values( array_filter( $this->requests, fn( $r ) => str_ends_with( $r['url'], '/publish' ) ) );
+
+		// Nobody in the room: a save publishes nothing.
+		wp_update_post(
+			array(
+				'ID'         => $this->post_id,
+				'post_title' => 'Renamed while empty',
+			)
+		);
+		$this->assertCount( 0, $publishes() );
+
+		$this->join( Presence_Bridge::POST_CHANNEL_PREFIX . $this->post_id, array( 'screen' => 'post' ) );
+		$before = 1;
+
+		wp_update_post(
+			array(
+				'ID'          => $this->post_id,
+				'post_title'  => 'Published now',
+				'post_status' => 'publish',
+			)
+		);
+		// WordSocket's own post triggers publish too; keep only the room changes.
+		$rooms_changed = function () use ( $publishes ) {
+			$rooms = array();
+			foreach ( $publishes() as $r ) {
+				$event = $this->open_publish( $r['args']['body'] );
+				if ( Presence_Bridge::ROOM_CHANGED_EVENT === $event['event'] ) {
+					$rooms[] = $event['data']['room'];
+				}
+			}
+			return $rooms;
+		};
+		$rooms = array_slice( $rooms_changed(), $before );
+		$this->assertContains( wp_presence_post_room( $this->post_id ), $rooms );
+		$this->assertContains( wp_presence_admin_room(), $rooms );
+
+		// A save that changes neither title nor status is quiet.
+		$before = count( $rooms_changed() );
+		wp_update_post(
+			array(
+				'ID'           => $this->post_id,
+				'post_content' => 'Body only',
+			)
+		);
+		$this->assertCount( $before, $rooms_changed() );
 	}
 
 	public function test_the_token_lists_the_rooms_channel_for_a_signed_in_user_only(): void {
