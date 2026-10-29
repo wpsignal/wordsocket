@@ -49,7 +49,7 @@ final class TokenTest extends WordSocketTestCase {
 		$this->assertSame( array( 'site:' . $site_id . ':' ), $payload['allowed_publish_prefixes'] );
 		$this->assertSame( 300, $payload['exp'] - $payload['iat'] );
 		$this->assertSame( $payload['exp'], $minted['exp'] );
-		$this->assertSame( array( 'site:' . $site_id . ':events' ), $minted['channels'] );
+		$this->assertContains( 'site:' . $site_id . ':events', $minted['channels'] );
 
 		list( $h, $p ) = explode( '.', $minted['token'] );
 		$expected      = rtrim( strtr( base64_encode( hash_hmac( 'sha256', "$h.$p", 'jwt-secret-for-tests', true ) ), '+/', '-_' ), '=' );

@@ -29,10 +29,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * mode a token may otherwise publish nowhere (`wpsignal_token_publish_prefixes`
  * adds to that list). Without reservations both stay the site wildcard.
  *
- * WordSocket's own namespaces (`BUILTIN`, today just `yjs:` for the
- * collaboration provider) are granted in strict mode the same way, read and
- * write, without counting as a reservation: installing an extension must not
- * switch real-time collaboration off.
+ * WordSocket's own namespaces (`BUILTIN`: `yjs:` for the collaboration
+ * provider, `presence:` for the Presence API bridge) are granted in strict
+ * mode the same way, read and write, without counting as a reservation:
+ * installing an extension must not switch real-time collaboration off.
  *
  * @usage: reserve a staff-only namespace on `wpsignal_loaded`:
  * ```php
@@ -52,7 +52,8 @@ class Channels {
 	 * @var array<string, string>
 	 */
 	private const BUILTIN = array(
-		'yjs:' => 'edit_posts',
+		'yjs:'      => 'edit_posts',
+		'presence:' => 'edit_posts',
 	);
 
 	/**

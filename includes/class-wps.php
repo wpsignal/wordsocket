@@ -113,6 +113,13 @@ class WPS {
 	private $custom_triggers;
 
 	/**
+	 * Presence API bridge.
+	 *
+	 * @var Presence_Bridge
+	 */
+	private $presence_bridge_instance;
+
+	/**
 	 * Channel namespace reservations.
 	 *
 	 * @var Channels
@@ -165,7 +172,8 @@ class WPS {
 		$this->publisher_instance        = new Publisher( $this->config_instance );
 		$this->token_instance            = new Token( $this->config_instance, $this->publisher_instance, $this->channels_instance );
 		$this->trigger_registry_instance = new Trigger_Registry( $this->publisher_instance );
-		$this->client_instance           = new Client( $this->config_instance, $this->token_instance );
+		$this->presence_bridge_instance  = new Presence_Bridge( $this->config_instance, $this->publisher_instance );
+		$this->client_instance           = new Client( $this->config_instance, $this->token_instance, $this->presence_bridge_instance );
 		$this->admin_instance            = new Admin_Page( $this->config_instance );
 		$this->connect_instance          = new Connect( $this->config_instance );
 		$this->connect_instance->init();
@@ -207,6 +215,9 @@ class WPS {
 
 		// Frontend client.
 		$this->client_instance->init();
+
+		// Presence API bridge (inert until Presence API is installed and recording).
+		$this->presence_bridge_instance->init();
 
 		// Admin pages.
 		if ( is_admin() ) {
@@ -287,6 +298,17 @@ class WPS {
 	 */
 	public function extensions() {
 		return $this->extensions_instance;
+	}
+
+	/**
+	 * Presence API bridge (see `Presence_Bridge`).
+	 *
+	 * @since 0.32.0
+	 *
+	 * @return Presence_Bridge
+	 */
+	public function presence_bridge() {
+		return $this->presence_bridge_instance;
 	}
 
 	/**

@@ -38,6 +38,13 @@ interface WpSignalConfig {
 	encryptionKey?: string;
 	/** Force use of SSE instead of WebSocket. */
 	forceSSE?: boolean;
+	/** Presence API bridge rooms for this page (printed only while the bridge is active and the user may be in them). */
+	presenceApi?: WpSignalPresenceApi;
+}
+
+/** The relay presence rooms the Presence API bridge joins on a page, from `Presence_Bridge::client_config()`. */
+interface WpSignalPresenceApi {
+	rooms: Array< { channel: string; state: Record< string, unknown >; post_id?: number } >;
 }
 
 /** Localized by class-wpsignal-admin-page.php (Settings React app) */

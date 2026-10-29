@@ -180,6 +180,9 @@ The client falls back to SSE for receiving events. `window.WPS.subscribe()` and 
 
 == Changelog ==
 
+= 0.32.0 =
+* New: Presence API bridge. With the Presence API feature plugin active, a signed-in WordSocket user appears in Who's Online, the admin bar and the Editors column the moment they connect and disappears within ten seconds of their last tab closing, and at once when they move on from the post editor to another page of the site, written by the relay rather than by Heartbeat; `wpsignal_presence_bridge` switches it off
+
 = 0.29.1 =
 * Fixed: "Connect with WPSignal" on the Connect tab led to "The link you followed has expired" since 0.29.0, because the authorization link's nonce was HTML-escaped. Manual connection with an API key was unaffected
 

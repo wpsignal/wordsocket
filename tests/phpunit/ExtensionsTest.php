@@ -38,10 +38,10 @@ final class ExtensionsTest extends WordSocketTestCase {
 		$this->as_admin();
 		$admin = get_current_user_id();
 		$this->assertSame(
-			array( 'site:abc:events', 'site:abc:woo:orders:', 'site:abc:woo:carts:', 'site:abc:woo:notes:', 'site:abc:yjs:' ),
+			array( 'site:abc:events', 'site:abc:woo:orders:', 'site:abc:woo:carts:', 'site:abc:woo:notes:', 'site:abc:yjs:', 'site:abc:presence:' ),
 			$channels->allowed_prefixes( $admin, self::SITE, array() )
 		);
-		$this->assertSame( array( 'site:abc:woo:orders:', 'site:abc:woo:carts:', 'site:abc:yjs:' ), $channels->allowed_publish_prefixes( $admin, self::SITE ) );
+		$this->assertSame( array( 'site:abc:woo:orders:', 'site:abc:woo:carts:', 'site:abc:yjs:', 'site:abc:presence:' ), $channels->allowed_publish_prefixes( $admin, self::SITE ) );
 	}
 
 	public function test_strict_mode_keeps_the_collaboration_namespace_for_users_who_edit_posts(): void {
@@ -52,7 +52,7 @@ final class ExtensionsTest extends WordSocketTestCase {
 		// Editors read and write the Yjs channels; visitors and subscribers get neither.
 		$editor = self::factory_user( 'editor' );
 		$this->assertContains( 'site:abc:yjs:', $channels->allowed_prefixes( $editor, self::SITE, array() ) );
-		$this->assertSame( array( 'site:abc:yjs:' ), $channels->allowed_publish_prefixes( $editor, self::SITE ) );
+		$this->assertSame( array( 'site:abc:yjs:', 'site:abc:presence:' ), $channels->allowed_publish_prefixes( $editor, self::SITE ) );
 		$this->assertNotContains( 'site:abc:yjs:', $channels->allowed_prefixes( 0, self::SITE, array() ) );
 		$this->assertSame( array(), $channels->allowed_publish_prefixes( 0, self::SITE ) );
 		$subscriber = self::factory_user( 'subscriber' );
@@ -61,7 +61,7 @@ final class ExtensionsTest extends WordSocketTestCase {
 		// A plugin reserving yjs itself takes over the grant.
 		$channels->reserve( 'yjs', '__return_false' );
 		$this->assertNotContains( 'site:abc:yjs:', $channels->allowed_prefixes( $editor, self::SITE, array() ) );
-		$this->assertSame( array(), $channels->allowed_publish_prefixes( $editor, self::SITE ) );
+		$this->assertSame( array( 'site:abc:presence:' ), $channels->allowed_publish_prefixes( $editor, self::SITE ), 'the other built-in namespace is untouched' );
 	}
 
 	public function test_a_reservation_switches_to_an_explicit_list_gated_by_capability(): void {
@@ -81,7 +81,7 @@ final class ExtensionsTest extends WordSocketTestCase {
 		// Administrator: both reserved namespaces.
 		$this->as_admin();
 		$this->assertSame(
-			array( 'site:abc:events', 'site:abc:livingposts', 'site:abc:woo:orders:', 'site:abc:woo:customer:', 'site:abc:yjs:' ),
+			array( 'site:abc:events', 'site:abc:livingposts', 'site:abc:woo:orders:', 'site:abc:woo:customer:', 'site:abc:yjs:', 'site:abc:presence:' ),
 			$channels->allowed_prefixes( get_current_user_id(), self::SITE, $registered )
 		);
 
@@ -112,7 +112,9 @@ final class ExtensionsTest extends WordSocketTestCase {
 			list( , $payload ) = self::jwt_parts( WPS::instance()->token()->mint()['token'] );
 			$this->assertContains( 'site:' . $site_id . ':phpunit:private:', $payload['allowed_channel_prefixes'] );
 			$this->assertNotContains( 'site:' . $site_id . ':', $payload['allowed_channel_prefixes'], 'no wildcard once a namespace is reserved' );
-			$this->assertSame( array( 'site:' . $site_id . ':phpunit:private:', 'site:' . $site_id . ':yjs:' ), $payload['allowed_publish_prefixes'], 'the publish grant follows the read grant; collaboration stays writable' );
+			$this->assertContains( 'site:' . $site_id . ':phpunit:private:', $payload['allowed_publish_prefixes'], 'the publish grant follows the read grant' );
+			$this->assertContains( 'site:' . $site_id . ':yjs:', $payload['allowed_publish_prefixes'], 'collaboration stays writable' );
+			$this->assertContains( 'site:' . $site_id . ':presence:', $payload['allowed_publish_prefixes'], 'the Presence API bridge stays writable' );
 			$this->assertContains( 'site:' . $site_id . ':yjs:', $payload['allowed_channel_prefixes'] );
 
 			wp_set_current_user( 0 );

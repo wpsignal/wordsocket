@@ -10,6 +10,7 @@
  */
 
 import { wpsDebug } from "./utils";
+import { startPresenceBridge } from "./presence-bridge";
 import { onChannel, uuid, visitorId } from "./utils/identity";
 import { Backoff } from "./utils/backoff";
 import { createDecryptor, type Decryptor } from "./utils/crypto";
@@ -923,6 +924,7 @@ const config = window.wpSignalConfig;
 if (config?.baseUrl && config?.restUrl) {
   const client = new WPSignalClient(config);
   window.WPS = client;
+  if (config.presenceApi) startPresenceBridge(client, config.presenceApi);
   client.start();
 }
 
