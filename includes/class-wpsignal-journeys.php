@@ -851,9 +851,6 @@ class Journeys {
 	 */
 	public function feed( int $days, int $limit ): array {
 		global $wpdb;
-		if ( ! $this->enabled() ) {
-			return array();
-		}
 		$since = gmdate( 'Y-m-d H:i:s', time() - min( self::FEED_MAX_DAYS, max( 1, $days ) ) * DAY_IN_SECONDS );
 		$rows  = (array) $wpdb->get_results(
 			$wpdb->prepare(
@@ -910,16 +907,13 @@ class Journeys {
 
 	/**
 	 * The Journeys tab's figures over the last VISUALS_DAYS days on the site's clock, with the months
-	 * that hold journeys, null with History off; a computed answer is kept CACHE_TTL seconds.
+	 * that hold journeys, History on or off; a computed answer is kept CACHE_TTL seconds.
 	 *
 	 * @since 0.31.0
 	 *
 	 * @return array<string, mixed>|null
 	 */
 	public function visuals(): ?array {
-		if ( ! $this->enabled() ) {
-			return null;
-		}
 		$cached = get_transient( self::VISUALS_TRANSIENT );
 		if ( is_array( $cached ) ) {
 			return $cached;
@@ -976,7 +970,7 @@ class Journeys {
 
 	/**
 	 * One page of a month's journeys for the network, VISUALS_JOURNEYS to a page, newest first, with
-	 * the month's total; null with History off or a month that is not `YYYY-MM`.
+	 * the month's total; null for a month that is not `YYYY-MM`.
 	 *
 	 * @since 0.31.0
 	 *
@@ -987,7 +981,7 @@ class Journeys {
 	public function visuals_page( string $month, int $page ): ?array {
 		$tz     = wp_timezone();
 		$bounds = self::month_bounds( $month, $tz );
-		if ( ! $this->enabled() || null === $bounds ) {
+		if ( null === $bounds ) {
 			return null;
 		}
 		list( $since, $until ) = $bounds;
@@ -1205,8 +1199,7 @@ class Journeys {
 	}
 
 	/**
-	 * Delete journeys past the retention, in batches for at most PRUNE_SECONDS; every journey with
-	 * History off.
+	 * Delete journeys past the retention, History on or off, in batches for at most PRUNE_SECONDS.
 	 *
 	 * @since 0.31.0
 	 *
@@ -1214,9 +1207,7 @@ class Journeys {
 	 */
 	public function prune(): void {
 		global $wpdb;
-		$where = $this->enabled()
-			? $wpdb->prepare( 'started_at < %s', $this->retention_floor() )
-			: '1 = 1';
+		$where = $wpdb->prepare( 'started_at < %s', $this->retention_floor() );
 		$began = microtime( true );
 		do {
 			$deleted = (int) $wpdb->query( 'DELETE FROM ' . self::table() . " WHERE {$where} LIMIT " . self::PRUNE_BATCH );

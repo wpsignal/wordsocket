@@ -333,10 +333,12 @@ final class JourneysTest extends WordSocketTestCase {
 		list( $status, $data ) = $this->rest( 'GET', 'journeys' );
 		$this->assertSame( 200, $status );
 		$this->assertFalse( $data['enabled'] );
-		$this->assertSame( array(), $data['journeys'] );
+		$mine = array_values( array_filter( $data['journeys'], static fn( array $j ): bool => 'home:1:100>post:2:200' === $j['journey'] ) );
+		$this->assertCount( 1, $mine, 'history off keeps what was kept readable' );
 		list( $status, $data ) = $this->rest( 'GET', 'journeys/visuals' );
 		$this->assertSame( 200, $status );
-		$this->assertNull( $data, 'history off' );
+		$this->assertIsArray( $data, 'history off still draws what was kept' );
+		$this->assertGreaterThanOrEqual( 1, $data['total'] );
 	}
 
 	public function test_the_visuals_bucket_days_and_hours_on_the_site_clock_and_list_the_newest_journeys(): void {
@@ -432,7 +434,7 @@ final class JourneysTest extends WordSocketTestCase {
 		}
 	}
 
-	public function test_prune_keeps_the_retention_and_empties_the_table_with_history_off(): void {
+	public function test_prune_keeps_the_retention_whether_history_is_on_or_off(): void {
 		global $wpdb;
 		update_option( 'wpsignal_journeys_retention_months', 2 );
 		$fresh = gmdate( 'Y-m-d H:i:s' );
@@ -458,7 +460,7 @@ final class JourneysTest extends WordSocketTestCase {
 		$this->assertNull( $this->row( self::N2 ), 'past two months' );
 		update_option( 'wpsignal_history_enabled', false );
 		$this->journeys()->prune();
-		$this->assertNull( $this->row( self::N ), 'history off keeps nothing' );
+		$this->assertNotNull( $this->row( self::N ), 'history off keeps what is within the retention' );
 	}
 
 	public function test_purge_deletes_the_days_asked_on_the_site_clock_and_the_route_is_staff_only(): void {

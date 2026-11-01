@@ -257,7 +257,7 @@ export function ReplayPanel({ rule }: { rule: Rule }) {
                 {__("The journeys could not be loaded.", "wordsocket")}
               </Text>
             )}
-
+            <Text variant="heading-xl">{__("Projections:", "wordsocket")}</Text>
             {result && (
               <Block label={__("Would reach", "wordsocket")}>
                 <Stack
@@ -306,10 +306,12 @@ export function ReplayPanel({ rule }: { rule: Rule }) {
                 </Meter.Root>
                 {reached === 0 ? (
                   <Text variant="body-sm" className="wpsignal-muted">
-                    {__(
-                      "No stored journey matched. Loosen a condition or add a group of alternatives.",
-                      "wordsocket",
-                    )}
+                    {result.total === 0
+                      ? __("No journeys have been kept yet.", "wordsocket")
+                      : __(
+                          "No stored journey matched. Loosen a condition or add a group of alternatives.",
+                          "wordsocket",
+                        )}
                   </Text>
                 ) : (
                   reachParts.length > 0 && (
@@ -327,13 +329,12 @@ export function ReplayPanel({ rule }: { rule: Rule }) {
                 )}
               </Block>
             )}
-
             {wouldFireOn.length > 0 && (
               <Block label={__("Fires on", "wordsocket")}>
                 <KindRows rows={wouldFireOn} kinds={kinds} />
               </Block>
             )}
-
+            <Text variant="heading-xl">{__("Conversions:", "wordsocket")}</Text>
             {fired && shown > 0 && (
               <Block label={__("So far", "wordsocket")}>
                 <div className="wpsignal-replay__tiles">
@@ -373,7 +374,6 @@ export function ReplayPanel({ rule }: { rule: Rule }) {
                 <Legend parts={fateParts.slice(0, 3)} />
               </Block>
             )}
-
             {shownOn.length > 0 && (
               <Block label={__("Shown on", "wordsocket")}>
                 <KindRows rows={shownOn} kinds={kinds} />

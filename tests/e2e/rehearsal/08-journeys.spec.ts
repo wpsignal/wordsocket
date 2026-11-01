@@ -6,7 +6,8 @@ import { waitForState } from "./helpers";
 
 /*
  * Journeys (0.31): with History on, a visitor's pages become a journey row WordSocket keeps, the
- * Journeys tab draws the last 28 days, and the Moments tab's replay has a provider.
+ * Journeys tab draws the last 28 days, and the Moments tab's replay has a provider. With History off
+ * nothing new is written, but what was kept stays on the tab under a notice and in the replay.
  */
 
 const TAB = "page=wordsocket&tab=journeys";
@@ -94,19 +95,22 @@ test.describe("Journeys", () => {
     await expect(page.locator(".wpsignal-rule-replay")).toContainText("Would reach");
   });
 
-  test("with History off the tab offers the switch alone and the replay has no provider", async ({ admin, page }) => {
+  test("with History off the tab still draws what was kept under a notice, and the replay keeps its provider", async ({ admin, page }) => {
     wp("option", "update", "wpsignal_history_enabled", "0");
     try {
       await admin.visitAdminPage("admin.php", TAB);
       await expect(page.getByLabel("Keep a history of journeys")).not.toBeChecked();
-      await expect(page.locator(".wpsignal-visual")).toHaveCount(0);
+      await expect(page.getByText("History is off")).toBeVisible();
+      await expect(page.locator(".wpsignal-visual")).toHaveCount(3, { timeout: 20_000 });
       await admin.visitAdminPage("admin.php", "page=wordsocket&tab=moments&moment=new");
       await expect(page.getByRole("heading", { name: "New Moment" })).toBeVisible();
-      await expect(page.locator(".wpsignal-rule-replay")).toHaveCount(0);
-      // The switch turns it on and the visuals appear.
+      await expect(page.locator(".wpsignal-rule-replay")).toBeVisible({ timeout: 20_000 });
+      // The switch turns it on: the notice goes without a reload.
       await admin.visitAdminPage("admin.php", TAB);
       await page.getByLabel("Keep a history of journeys").check();
       await expect(page.locator(".components-snackbar")).toContainText("Settings saved.");
+      await expect(page.getByText("History is off")).toHaveCount(0);
+      await expect(page.locator(".wpsignal-visual")).toHaveCount(3);
       expect(wp("option", "get", "wpsignal_history_enabled")).toBe("1");
     } finally {
       wp("option", "update", "wpsignal_history_enabled", "1");

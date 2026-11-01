@@ -72,18 +72,18 @@ function PurgeJourneys({ onPurged }: { onPurged(): void }) {
           to,
         )
       : from
-        ? sprintf(
-            /* translators: %s: first day */
-            __("Journeys from %s on will be deleted.", "wordsocket"),
-            from,
-          )
-        : to
-          ? sprintf(
-              /* translators: %s: last day */
-              __("Journeys up to %s will be deleted.", "wordsocket"),
-              to,
-            )
-          : __("Every journey will be deleted.", "wordsocket");
+      ? sprintf(
+          /* translators: %s: first day */
+          __("Journeys from %s on will be deleted.", "wordsocket"),
+          from,
+        )
+      : to
+      ? sprintf(
+          /* translators: %s: last day */
+          __("Journeys up to %s will be deleted.", "wordsocket"),
+          to,
+        )
+      : __("Every journey will be deleted.", "wordsocket");
   return (
     <Stack direction="column" gap="sm" className="wpds-danger">
       <Notice.Root intent="error">
@@ -277,6 +277,7 @@ function rangeOf(journeys: VisualJourney[], timezone: string): string {
 
 /** The three visuals over the loaded figures. */
 function Visuals() {
+  const { historyEnabled } = useSettings();
   const { data, loading, error } = useVisuals(true);
   const [filters, setFilters] = useState<NetworkFilters>(filtersFromUrl);
   const [chosen, setChosen] = useState({ month: "", page: 1 });
@@ -298,10 +299,15 @@ function Visuals() {
   if (!data || data.months.length === 0) {
     return (
       <Text variant="body-sm" className="wpsignal-muted">
-        {__(
-          "No journeys yet. They appear here as people visit your site.",
-          "wordsocket",
-        )}
+        {historyEnabled
+          ? __(
+              "No journeys yet. They appear here as people visit your site.",
+              "wordsocket",
+            )
+          : __(
+              "No journeys kept. Turn History on to start recording visits.",
+              "wordsocket",
+            )}
       </Text>
     );
   }
@@ -382,7 +388,18 @@ export function TabJourneys({ title }: { title: string }) {
         )}
       />
       <HistoryCard onPurged={() => setVersion((v) => v + 1)} />
-      {historyEnabled && <Visuals key={version} />}
+      {!historyEnabled && (
+        <Notice.Root intent="warning">
+          <Notice.Title>{__("History is off", "wordsocket")}</Notice.Title>
+          <Notice.Description>
+            {__(
+              "New visits are not being recorded. The journeys kept so far are shown below until the retention deletes them.",
+              "wordsocket",
+            )}
+          </Notice.Description>
+        </Notice.Root>
+      )}
+      <Visuals key={version} />
     </Stack>
   );
 }
