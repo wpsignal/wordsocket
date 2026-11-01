@@ -2,9 +2,11 @@
 /**
  * WPSignal\Cli: WordSocket's WP-CLI commands.
  *
+ * - `wp wordsocket journeys list` prints stored journeys, newest first, with filters for the visitor, user, ref, outcome and moment.
+ * - `wp wordsocket journeys get <journey_id>` prints one journey step by step with every firing on it.
  * - `wp wordsocket journeys seed [--count=<n>] [--months=<n>]` fills the journeys table with made-up visits for a look at the Journeys tab.
  * - `wp wordsocket journeys unseed` deletes them again.
- * - Seeded visitor ids start with `5eed0000-`, which no browser makes, so only seeded rows are ever removed.
+ * - Seeded visitor ids start with `5eed0000-`, which no browser makes, so only seeded rows are ever removed and `list` leaves them out unless asked.
  * - Seeding refuses a production environment (`wp_get_environment_type()`).
  *
  * @package WordSocket
@@ -21,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL, WordPress.WP.AlternativeFunctions.rand_mt_rand, WordPress.WP.AlternativeFunctions.rand_seeding_mt_srand
 
 /**
- * Seeds and clears made-up journeys.
+ * Lists, shows, seeds and clears journeys.
  *
  * @since 0.31.0
  */
@@ -43,6 +45,22 @@ class Cli {
 	const MAX_COUNT     = 5000;
 
 	/**
+	 * Journeys listed when `--count` is not given, the most one call lists, and the days it reaches back by default.
+	 *
+	 * @since 0.31.0
+	 */
+	const LIST_COUNT     = 20;
+	const LIST_MAX_COUNT = 1000;
+	const LIST_DAYS      = 28;
+
+	/**
+	 * The columns `list` prints by default, in order.
+	 *
+	 * @since 0.31.0
+	 */
+	const LIST_FIELDS = array( 'journey_id', 'started_at', 'visitor', 'user_id', 'outcome', 'value', 'ref', 'steps', 'firings', 'path' );
+
+	/**
 	 * Register the commands when WP-CLI is running.
 	 *
 	 * @since 0.31.0
@@ -54,6 +72,107 @@ class Cli {
 			return;
 		}
 		$cli = new self();
+		WP_CLI::add_command(
+			'wordsocket journeys list',
+			array( $cli, 'list' ),
+			array(
+				'shortdesc' => 'List stored journeys, newest first.',
+				'synopsis'  => array(
+					array(
+						'type'        => 'assoc',
+						'name'        => 'count',
+						'description' => 'How many journeys to list.',
+						'optional'    => true,
+						'default'     => (string) self::LIST_COUNT,
+					),
+					array(
+						'type'        => 'assoc',
+						'name'        => 'days',
+						'description' => 'How many days back to look.',
+						'optional'    => true,
+						'default'     => (string) self::LIST_DAYS,
+					),
+					array(
+						'type'        => 'assoc',
+						'name'        => 'user',
+						'description' => 'Only journeys written while this user id was logged in.',
+						'optional'    => true,
+					),
+					array(
+						'type'        => 'assoc',
+						'name'        => 'visitor',
+						'description' => 'Only this visitor id.',
+						'optional'    => true,
+					),
+					array(
+						'type'        => 'assoc',
+						'name'        => 'ref',
+						'description' => 'Only journeys carrying this ref, such as a cart id.',
+						'optional'    => true,
+					),
+					array(
+						'type'        => 'assoc',
+						'name'        => 'outcome',
+						'description' => 'Only journeys with this outcome: open, left, or one an extension registered.',
+						'optional'    => true,
+					),
+					array(
+						'type'        => 'assoc',
+						'name'        => 'rule',
+						'description' => 'Only journeys on which this moment id fired.',
+						'optional'    => true,
+					),
+					array(
+						'type'        => 'flag',
+						'name'        => 'fired',
+						'description' => 'Only journeys with at least one firing.',
+						'optional'    => true,
+					),
+					array(
+						'type'        => 'flag',
+						'name'        => 'seeded',
+						'description' => 'Include the journeys the seed command made.',
+						'optional'    => true,
+					),
+					array(
+						'type'        => 'assoc',
+						'name'        => 'fields',
+						'description' => 'Comma-separated columns to print. Also: last_seen, ended_at, journey, data.',
+						'optional'    => true,
+					),
+					array(
+						'type'        => 'assoc',
+						'name'        => 'format',
+						'description' => 'Output format.',
+						'optional'    => true,
+						'default'     => 'table',
+						'options'     => array( 'table', 'json', 'csv', 'yaml', 'count', 'ids' ),
+					),
+				),
+			)
+		);
+		WP_CLI::add_command(
+			'wordsocket journeys get',
+			array( $cli, 'get' ),
+			array(
+				'shortdesc' => 'Show one journey: its row, its steps and every firing on it.',
+				'synopsis'  => array(
+					array(
+						'type'        => 'positional',
+						'name'        => 'journey_id',
+						'description' => 'The journey id.',
+					),
+					array(
+						'type'        => 'assoc',
+						'name'        => 'format',
+						'description' => 'Output format.',
+						'optional'    => true,
+						'default'     => 'table',
+						'options'     => array( 'table', 'json' ),
+					),
+				),
+			)
+		);
 		WP_CLI::add_command(
 			'wordsocket journeys seed',
 			array( $cli, 'seed' ),
@@ -81,6 +200,224 @@ class Cli {
 			array( $cli, 'unseed' ),
 			array( 'shortdesc' => 'Delete the journeys the seed command made.' )
 		);
+	}
+
+	/**
+	 * List stored journeys, newest first, as a table, JSON, CSV, YAML, a count or ids.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param array $args       Positional arguments.
+	 * @param array $assoc_args `count`, `days`, `user`, `visitor`, `ref`, `outcome`, `rule`, `fired`, `seeded`, `fields`, `format`.
+	 * @return void
+	 */
+	public function list( array $args, array $assoc_args ): void {
+		global $wpdb;
+		unset( $args );
+		$count = (int) ( $assoc_args['count'] ?? self::LIST_COUNT );
+		if ( $count < 1 || $count > self::LIST_MAX_COUNT ) {
+			WP_CLI::error( sprintf( '--count must be between 1 and %d.', self::LIST_MAX_COUNT ) );
+		}
+		$days = (int) ( $assoc_args['days'] ?? self::LIST_DAYS );
+		if ( $days < 1 ) {
+			WP_CLI::error( '--days must be at least 1.' );
+		}
+		$where = array( $wpdb->prepare( 'started_at >= %s', gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS ) ) );
+		if ( isset( $assoc_args['user'] ) ) {
+			$where[] = $wpdb->prepare( 'user_id = %d', (int) $assoc_args['user'] );
+		}
+		foreach ( array( 'visitor', 'ref', 'outcome' ) as $column ) {
+			if ( isset( $assoc_args[ $column ] ) ) {
+				$where[] = $wpdb->prepare( "{$column} = %s", (string) $assoc_args[ $column ] );
+			}
+		}
+		if ( isset( $assoc_args['rule'] ) ) {
+			$where[] = $wpdb->prepare( 'firings LIKE %s', '%' . $wpdb->esc_like( '"rule":"' . (string) $assoc_args['rule'] . '"' ) . '%' );
+		} elseif ( ! empty( $assoc_args['fired'] ) ) {
+			$where[] = "firings IS NOT NULL AND firings <> '' AND firings <> '[]'";
+		}
+		if ( empty( $assoc_args['seeded'] ) ) {
+			$where[] = $wpdb->prepare( 'visitor NOT LIKE %s', $wpdb->esc_like( self::SEED_PREFIX ) . '%' );
+		}
+		$format = (string) ( $assoc_args['format'] ?? 'table' );
+		if ( 'count' === $format ) {
+			WP_CLI::line( (string) (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Journeys::table() . ' WHERE ' . implode( ' AND ', $where ) ) );
+			return;
+		}
+		$rows   = (array) $wpdb->get_results(
+			$wpdb->prepare( 'SELECT * FROM ' . Journeys::table() . ' WHERE ' . implode( ' AND ', $where ) . ' ORDER BY started_at DESC LIMIT %d', $count ),
+			ARRAY_A
+		);
+		$fields = isset( $assoc_args['fields'] ) ? array_map( 'trim', explode( ',', (string) $assoc_args['fields'] ) ) : self::LIST_FIELDS;
+		\WP_CLI\Utils\format_items( $format, 'ids' === $format ? array_column( $rows, 'journey_id' ) : array_map( array( $this, 'summary' ), $rows ), $fields );
+	}
+
+	/**
+	 * Show one journey: its row, then each step with what the page was, then each firing with the moment it belongs to.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param array $args       `journey_id`.
+	 * @param array $assoc_args `format`.
+	 * @return void
+	 */
+	public function get( array $args, array $assoc_args ): void {
+		global $wpdb;
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Journeys::table() . ' WHERE journey_id = %s', (string) $args[0] ), ARRAY_A );
+		if ( ! is_array( $row ) ) {
+			WP_CLI::error( sprintf( 'No journey %s.', $args[0] ) );
+		}
+		$steps   = $this->steps( (string) $row['journey'] );
+		$firings = $this->firings( (string) ( $row['firings'] ?? '' ) );
+		$data    = json_decode( (string) ( $row['data'] ?? '' ), true );
+		$summary = $this->summary( $row, false );
+		unset( $summary['firings'], $summary['path'], $summary['data'] );
+		if ( 'json' === ( $assoc_args['format'] ?? 'table' ) ) {
+			WP_CLI::line(
+				(string) wp_json_encode(
+					array(
+						'journey' => $summary,
+						'steps'   => $steps,
+						'firings' => $firings,
+						'data'    => is_array( $data ) ? $data : null,
+					),
+					JSON_PRETTY_PRINT
+				)
+			);
+			return;
+		}
+		unset( $summary['journey'] );
+		\WP_CLI\Utils\format_items( 'table', array( $summary ), array_keys( $summary ) );
+		WP_CLI::line( '' );
+		WP_CLI::line( sprintf( 'Steps (%d, oldest first):', count( $steps ) ) );
+		\WP_CLI\Utils\format_items( 'table', $steps, array( 'step', 'kind', 'id', 'what', 'time' ) );
+		WP_CLI::line( '' );
+		if ( ! $firings ) {
+			WP_CLI::line( 'Firings: none.' );
+		} else {
+			WP_CLI::line( sprintf( 'Firings (%d):', count( $firings ) ) );
+			\WP_CLI\Utils\format_items( 'table', $firings, array( 'at', 'moment', 'action', 'kind', 'step', 'after', 'order', 'value' ) );
+		}
+		if ( is_array( $data ) && $data ) {
+			WP_CLI::line( '' );
+			WP_CLI::line( 'Data: ' . wp_json_encode( $data, JSON_PRETTY_PRINT ) );
+		}
+	}
+
+	/**
+	 * One row as the columns `list` prints, the path a short walk of kinds and the firings their count.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param array $row   The row.
+	 * @param bool  $short Whether to cut the path short and count the firings instead of listing them.
+	 * @return array
+	 */
+	public function summary( array $row, bool $short = true ): array {
+		$firings = json_decode( (string) ( $row['firings'] ?? '' ), true );
+		$firings = is_array( $firings ) ? $firings : array();
+		$kinds   = array_map( static fn( string $step ): string => explode( ':', $step )[0], array_filter( explode( '>', (string) $row['journey'] ) ) );
+		$path    = implode( ' > ', $kinds );
+		return array(
+			'journey_id' => (string) $row['journey_id'],
+			'started_at' => (string) $row['started_at'],
+			'last_seen'  => (string) $row['last_seen'],
+			'ended_at'   => (string) ( $row['ended_at'] ?? '' ),
+			'visitor'    => (string) $row['visitor'],
+			'user_id'    => (int) ( $row['user_id'] ?? 0 ),
+			'outcome'    => (string) $row['outcome'],
+			'value'      => null === $row['value'] ? '' : (float) $row['value'],
+			'ref'        => (string) ( $row['ref'] ?? '' ),
+			'steps'      => (int) $row['steps'],
+			'firings'    => $short ? count( $firings ) : $firings,
+			'path'       => $short && strlen( $path ) > 60 ? substr( $path, 0, 57 ) . '...' : $path,
+			'journey'    => (string) $row['journey'],
+			'data'       => (string) ( $row['data'] ?? '' ),
+		);
+	}
+
+	/**
+	 * A journey's steps, numbered from 1, each with the page's title or term name where the kind has one.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string $journey The `kind:id:ms` steps joined by `>`.
+	 * @return array<int, array{step: int, kind: string, id: int, what: string, time: string}>
+	 */
+	private function steps( string $journey ): array {
+		$taxonomies = WPS::rules()->taxonomy_kinds();
+		$steps      = array();
+		foreach ( array_values( array_filter( explode( '>', $journey ) ) ) as $i => $step ) {
+			list( $kind, $id, $ms ) = array_pad( explode( ':', $step ), 3, '0' );
+			$id                     = (int) $id;
+			$what                   = '';
+			if ( 'away' === $kind ) {
+				$what = 'tab hidden';
+			} elseif ( $id && in_array( $kind, $taxonomies, true ) ) {
+				$term = get_term( $id );
+				$what = $term instanceof \WP_Term ? $term->name : '';
+			} elseif ( $id && post_type_exists( $kind ) ) {
+				$what = get_the_title( $id );
+			}
+			$steps[] = array(
+				'step' => $i + 1,
+				'kind' => $kind,
+				'id'   => $id,
+				'what' => $what,
+				'time' => self::seconds( (int) $ms ),
+			);
+		}
+		return $steps;
+	}
+
+	/**
+	 * A row's firings with the moment named from the saved rules and the time into the step as seconds.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string $json The row's `firings` column.
+	 * @return array<int, array{at: string, moment: string, action: string, kind: string, step: int, after: string, order: string, value: string}>
+	 */
+	private function firings( string $json ): array {
+		$firings = json_decode( $json, true );
+		if ( ! is_array( $firings ) ) {
+			return array();
+		}
+		$names = array();
+		foreach ( WPS::rules()->saved()['rules'] as $rule ) {
+			$names[ (string) $rule['id'] ] = (string) ( $rule['name'] ?? '' );
+		}
+		return array_map(
+			static function ( array $firing ) use ( $names ): array {
+				$rule = (string) ( $firing['rule'] ?? '' );
+				return array(
+					'at'     => (string) ( $firing['at'] ?? '' ),
+					'moment' => isset( $names[ $rule ] ) && '' !== $names[ $rule ] ? "{$names[ $rule ]} ({$rule})" : $rule,
+					'action' => (string) ( $firing['action'] ?? '' ),
+					'kind'   => (string) ( $firing['kind'] ?? 'fired' ),
+					'step'   => (int) ( $firing['step'] ?? 0 ),
+					'after'  => self::seconds( (int) ( $firing['ms'] ?? 0 ) ),
+					'order'  => isset( $firing['order'] ) ? (string) $firing['order'] : '',
+					'value'  => isset( $firing['value'] ) ? (string) $firing['value'] : '',
+				);
+			},
+			$firings
+		);
+	}
+
+	/**
+	 * Milliseconds as seconds with one decimal, minutes past 90 s.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param int $ms Milliseconds.
+	 * @return string
+	 */
+	private static function seconds( int $ms ): string {
+		if ( $ms >= 90000 ) {
+			return sprintf( '%d min', (int) round( $ms / 60000 ) );
+		}
+		return sprintf( '%.1f s', $ms / 1000 );
 	}
 
 	/**
