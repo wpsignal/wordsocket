@@ -28,6 +28,46 @@ export interface JourneyEvent {
 /** How long after a same-site click or submit the `pagehide` that follows is taken as its result. */
 const NAVIGATION_MS = 5000;
 
+/** The events that say a person is here; a `pointermove` counts once the pointer has travelled. */
+const ENGAGEMENT_EVENTS = [
+  "pointerdown",
+  "keydown",
+  "wheel",
+  "touchstart",
+  "scroll",
+] as const;
+const POINTER_TRAVEL_PX = 4;
+
+/** Call `onEngaged` once, on the first trusted interaction, then stop listening. */
+function watchEngagement(onEngaged: () => void): void {
+  let origin: { x: number; y: number } | null = null;
+  const options = { capture: true, passive: true };
+  const stop = () => {
+    ENGAGEMENT_EVENTS.forEach((type) =>
+      window.removeEventListener(type, engaged, options),
+    );
+    window.removeEventListener("pointermove", moved, options);
+  };
+  const engaged = (event: Event) => {
+    if (!event.isTrusted) return;
+    stop();
+    onEngaged();
+  };
+  const moved = (event: PointerEvent) => {
+    if (!event.isTrusted) return;
+    origin ??= { x: event.clientX, y: event.clientY };
+    if (
+      Math.hypot(event.clientX - origin.x, event.clientY - origin.y) >=
+      POINTER_TRAVEL_PX
+    )
+      engaged(event);
+  };
+  ENGAGEMENT_EVENTS.forEach((type) =>
+    window.addEventListener(type, engaged, options),
+  );
+  window.addEventListener("pointermove", moved, options);
+}
+
 /** Whether a URL points at this site. */
 function sameSite(href: string): boolean {
   try {
@@ -43,6 +83,13 @@ export interface PageJourney {
   readonly journey: Journey;
   readonly kind: string;
   readonly id: number;
+  /**
+   * Whether the journey has begun: at load when one is under way, otherwise on the visitor's first
+   * interaction, before which no `step` has been emitted.
+   *
+   * @since 0.31.0
+   */
+  started(): boolean;
   onChange(handler: (event: JourneyEvent) => void): () => void;
 }
 
@@ -52,7 +99,8 @@ let instance: PageJourney | null = null;
  * The one journey of this page.
  *
  * @since 0.30.0
- * @since 0.31.0 A `close` says whether a same-site navigation caused it.
+ * @since 0.31.0 A `close` says whether a same-site navigation caused it, and a new journey begins on
+ *               the visitor's first interaction rather than at load.
  */
 export function pageJourney(): PageJourney {
   if (instance) return instance;
@@ -63,7 +111,16 @@ export function pageJourney(): PageJourney {
   const handlers = new Set<(event: JourneyEvent) => void>();
   const emit = (event: JourneyEvent) => handlers.forEach((fn) => fn(event));
 
-  emit({ type: "step", renewed: journey.step(kind, id) });
+  /* A journey under way continues at load; a new one waits for the visitor's first interaction. */
+  let started = journey.continuing();
+  /* When the page was last shown, which a held first step's clock starts from; 0 while hidden. */
+  let shownAt = document.hidden ? 0 : Date.now();
+  const begin = (since?: number) => {
+    started = true;
+    emit({ type: "step", renewed: journey.step(kind, id, since) });
+  };
+  if (started) begin();
+  else watchEngagement(() => begin(shownAt || Date.now()));
 
   /* The last same-site link click or form submit this tab saw, 0 when none. */
   let navigatedAt = 0;
@@ -93,6 +150,10 @@ export function pageJourney(): PageJourney {
   });
 
   document.addEventListener("visibilitychange", () => {
+    if (!started) {
+      if (!document.hidden) shownAt = Date.now();
+      return;
+    }
     if (document.hidden) {
       journey.away();
       emit({ type: "away" });
@@ -102,6 +163,7 @@ export function pageJourney(): PageJourney {
     }
   });
   window.addEventListener("pagehide", () => {
+    if (!started) return;
     emit({
       type: "close",
       closed: journey.close(),
@@ -111,13 +173,14 @@ export function pageJourney(): PageJourney {
   window.addEventListener("pageshow", (event) => {
     if (!event.persisted) return;
     navigatedAt = 0;
-    emit({ type: "step", renewed: journey.step(kind, id) });
+    if (started) begin();
   });
 
   instance = {
     journey,
     kind,
     id,
+    started: () => started,
     onChange(handler) {
       handlers.add(handler);
       return () => {

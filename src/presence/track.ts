@@ -63,8 +63,9 @@ export interface PresenceTracker {
  * @since 0.30.0
  * @since 0.31.0 `report` may be a predicate, `onVisit()` hands out the visit answer, `report()` sends
  *               the visit again (coalesced, a failure not handed on), a journey WordPress answers as ended starts a new one, a same-site
- *               navigation sends no leave, a null channel enters no presence, and a site that keeps
- *               journeys reports every visitor.
+ *               navigation sends no leave, a null channel enters no presence, a site that keeps
+ *               journeys reports every visitor, and a new journey is announced and reported from the
+ *               visitor's first interaction.
  */
 export function createTracker(
   client: PresenceClient,
@@ -156,9 +157,11 @@ export function createTracker(
     });
   };
 
-  // The page's step has already been opened by `pageJourney()`: announce and report it.
-  announce();
-  visit();
+  /* A journey under way is announced and reported now; a new one on its first `step`. */
+  if (page.started()) {
+    announce();
+    visit();
+  }
   const off = page.onChange((event) => {
     if (stopped) return;
     switch (event.type) {

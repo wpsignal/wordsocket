@@ -133,7 +133,7 @@ export function createRulesApi(
         rule: firing.rule,
         action: firing.action,
         step: firing.step,
-        ms: firing.ms ?? 0,
+        s: firing.s ?? 0,
         kind: firing.kind ?? "fired",
       }),
     }).catch(() => undefined);

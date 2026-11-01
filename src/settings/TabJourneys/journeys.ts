@@ -1,5 +1,5 @@
 /*
- * The journey visuals' shared pieces: `kind:id:ms` journeys parsed, the page kinds with their labels and
+ * The journey visuals' shared pieces: `kind:id:s` journeys parsed, the page kinds with their labels and
  * colours, the outcomes as the site registered them, the network's filters and its step-position layout,
  * and the small number helpers the charts share.
  */
@@ -41,7 +41,8 @@ export type Kinds = Record<string, string>;
 export interface Step {
   kind: string;
   id: number;
-  ms: number;
+  /** Whole seconds on the step. */
+  s: number;
 }
 
 /**
@@ -166,7 +167,7 @@ export function orderKinds(kinds: Iterable<string>): string[] {
 }
 
 /**
- * `kind:id:ms` steps joined by `>`, parsed; a malformed step is skipped.
+ * `kind:id:s` steps joined by `>`, parsed; a malformed step is skipped.
  *
  * @since 0.31.0
  */
@@ -174,9 +175,9 @@ export function parseJourney(raw: string): Step[] {
   if (!raw) return [];
   const steps: Step[] = [];
   for (const part of raw.split(">")) {
-    const [kind, id, ms] = part.split(":");
+    const [kind, id, s] = part.split(":");
     if (!kind || !/^[a-z_]+$/.test(kind)) continue;
-    steps.push({ kind, id: Number(id) || 0, ms: Math.max(0, Number(ms) || 0) });
+    steps.push({ kind, id: Number(id) || 0, s: Math.max(0, Number(s) || 0) });
   }
   return steps;
 }
@@ -417,22 +418,19 @@ export function curve(
 }
 
 /**
- * Milliseconds as "48 s", "2.5 min" or "1.2 h".
+ * Seconds as "48 s", "2.5 min" or "1.2 h".
  *
  * @since 0.31.0
  */
-export function duration(ms: number): string {
+export function duration(seconds: number): string {
   /* translators: %s: hours, one decimal */
-  if (ms >= 3_600_000)
-    return sprintf(__("%s h", "wordsocket"), (ms / 3_600_000).toFixed(1));
+  if (seconds >= 3600)
+    return sprintf(__("%s h", "wordsocket"), (seconds / 3600).toFixed(1));
   /* translators: %s: minutes, one decimal */
-  if (ms >= 60_000)
-    return sprintf(__("%s min", "wordsocket"), (ms / 60_000).toFixed(1));
-  /* translators: %s: seconds */
-  return sprintf(
-    __("%s s", "wordsocket"),
-    (ms / 1000).toFixed(ms < 10_000 ? 1 : 0),
-  );
+  if (seconds >= 60)
+    return sprintf(__("%s min", "wordsocket"), (seconds / 60).toFixed(1));
+  /* translators: %d: seconds */
+  return sprintf(__("%d s", "wordsocket"), Math.round(seconds));
 }
 
 /**
@@ -446,7 +444,7 @@ export function describeSteps(steps: Step[], kinds: Kinds): string {
       (s) =>
         `${kindLabel(s.kind, kinds).toLowerCase()}${
           s.id ? ` ${s.id}` : ""
-        } ${duration(s.ms)}`,
+        } ${duration(s.s)}`,
     )
     .join(" › ");
 }

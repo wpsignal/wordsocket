@@ -2,7 +2,7 @@
 /**
  * WPSignal\Presence: the server half of `WPS.presence.track()`.
  *
- * The browser keeps a visitor's journey (`kind:id:ms` steps joined by `>`,
+ * The browser keeps a visitor's journey (`kind:id:s` steps joined by `>`,
  * one journey per visit) and enters relay presence with it; this class names
  * the page it is on and takes the two reports it sends WordPress, a visit and
  * a leave, handing each to an action.
@@ -23,15 +23,15 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Presence {
 
-	/** Longest journey string accepted (50 steps of `kind:id:ms` is well under this). */
+	/** Longest journey string accepted (50 steps of `kind:id:s` is well under this). */
 	const MAX_JOURNEY_BYTES = 4000;
 
 	/**
-	 * A journey: `kind:id:ms` steps joined by `>`. Ids only, never a URL or a word.
+	 * A journey: `kind:id:s` steps joined by `>`, the time in whole seconds. Ids only, never a URL or a word.
 	 *
-	 * @since 0.31.0 An id has at most 12 digits and a time 9.
+	 * @since 0.31.0 An id has at most 12 digits and a time 6, in seconds.
 	 */
-	const JOURNEY_PATTERN = '/^[a-z_]+:\d{1,12}:\d{1,9}(>[a-z_]+:\d{1,12}:\d{1,9})*$/';
+	const JOURNEY_PATTERN = '/^[a-z_]+:\d{1,12}:\d{1,6}(>[a-z_]+:\d{1,12}:\d{1,6})*$/';
 
 	/** The visitor id and the journey id are version 4 UUIDs. */
 	const UUID_PATTERN = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i';

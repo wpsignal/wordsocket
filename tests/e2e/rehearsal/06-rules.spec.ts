@@ -44,6 +44,13 @@ function rule(overrides: RuleJson = {}): RuleJson {
 async function arrive(page: Page, path: string): Promise<void> {
   await page.goto(path);
   await waitForState(page, { connected: true, transport: "ws" });
+  await engage(page);
+}
+
+/** The visitor's first interaction, which starts a new journey (WordSocket 0.31). */
+async function engage(page: Page): Promise<void> {
+  await page.mouse.move(12, 12);
+  await page.mouse.move(48, 48);
 }
 
 /** A fresh visitor: same login, no rules memory, a new tab's journey. */
@@ -488,6 +495,7 @@ test.describe("Rules", () => {
     });
     await page.reload();
     await waitForState(page, { connected: true, transport: "ws" });
+    await engage(page);
     await setHidden(page, true);
     await expect(banner).toContainText("Visit", { timeout: 5_000 });
   });

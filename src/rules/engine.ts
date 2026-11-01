@@ -48,14 +48,15 @@ export interface EngineDeps {
 interface Step {
   kind: string;
   id: number;
-  ms: number;
+  /** Whole seconds on the step. */
+  s: number;
 }
 
 function parseSteps(journey: string): Step[] {
   if (journey === "") return [];
-  return journey.split(SEPARATOR).map((s) => {
-    const [kind, id, ms] = s.split(":");
-    return { kind, id: Number(id) || 0, ms: Number(ms) || 0 };
+  return journey.split(SEPARATOR).map((step) => {
+    const [kind, id, s] = step.split(":");
+    return { kind, id: Number(id) || 0, s: Number(s) || 0 };
   });
 }
 
@@ -75,13 +76,13 @@ export function journeyContext(
       return;
     }
     pagesViewed += 1;
-    visitTime += step.ms;
+    visitTime += step.s;
     kinds[step.kind] = (kinds[step.kind] ?? 0) + 1;
   });
   return {
     current,
     pagesViewed,
-    visitTime: Math.round(visitTime / 1000),
+    visitTime,
     returned,
     kinds,
   };
@@ -90,7 +91,7 @@ export function journeyContext(
 /** Seconds on the page: the open step's time, or the last page step's when the tab is away. */
 function dwellOf(steps: Step[]): number {
   for (let i = steps.length - 1; i >= 0; i--) {
-    if (steps[i].kind !== AWAY) return Math.round(steps[i].ms / 1000);
+    if (steps[i].kind !== AWAY) return steps[i].s;
   }
   return 0;
 }
@@ -235,7 +236,7 @@ export function createEngine(deps: EngineDeps): Engine {
       : keys.has(node.condition);
 
   const buildContext = (): RuleContext | null => {
-    if (!page) return null;
+    if (!page || !page.started()) return null;
     const current = page.journey.current();
     const steps = parseSteps(current);
     const ctx: RuleContext = {
@@ -333,7 +334,7 @@ export function createEngine(deps: EngineDeps): Engine {
         rule: rule.id,
         action: action ?? "show",
         step: stepIndex,
-        ms: steps[stepIndex]?.ms ?? 0,
+        s: steps[stepIndex]?.s ?? 0,
         kind,
       },
       ctx,
@@ -394,12 +395,12 @@ export function createEngine(deps: EngineDeps): Engine {
         } catch {
           // One action's failure must not stop the next.
         }
-        /* The step's elapsed ms, as the journey records it. */
-        const ms = page
-          ? parseSteps(page.journey.current())[stepIndex]?.ms ?? 0
+        /* The step's elapsed seconds, as the journey records them. */
+        const s = page
+          ? parseSteps(page.journey.current())[stepIndex]?.s ?? 0
           : 0;
         deps.report(
-          { rule: rule.id, action: action.action, step: stepIndex, ms },
+          { rule: rule.id, action: action.action, step: stepIndex, s },
           ctx,
         );
       };
@@ -543,15 +544,15 @@ export function createEngine(deps: EngineDeps): Engine {
               kind: lastPage?.kind ?? "other",
               id: lastPage?.id ?? 0,
               title: "",
-              dwell: Math.round((lastPage?.ms ?? 0) / 1000),
-              hidden: away ? Math.round(step.ms / 1000) : 0,
+              dwell: lastPage?.s ?? 0,
+              hidden: away ? step.s : 0,
               taxonomy: taxonomies.has(lastPage?.kind ?? ""),
             },
             journey: journeyContext(
               steps.slice(0, i + 1),
               steps
                 .slice(0, i + 1)
-                .map((s) => `${s.kind}:${s.id}:${s.ms}`)
+                .map((part) => `${part.kind}:${part.id}:${part.s}`)
                 .join(SEPARATOR),
             ),
             attention: { state: away ? "hidden" : "page" },
@@ -571,7 +572,7 @@ export function createEngine(deps: EngineDeps): Engine {
             fired.push({ index, step: i });
             break;
           }
-          elapsed += step.ms;
+          elapsed += step.s * 1000;
         }
       });
       return { count: fired.length, fired, unanswerable };

@@ -1243,7 +1243,7 @@ class Rules {
 	/**
 	 * Register the routes. Hooked to `rest_api_init` during WPS::boot().
 	 *
-	 * @since 0.31.0 The fired route takes `ms` and `kind`.
+	 * @since 0.31.0 The fired route takes `s` (whole seconds into the step) and `kind`.
 	 *
 	 * @return void
 	 */
@@ -1308,7 +1308,7 @@ class Rules {
 						'default' => 0,
 						'minimum' => 0,
 					),
-					'ms'     => array(
+					's'      => array(
 						'type'    => 'integer',
 						'default' => 0,
 						'minimum' => 0,
@@ -1434,7 +1434,7 @@ class Rules {
 	 *
 	 * @since 0.31.0 Stores the firing on the journey before the action.
 	 *
-	 * @since 0.31.0 Takes `ms` and `kind`.
+	 * @since 0.31.0 Takes `s` (whole seconds into the step) and `kind`.
 	 *
 	 * @param WP_REST_Request $request The request.
 	 * @return WP_REST_Response|WP_Error
@@ -1449,7 +1449,7 @@ class Rules {
 			'rule_id'    => (string) $request->get_param( 'rule' ),
 			'action'     => (string) $request->get_param( 'action' ),
 			'step'       => max( 0, (int) $request->get_param( 'step' ) ),
-			'ms'         => max( 0, (int) $request->get_param( 'ms' ) ),
+			's'          => max( 0, (int) $request->get_param( 's' ) ),
 			'kind'       => (string) $request->get_param( 'kind' ),
 			'user_id'    => get_current_user_id(),
 			'data'       => Presence::sanitize_data( (array) $request->get_param( 'data' ) ),
@@ -1458,7 +1458,7 @@ class Rules {
 		/**
 		 * Fires when a visitor's browser reports that a rule fired, after WordSocket has stored it (History on).
 		 *
-		 * @param array{visitor: string, journey_id: string, rule_id: string, action: string, step: int, ms: int, kind: string, user_id: int, data: array} $report The report: `ms` the elapsed time of the step, `kind` one of FIRING_KINDS.
+		 * @param array{visitor: string, journey_id: string, rule_id: string, action: string, step: int, s: int, kind: string, user_id: int, data: array} $report The report: `s` the whole seconds into the step, `kind` one of FIRING_KINDS.
 		 */
 		do_action( 'wpsignal_rule_fired', $report );
 		$response = rest_ensure_response( array( 'ok' => true ) );

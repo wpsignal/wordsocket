@@ -132,7 +132,8 @@ interface WPSHistoryFiring {
   rule: string;
   action: string;
   step: number;
-  ms?: number;
+  /** Whole seconds into the step when it fired. */
+  s?: number;
   /** `fired` when absent. */
   kind?: "fired" | "returned" | "dismissed" | "clicked";
   at?: string;
@@ -245,8 +246,12 @@ interface WpSignalSettings {
   rtc?: { available: boolean; enabled: boolean; experimentsUrl: string };
   /** Whether the Triggers and Explorer tabs are shown (the Settings tab's "Developer tools" switch). */
   developerMode?: boolean;
-  /** Journey history: whether journeys are kept, and the currency their values are in (0.31). */
-  history?: { enabled: boolean; currency: string };
+  /** Journey history: whether journeys are kept, the currency their values are in, and the registered outcomes (0.31). */
+  history?: {
+    enabled: boolean;
+    currency: string;
+    outcomes?: Record<string, { label: string; color: string; series: string }>;
+  };
 }
 
 /** Localized by class-wpsignal-client.php (enqueue_yjs_provider) */

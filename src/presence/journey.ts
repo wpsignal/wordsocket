@@ -1,5 +1,5 @@
 /*
- * A visitor's journey: `kind:id:ms` steps joined by `>`, the closed steps kept in `sessionStorage`
+ * A visitor's journey: `kind:id:s` steps (the time in whole seconds) joined by `>`, the closed steps kept in `sessionStorage`
  * so the string follows the visitor through the tab and dies with it. One journey is one visit, a
  * new one starts after JOURNEY_GAP_MS, and the format is a contract with PHP and every extension
  * (root `CLAUDE.md`).
@@ -49,10 +49,12 @@ export interface Journey {
   /** Close the open step, store, and return the journey. For `pagehide`. */
   close(): string;
   /**
-   * Close whatever is open and open a step for this page; true when the gap had passed and a new
-   * journey begins.
+   * Close whatever is open and open a step for this page, its clock starting at `since` (now when
+   * omitted); true when the gap had passed and a new journey begins.
    */
-  step(kind: string, id: number): boolean;
+  step(kind: string, id: number, since?: number): boolean;
+  /** Whether a journey with steps is under way and the gap has not passed. */
+  continuing(): boolean;
   /** The tab was hidden: close the page step, open `away`. */
   away(): void;
   /**
@@ -95,10 +97,11 @@ function parse(journey: string): string[] {
     : journey.split(SEPARATOR).filter((s) => STEP.test(s));
 }
 
+/** A step as the string spells it, the elapsed milliseconds as whole seconds. */
 function format(kind: string, id: number, ms: number): string {
   return `${kind}:${Math.max(0, Math.floor(id))}:${Math.max(
     0,
-    Math.round(ms),
+    Math.round(ms / 1000),
   )}`;
 }
 
@@ -153,10 +156,10 @@ export function createJourney(
     open = null;
   };
 
-  const arrive = (kind: string, id: number) => {
+  const arrive = (kind: string, id: number, since?: number) => {
     page = { kind, id };
     at = now();
-    open = { kind, id, since: at };
+    open = { kind, id, since: since ?? at };
     commit(at);
   };
 
@@ -177,15 +180,18 @@ export function createJourney(
       finish();
       return closed.join(SEPARATOR);
     },
-    step(kind, id) {
+    step(kind, id, since) {
       /*
        * A page opened after the gap is a new visit.
        */
       const renewed = gapPassed();
       if (renewed) renew();
       else finish();
-      arrive(kind, id);
+      arrive(kind, id, since);
       return renewed;
+    },
+    continuing() {
+      return closed.length > 0 && !gapPassed();
     },
     away() {
       if (!open || open.kind === AWAY) return;

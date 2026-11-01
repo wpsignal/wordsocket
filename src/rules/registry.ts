@@ -60,8 +60,8 @@ export interface Firing {
   action: string;
   /** Index of the journey step the rule fired on, or the event happened in. */
   step: number;
-  /** Elapsed ms of that step when the action ran, as the journey records it. */
-  ms?: number;
+  /** Whole seconds into that step when the action ran, as the journey counts them. */
+  s?: number;
   /** `fired` when absent. */
   kind?: FiringKind;
 }
@@ -71,7 +71,8 @@ export interface HistoryFiring {
   rule: string;
   action: string;
   step: number;
-  ms?: number;
+  /** Whole seconds into the step. */
+  s?: number;
   kind?: FiringKind;
   /** When it fired, RFC 3339 or the store's own stamp. */
   at?: string;

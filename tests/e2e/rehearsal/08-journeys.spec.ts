@@ -14,6 +14,13 @@ const TAB = "page=wordsocket&tab=journeys";
 async function arrive(page: Page, path: string): Promise<void> {
   await page.goto(path);
   await waitForState(page, { connected: true, transport: "ws" });
+  await engage(page);
+}
+
+/** The visitor's first interaction, which starts a new journey (WordSocket 0.31). */
+async function engage(page: Page): Promise<void> {
+  await page.mouse.move(12, 12);
+  await page.mouse.move(48, 48);
 }
 
 test.describe("Journeys", () => {
@@ -84,7 +91,7 @@ test.describe("Journeys", () => {
     // The Moments tab's replay has WordSocket's own provider.
     await admin.visitAdminPage("admin.php", "page=wordsocket&tab=moments&moment=new");
     await expect(page.locator(".wpsignal-rule-replay")).toBeVisible({ timeout: 20_000 });
-    await expect(page.locator(".wpsignal-rule-replay")).toContainText("If this moment were on");
+    await expect(page.locator(".wpsignal-rule-replay")).toContainText("Would reach");
   });
 
   test("with History off the tab offers the switch alone and the replay has no provider", async ({ admin, page }) => {
