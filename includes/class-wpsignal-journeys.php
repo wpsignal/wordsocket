@@ -9,6 +9,8 @@
  *   through `WPS::journeys()`, and add to a report's record through `wpsignal_journey_record`.
  * - The feed behind the Moments tab's replay, the figures behind the Journeys tab, WordPress's privacy
  *   exporter and eraser, and a daily prune.
+ * - A purge for staff, every journey or those started between two days on the site's clock, through
+ *   `DELETE /wpsignal/v1/journeys` and `wp wordsocket journeys purge`.
  *
  * @package WordSocket
  */
@@ -109,6 +111,13 @@ class Journeys {
 	 * @since 0.31.0
 	 */
 	const MONTH_PATTERN = '/^\d{4}-(0[1-9]|1[0-2])\z/';
+
+	/**
+	 * A `YYYY-MM-DD` day as the purge takes it.
+	 *
+	 * @since 0.31.0
+	 */
+	const DATE_PATTERN = '/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])\z/';
 
 	/**
 	 * Longest `data` an extension may put on a row, as JSON.
@@ -587,7 +596,7 @@ class Journeys {
 	 *
 	 * @since 0.31.0
 	 *
-	 * @param array $report `{ visitor, journey_id, rule_id, action, step, ms, kind, user_id, data }`.
+	 * @param array $report `{ visitor, journey_id, rule_id, action, step, s, kind, user_id, data }`.
 	 * @return void
 	 */
 	public function on_fired( array $report ): void {
@@ -611,7 +620,7 @@ class Journeys {
 			'rule'   => (string) $report['rule_id'],
 			'action' => (string) $report['action'],
 			'step'   => max( 0, (int) $report['step'] ),
-			'ms'     => max( 0, (int) ( $report['ms'] ?? 0 ) ),
+			's'      => max( 0, (int) ( $report['s'] ?? 0 ) ),
 			'kind'   => in_array( $kind, Rules::FIRING_KINDS, true ) ? $kind : 'fired',
 			'at'     => self::now(),
 		);
@@ -755,6 +764,80 @@ class Journeys {
 			return 0;
 		}
 		return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::table() . ' WHERE user_id = %d', $user_id ) );
+	}
+
+	/**
+	 * Whether a value is a real `YYYY-MM-DD` day.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param mixed $value The value.
+	 * @return bool
+	 */
+	public static function is_date( $value ): bool {
+		return is_string( $value )
+			&& 1 === preg_match( self::DATE_PATTERN, $value )
+			&& checkdate( (int) substr( $value, 5, 2 ), (int) substr( $value, 8, 2 ), (int) substr( $value, 0, 4 ) );
+	}
+
+	/**
+	 * The `WHERE` for journeys started between two days on the site's clock, both inclusive, either
+	 * optional; `1 = 1` with neither.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string|null $from The first day, `YYYY-MM-DD`.
+	 * @param string|null $to   The last day, `YYYY-MM-DD`.
+	 * @return string
+	 */
+	private static function range_where( ?string $from, ?string $to ): string {
+		global $wpdb;
+		$tz    = wp_timezone();
+		$utc   = new \DateTimeZone( 'UTC' );
+		$where = array();
+		if ( null !== $from ) {
+			$where[] = $wpdb->prepare( 'started_at >= %s', ( new \DateTimeImmutable( $from . ' 00:00:00', $tz ) )->setTimezone( $utc )->format( 'Y-m-d H:i:s' ) );
+		}
+		if ( null !== $to ) {
+			$where[] = $wpdb->prepare( 'started_at < %s', ( new \DateTimeImmutable( $to . ' 00:00:00', $tz ) )->modify( '+1 day' )->setTimezone( $utc )->format( 'Y-m-d H:i:s' ) );
+		}
+		return $where ? implode( ' AND ', $where ) : '1 = 1';
+	}
+
+	/**
+	 * How many journeys started between two days on the site's clock, every journey with neither.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string|null $from The first day, `YYYY-MM-DD`.
+	 * @param string|null $to   The last day, `YYYY-MM-DD`.
+	 * @return int
+	 */
+	public function count( ?string $from = null, ?string $to = null ): int {
+		global $wpdb;
+		return (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . self::table() . ' WHERE ' . self::range_where( $from, $to ) );
+	}
+
+	/**
+	 * Delete the journeys started between two days on the site's clock, every journey with neither,
+	 * in batches until none is left. Returns how many went.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string|null $from The first day, `YYYY-MM-DD`.
+	 * @param string|null $to   The last day, `YYYY-MM-DD`.
+	 * @return int
+	 */
+	public function purge( ?string $from = null, ?string $to = null ): int {
+		global $wpdb;
+		$where   = self::range_where( $from, $to );
+		$deleted = 0;
+		do {
+			$batch    = (int) $wpdb->query( 'DELETE FROM ' . self::table() . " WHERE {$where} LIMIT " . self::PRUNE_BATCH );
+			$deleted += $batch;
+		} while ( $batch >= self::PRUNE_BATCH );
+		delete_transient( self::VISUALS_TRANSIENT );
+		return $deleted;
 	}
 
 	/**
@@ -1091,7 +1174,7 @@ class Journeys {
 	 *
 	 * @since 0.31.0
 	 *
-	 * @param string        $journey The `kind:id:ms` steps.
+	 * @param string        $journey The `kind:id:s` steps.
 	 * @param int           $start   When the journey started, Unix seconds.
 	 * @param \DateTimeZone $tz      The site's timezone.
 	 * @param array         $hours   Weekday by hour cells, minutes added in place.
@@ -1103,8 +1186,8 @@ class Journeys {
 		}
 		$t = (float) $start;
 		foreach ( explode( '>', $journey ) as $step ) {
-			list( $kind, , $ms ) = array_pad( explode( ':', $step ), 3, '0' );
-			$left                = min( self::MAX_STEP_SECONDS, max( 0, (int) $ms ) / 1000 );
+			list( $kind, , $s ) = array_pad( explode( ':', $step ), 3, '0' );
+			$left               = min( self::MAX_STEP_SECONDS, max( 0, (int) $s ) );
 			if ( 'away' === $kind || '' === $kind ) {
 				$t += $left;
 				continue;
@@ -1267,7 +1350,7 @@ class Journeys {
 	}
 
 	/**
-	 * Register `GET /wpsignal/v1/journeys` (the replay's feed), `/journeys/visuals` and `/journeys/visuals/journeys` (the Journeys tab).
+	 * Register `GET /wpsignal/v1/journeys` (the replay's feed), `DELETE /wpsignal/v1/journeys` (the purge), `/journeys/visuals` and `/journeys/visuals/journeys` (the Journeys tab).
 	 *
 	 * @since 0.31.0
 	 *
@@ -1301,6 +1384,35 @@ class Journeys {
 						'journeys' => $this->feed( (int) $request->get_param( 'days' ), (int) $request->get_param( 'limit' ) ),
 					)
 				),
+				'permission_callback' => $staff,
+			)
+		);
+		$is_date = static fn( $value ): bool => self::is_date( $value );
+		register_rest_route(
+			'wpsignal/v1',
+			'/journeys',
+			array(
+				'methods'             => 'DELETE',
+				'args'                => array(
+					'from' => array(
+						'type'              => 'string',
+						'validate_callback' => $is_date,
+					),
+					'to'   => array(
+						'type'              => 'string',
+						'validate_callback' => $is_date,
+					),
+				),
+				'callback'            => function ( WP_REST_Request $request ) {
+					$from = $request->get_param( 'from' );
+					$to   = $request->get_param( 'to' );
+					$from = is_string( $from ) ? $from : null;
+					$to   = is_string( $to ) ? $to : null;
+					if ( null !== $from && null !== $to && $from > $to ) {
+						return new \WP_Error( 'wpsignal_invalid_range', __( 'The first day is after the last.', 'wordsocket' ), array( 'status' => 400 ) );
+					}
+					return rest_ensure_response( array( 'deleted' => $this->purge( $from, $to ) ) );
+				},
 				'permission_callback' => $staff,
 			)
 		);

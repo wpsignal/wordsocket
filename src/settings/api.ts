@@ -108,6 +108,25 @@ export function getJourneyPage(
 }
 
 /**
+ * Delete stored journeys: every one, or those started between two `YYYY-MM-DD` days on the site's clock.
+ *
+ * @since 0.31.0
+ */
+export function purgeJourneys(range: {
+  from?: string;
+  to?: string;
+}): Promise<{ deleted: number }> {
+  const query = new URLSearchParams();
+  if (range.from) query.set("from", range.from);
+  if (range.to) query.set("to", range.to);
+  const q = query.toString();
+  return apiFetch({
+    path: `/wpsignal/v1/journeys${q ? `?${q}` : ""}`,
+    method: "DELETE",
+  });
+}
+
+/**
  * The stored journeys for the Moments tab's replay.
  *
  * @since 0.31.0

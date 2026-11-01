@@ -6,6 +6,7 @@
  * - `wp wordsocket journeys get <journey_id>` prints one journey step by step with every firing on it.
  * - `wp wordsocket journeys seed [--count=<n>] [--months=<n>]` fills the journeys table with made-up visits for a look at the Journeys tab.
  * - `wp wordsocket journeys unseed` deletes them again.
+ * - `wp wordsocket journeys purge [--from=<date>] [--to=<date>] [--yes]` deletes stored journeys, every one or those started between two days on the site's clock, after a confirmation.
  * - Seeded visitor ids start with `5eed0000-`, which no browser makes, so only seeded rows are ever removed and `list` leaves them out unless asked.
  * - Seeding refuses a production environment (`wp_get_environment_type()`).
  *
@@ -200,6 +201,33 @@ class Cli {
 			array( $cli, 'unseed' ),
 			array( 'shortdesc' => 'Delete the journeys the seed command made.' )
 		);
+		WP_CLI::add_command(
+			'wordsocket journeys purge',
+			array( $cli, 'purge' ),
+			array(
+				'shortdesc' => 'Delete stored journeys: every one, or those started between two days on the site\'s clock.',
+				'synopsis'  => array(
+					array(
+						'type'        => 'assoc',
+						'name'        => 'from',
+						'description' => 'The first day, YYYY-MM-DD, on the site\'s clock.',
+						'optional'    => true,
+					),
+					array(
+						'type'        => 'assoc',
+						'name'        => 'to',
+						'description' => 'The last day, YYYY-MM-DD, inclusive.',
+						'optional'    => true,
+					),
+					array(
+						'type'        => 'flag',
+						'name'        => 'yes',
+						'description' => 'Skip the confirmation.',
+						'optional'    => true,
+					),
+				),
+			)
+		);
 	}
 
 	/**
@@ -341,16 +369,16 @@ class Cli {
 	 *
 	 * @since 0.31.0
 	 *
-	 * @param string $journey The `kind:id:ms` steps joined by `>`.
+	 * @param string $journey The `kind:id:s` steps joined by `>`.
 	 * @return array<int, array{step: int, kind: string, id: int, what: string, time: string}>
 	 */
 	private function steps( string $journey ): array {
 		$taxonomies = WPS::rules()->taxonomy_kinds();
 		$steps      = array();
 		foreach ( array_values( array_filter( explode( '>', $journey ) ) ) as $i => $step ) {
-			list( $kind, $id, $ms ) = array_pad( explode( ':', $step ), 3, '0' );
-			$id                     = (int) $id;
-			$what                   = '';
+			list( $kind, $id, $s ) = array_pad( explode( ':', $step ), 3, '0' );
+			$id                    = (int) $id;
+			$what                  = '';
 			if ( 'away' === $kind ) {
 				$what = 'tab hidden';
 			} elseif ( $id && in_array( $kind, $taxonomies, true ) ) {
@@ -364,7 +392,7 @@ class Cli {
 				'kind' => $kind,
 				'id'   => $id,
 				'what' => $what,
-				'time' => self::seconds( (int) $ms ),
+				'time' => self::seconds( (int) $s ),
 			);
 		}
 		return $steps;
@@ -396,7 +424,7 @@ class Cli {
 					'action' => (string) ( $firing['action'] ?? '' ),
 					'kind'   => (string) ( $firing['kind'] ?? 'fired' ),
 					'step'   => (int) ( $firing['step'] ?? 0 ),
-					'after'  => self::seconds( (int) ( $firing['ms'] ?? 0 ) ),
+					'after'  => self::seconds( (int) ( $firing['s'] ?? 0 ) ),
 					'order'  => isset( $firing['order'] ) ? (string) $firing['order'] : '',
 					'value'  => isset( $firing['value'] ) ? (string) $firing['value'] : '',
 				);
@@ -406,18 +434,18 @@ class Cli {
 	}
 
 	/**
-	 * Milliseconds as seconds with one decimal, minutes past 90 s.
+	 * Seconds as "12 s", minutes past 90 s.
 	 *
 	 * @since 0.31.0
 	 *
-	 * @param int $ms Milliseconds.
+	 * @param int $seconds Whole seconds.
 	 * @return string
 	 */
-	private static function seconds( int $ms ): string {
-		if ( $ms >= 90000 ) {
-			return sprintf( '%d min', (int) round( $ms / 60000 ) );
+	private static function seconds( int $seconds ): string {
+		if ( $seconds >= 90 ) {
+			return sprintf( '%d min', (int) round( $seconds / 60 ) );
 		}
-		return sprintf( '%.1f s', $ms / 1000 );
+		return sprintf( '%d s', $seconds );
 	}
 
 	/**
@@ -497,6 +525,43 @@ class Cli {
 	}
 
 	/**
+	 * Delete stored journeys, every one or those started between two days on the site's clock, after a confirmation.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param array $args       Positional arguments.
+	 * @param array $assoc_args `from`, `to`, `yes`.
+	 * @return void
+	 */
+	public function purge( array $args, array $assoc_args ): void {
+		unset( $args );
+		$from = isset( $assoc_args['from'] ) ? (string) $assoc_args['from'] : null;
+		$to   = isset( $assoc_args['to'] ) ? (string) $assoc_args['to'] : null;
+		foreach ( array(
+			'from' => $from,
+			'to'   => $to,
+		) as $name => $value ) {
+			if ( null !== $value && ! Journeys::is_date( $value ) ) {
+				WP_CLI::error( sprintf( '--%s must be a day as YYYY-MM-DD.', $name ) );
+			}
+		}
+		if ( null !== $from && null !== $to && $from > $to ) {
+			WP_CLI::error( '--from is after --to.' );
+		}
+		$journeys = WPS::journeys();
+		$count    = $journeys->count( $from, $to );
+		if ( 0 === $count ) {
+			WP_CLI::success( 'No journeys to delete.' );
+			return;
+		}
+		$range = null === $from && null === $to
+			? 'every stored journey'
+			: rtrim( 'the journeys started ' . ( null === $from ? '' : 'from ' . $from . ' ' ) . ( null === $to ? '' : 'to ' . $to ) );
+		WP_CLI::confirm( sprintf( 'Delete %s (%d)? This cannot be undone.', $range, $count ), $assoc_args );
+		WP_CLI::success( sprintf( 'Deleted %d journeys.', $journeys->purge( $from, $to ) ) );
+	}
+
+	/**
 	 * The site's published ids to walk over, and whether it is a shop.
 	 *
 	 * @since 0.31.0
@@ -517,7 +582,7 @@ class Cli {
 	}
 
 	/**
-	 * One journey's steps as `kind:id:ms`, at most 14, with away steps returning to the page they left.
+	 * One journey's steps as `kind:id:s`, at most 14, with away steps returning to the page they left.
 	 *
 	 * @since 0.31.0
 	 *
@@ -577,7 +642,7 @@ class Cli {
 	}
 
 	/**
-	 * A blog's walk: where visits start, where each page leads, and how long each kind is read, in ms.
+	 * A blog's walk: where visits start, where each page leads, and how long each kind is read, in seconds.
 	 *
 	 * @since 0.31.0
 	 *
@@ -634,7 +699,7 @@ class Cli {
 	}
 
 	/**
-	 * A shop's walk: where visits start, where each page leads, and how long each kind is looked at, in ms.
+	 * A shop's walk: where visits start, where each page leads, and how long each kind is looked at, in seconds.
 	 *
 	 * @since 0.31.0
 	 *
@@ -707,7 +772,7 @@ class Cli {
 	}
 
 	/**
-	 * How long each kind is on screen, as `[ low, high ]` in ms.
+	 * How long each kind is on screen, as `[ low, high ]` in seconds.
 	 *
 	 * @since 0.31.0
 	 *
@@ -715,17 +780,17 @@ class Cli {
 	 */
 	private static function dwell(): array {
 		return array(
-			'home'         => array( 1500, 8000 ),
-			'post'         => array( 8000, 180000 ),
-			'page'         => array( 4000, 40000 ),
-			'search'       => array( 3000, 12000 ),
-			'post_archive' => array( 3000, 15000 ),
-			'category'     => array( 3000, 15000 ),
-			'shop'         => array( 4000, 15000 ),
-			'product'      => array( 6000, 60000 ),
-			'cart'         => array( 4000, 25000 ),
-			'checkout'     => array( 20000, 90000 ),
-			'away'         => array( 8000, 900000 ),
+			'home'         => array( 2, 8 ),
+			'post'         => array( 8, 180 ),
+			'page'         => array( 4, 40 ),
+			'search'       => array( 3, 12 ),
+			'post_archive' => array( 3, 15 ),
+			'category'     => array( 3, 15 ),
+			'shop'         => array( 4, 15 ),
+			'product'      => array( 6, 60 ),
+			'cart'         => array( 4, 25 ),
+			'checkout'     => array( 20, 90 ),
+			'away'         => array( 8, 900 ),
 		);
 	}
 
@@ -767,16 +832,16 @@ class Cli {
 	}
 
 	/**
-	 * A time between two bounds, spread evenly on a log scale and rounded to 100 ms.
+	 * A time between two bounds, spread evenly on a log scale, in whole seconds.
 	 *
 	 * @since 0.31.0
 	 *
-	 * @param int $low  Least, in ms.
-	 * @param int $high Most, in ms.
+	 * @param int $low  Least, in seconds.
+	 * @param int $high Most, in seconds.
 	 * @return int
 	 */
 	private static function log_uniform( int $low, int $high ): int {
-		return (int) ( round( exp( log( $low ) + self::rnd() * ( log( $high ) - log( $low ) ) ) / 100 ) * 100 );
+		return max( 1, (int) round( exp( log( $low ) + self::rnd() * ( log( $high ) - log( $low ) ) ) ) );
 	}
 
 	/**

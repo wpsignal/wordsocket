@@ -161,7 +161,7 @@ final class JourneysTest extends WordSocketTestCase {
 			'rule_id'    => 'r1',
 			'action'     => 'show',
 			'step'       => 2,
-			'ms'         => 4500,
+			's'          => 4,
 			'kind'       => 'fired',
 			'user_id'    => 0,
 			'data'       => array(),
@@ -171,7 +171,7 @@ final class JourneysTest extends WordSocketTestCase {
 		$this->assertSame( '', $row['journey'], 'started empty, the next report fills it in' );
 		$firings = json_decode( $row['firings'], true );
 		$this->assertSame( 'r1', $firings[0]['rule'] );
-		$this->assertSame( 4500, $firings[0]['ms'] );
+		$this->assertSame( 4, $firings[0]['s'] );
 		$this->assertSame( 'fired', $firings[0]['kind'] );
 
 		$this->journeys()->on_fired( array( 'kind' => 'dismissed' ) + $firing );
@@ -194,7 +194,7 @@ final class JourneysTest extends WordSocketTestCase {
 			array(
 				'journey_id' => self::N,
 				'visitor'    => self::V,
-				'journey'    => 'home:1:999999999>away:0:999999999>post:2:60000',
+				'journey'    => 'home:1:999999>away:0:999999>post:2:60',
 				'steps'      => 3,
 				'started_at' => $now,
 				'last_seen'  => $now,
@@ -216,10 +216,10 @@ final class JourneysTest extends WordSocketTestCase {
 			array(
 				'v'       => self::V,
 				'n'       => self::N2,
-				'journey' => 'home:1:9999999999',
+				'journey' => 'home:1:9999999',
 			)
 		);
-		$this->assertSame( 400, $status, 'ten digits of milliseconds is refused' );
+		$this->assertSame( 400, $status, 'seven digits of seconds is refused' );
 	}
 
 	public function test_an_extension_ends_journeys_by_ref_with_its_outcome_and_credits_the_firings_within_the_window(): void {
@@ -240,7 +240,7 @@ final class JourneysTest extends WordSocketTestCase {
 				'rule_id'    => 'r1',
 				'action'     => 'show',
 				'step'       => 0,
-				'ms'         => 1,
+				's'          => 1,
 				'kind'       => 'fired',
 				'user_id'    => 0,
 				'data'       => array(),
@@ -357,9 +357,9 @@ final class JourneysTest extends WordSocketTestCase {
 			$old    = $ten->sub( new DateInterval( 'P40D' ) );
 			$utc    = static fn( DateTimeImmutable $at ): string => $at->setTimezone( new DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
 			$rows   = array(
-				array( self::N, 'home:1:60000>post:5:1800000>away:0:600000>page:7:120000', 'left', 'cart0001', $utc( $ten ) ),
-				array( self::N2, 'cart:0:1000>checkout:0:20000>thanks:0:1', 'converted', 'cart0002', $utc( $eleven ) ),
-				array( self::N3, 'home:1:60000', 'left', null, $utc( $old ) ),
+				array( self::N, 'home:1:60>post:5:1800>away:0:600>page:7:120', 'left', 'cart0001', $utc( $ten ) ),
+				array( self::N2, 'cart:0:1>checkout:0:20>thanks:0:1', 'converted', 'cart0002', $utc( $eleven ) ),
+				array( self::N3, 'home:1:60', 'left', null, $utc( $old ) ),
 			);
 			foreach ( $rows as list( $jid, $journey, $outcome, $ref, $started ) ) {
 				$wpdb->insert(
@@ -459,6 +459,76 @@ final class JourneysTest extends WordSocketTestCase {
 		update_option( 'wpsignal_history_enabled', false );
 		$this->journeys()->prune();
 		$this->assertNull( $this->row( self::N ), 'history off keeps nothing' );
+	}
+
+	public function test_purge_deletes_the_days_asked_on_the_site_clock_and_the_route_is_staff_only(): void {
+		global $wpdb;
+		$timezone = get_option( 'timezone_string' );
+		update_option( 'timezone_string', 'America/New_York' );
+		try {
+			foreach ( array(
+				self::N  => '2001-10-15 02:00:00',
+				self::N2 => '2001-10-15 12:00:00',
+				self::N3 => '2001-10-17 12:00:00',
+			) as $jid => $started ) {
+				$wpdb->insert(
+					Journeys::table(),
+					array(
+						'journey_id' => $jid,
+						'visitor'    => self::V,
+						'journey'    => 'home:1:1',
+						'steps'      => 1,
+						'started_at' => $started,
+						'last_seen'  => $started,
+					)
+				); // phpcs:ignore WordPress.DB
+			}
+			$this->assertSame( 1, $this->journeys()->count( '2001-10-15', '2001-10-15' ), '02:00 UTC is still the 14th in New York' );
+			$this->assertSame( 2, $this->journeys()->count( null, '2001-10-15' ) );
+			$this->assertTrue( Journeys::is_date( '2026-02-28' ) );
+			$this->assertFalse( Journeys::is_date( '2026-02-30' ), 'a day the month lacks' );
+			$this->assertFalse( Journeys::is_date( '2001-10-15T00:00' ) );
+
+			list( $status ) = $this->rest( 'DELETE', 'journeys' );
+			$this->assertSame( 401, $status, 'visitors cannot delete' );
+			$this->assertNotNull( $this->row( self::N ) );
+
+			$this->as_admin();
+			list( $status ) = $this->rest(
+				'DELETE',
+				'journeys',
+				array(
+					'from' => '2001-10-16',
+					'to'   => '2001-10-15',
+				)
+			);
+			$this->assertSame( 400, $status, 'the first day after the last' );
+			list( $status ) = $this->rest( 'DELETE', 'journeys', array( 'from' => '2001-13-01' ) );
+			$this->assertSame( 400, $status, 'not a day' );
+			$this->assertNotNull( $this->row( self::N2 ), 'a refused request deletes nothing' );
+
+			list( $status, $data ) = $this->rest(
+				'DELETE',
+				'journeys',
+				array(
+					'from' => '2001-10-15',
+					'to'   => '2001-10-15',
+				)
+			);
+			$this->assertSame( 200, $status );
+			$this->assertSame( 1, $data['deleted'] );
+			$this->assertNotNull( $this->row( self::N ), 'the 14th in New York stays' );
+			$this->assertNull( $this->row( self::N2 ) );
+			$this->assertNotNull( $this->row( self::N3 ) );
+
+			list( $status, $data ) = $this->rest( 'DELETE', 'journeys', array( 'from' => '2001-10-16' ) );
+			$this->assertSame( 200, $status );
+			$this->assertSame( 1, $data['deleted'] );
+			$this->assertNull( $this->row( self::N3 ) );
+			$this->assertNotNull( $this->row( self::N ) );
+		} finally {
+			update_option( 'timezone_string', $timezone );
+		}
 	}
 
 	public function test_the_privacy_tools_export_and_erase_a_users_journeys(): void {
