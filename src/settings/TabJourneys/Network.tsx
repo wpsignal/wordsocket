@@ -508,11 +508,11 @@ export function Network({
       <Collapsible.Root>
         <Collapsible.Trigger
           nativeButton={false}
-          style={{ display: 'flex', marginLeft: 'auto', gap: 'sm' }}
+          style={{ display: 'flex', gap: 'sm' }}
           render={<Button variant="minimal" size="small" tone="neutral" />}
         >
           <Icon icon={settings} />
-          {__("Filter", "wordsocket")}
+          {__("Filters", "wordsocket")}
         </Collapsible.Trigger>
         <Collapsible.Panel style={{ padding: '1rem', backgroundColor: 'var(--wpds-color-background-surface-neutral-weak)' }}>
           <Stack

@@ -1,6 +1,10 @@
 import { Tooltip, Icon } from "@wordpress/components";
 import { helpFilled } from "@wordpress/icons";
-import { CollapsibleCard as WpCollapsibleCard, Card, Stack } from "@wordpress/ui";
+import {
+  CollapsibleCard as WpCollapsibleCard,
+  Card,
+  Stack,
+} from "@wordpress/ui";
 
 export default function CollapsibleCard({
   children,
@@ -20,12 +24,12 @@ export default function CollapsibleCard({
     >
       <WpCollapsibleCard.Header>
         <Stack direction="row" gap="sm" align="center">
-        {help && (
-          <Tooltip text={help}>
-            <Icon size={16} icon={helpFilled} />
-          </Tooltip>
-        )}
-        <Card.Title>{title}</Card.Title>
+          {help && (
+            <Tooltip text={help}>
+              <Icon size={16} icon={helpFilled} />
+            </Tooltip>
+          )}
+          <Card.Title>{title}</Card.Title>
         </Stack>
       </WpCollapsibleCard.Header>
       <WpCollapsibleCard.Content>{children}</WpCollapsibleCard.Content>
