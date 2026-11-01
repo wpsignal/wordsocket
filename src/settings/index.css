@@ -23,8 +23,12 @@
       var(--wpds-color-stroke-surface-neutral);
   }
 
-  .components-tab-panel__tabs {
-    flex-wrap: wrap;
+  /* The "New" badge on a tab, beside its title. */
+  .wpsignal-tab-new {
+    font-size: var(--wpds-font-size-xs);
+    margin-inline-start: var(--wpds-dimension-gap-xs);
+    padding: var(--wpds-dimension-padding-xs, 4px);
+    text-box: trim-both cap alphabetic;
   }
 }
 

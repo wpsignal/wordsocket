@@ -70,6 +70,8 @@ interface WordSocketExtensionTab {
   /** Lowercase slug, unique across extensions; becomes `&tab=<name>` and the `wpsignal-tab-<name>` class. */
   name: string;
   title: string;
+  /** Shows a "New" badge beside the title (WordSocket 0.31). */
+  new?: boolean;
   /** Renders the tab's content. May use the hooks below and `wp.components`. */
   render: React.ComponentType;
 }

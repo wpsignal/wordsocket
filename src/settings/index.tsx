@@ -21,7 +21,7 @@ import "./index.css";
 installExtensionsApi();
 installHistoryProvider();
 
-/* Mount after every footer script has run, so extension tabs exist before TabPanel reads the URL. */
+/* Mount after every footer script has run, so extension tabs exist before the tab list reads the URL. */
 domReady(() => {
   const root = document.getElementById("wpsignal-settings-root");
   if (root) {

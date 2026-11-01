@@ -2,9 +2,10 @@
  * WordPress dependencies.
  */
 import { __ } from "@wordpress/i18n";
-import { useEffect, useRef, useState } from "@wordpress/element";
-import { SlotFillProvider, TabPanel } from "@wordpress/components";
+import { useEffect, useState } from "@wordpress/element";
+import { SlotFillProvider } from "@wordpress/components";
 import { PluginArea } from "@wordpress/plugins";
+import { Badge, Tabs } from "@wordpress/ui";
 
 /**
  * Internal dependencies.
@@ -20,12 +21,20 @@ import { Snackbars } from "./Snackbars";
 import { SettingsProvider, useSettings } from "./context";
 import { useExtensionTabs } from "./extensions/api";
 import { clearUrlParams, onNavigate, writeUrlParam } from "./useUrlParam";
-import { UnsavedChangesProvider } from "./useUnsavedChanges";
+import { UnsavedChangesProvider, useLeaveGuard } from "./useUnsavedChanges";
+
+interface Tab {
+  name: string;
+  title: string;
+  className: string;
+  /** Shows a "New" badge beside the title. */
+  new?: boolean;
+}
 
 /**
  * Settings App Tabs.
  */
-const TABS = [
+const TABS: Tab[] = [
   {
     name: "connection",
     title: __("Connect", "wordsocket"),
@@ -40,11 +49,13 @@ const TABS = [
     name: "moments",
     title: __("Moments", "wordsocket"),
     className: "wpsignal-tab-moments",
+    new: true,
   },
   {
     name: "journeys",
     title: __("Journeys", "wordsocket"),
     className: "wpsignal-tab-journeys",
+    new: true,
   },
   {
     name: "triggers",
@@ -88,12 +99,19 @@ function rememberTabInUrl(name: string): void {
   writeUrlParam("tab", name === TABS[0].name ? null : name);
 }
 
+/**
+ * The tab list and the open tab's content.
+ *
+ * @since 0.31.0 `@wordpress/ui` Tabs, controlled, so a switch away from unsaved changes is asked
+ *               through the leave guard and a "New" badge marks a tab.
+ */
 function TabsSettings() {
   const { isConnected, fetchStatus, developerMode } = useSettings();
+  const guard = useLeaveGuard();
   /*
    * Every tab is enabled until the first settings load answers, so a linked tab opens at once; if
-   * the site is then disconnected the tabs disable and TabPanel moves to Connect. Later connects
-   * reuse "connecting", so the first completion is remembered.
+   * the site is then disconnected the tabs disable and the open one falls back to Connect. Later
+   * connects reuse "connecting", so the first completion is remembered.
    */
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
@@ -106,92 +124,115 @@ function TabsSettings() {
    * Extension tabs come after the built-in ones and need a connected site.
    */
   const extensionTabs = useExtensionTabs();
-  const allTabs = [
+  const allTabs: Tab[] = [
     ...TABS.filter(
       (tab) => developerMode || !DEVELOPER_TABS.includes(tab.name),
     ),
     ...extensionTabs.map((tab) => ({
       name: tab.name,
       title: tab.title,
+      new: tab.new ?? false,
       className: `wpsignal-tab-${tab.name}`,
     })),
   ];
-  const allowedTabs =
-    loading || isConnected
-      ? allTabs
-      : allTabs.map((tab) => ({
-          ...tab,
-          disabled: !ALWAYS_ENABLED.includes(tab.name),
-        }));
-  const requested = tabFromUrl(allTabs.map((tab) => tab.name));
-  /*
-   * TabPanel picks its tab once, from `initialTabName`, so Back or Forward onto another tab
-   * remounts it (`epoch`); `selected` is what is on screen, so the mount-time `onSelect` and a
-   * step within one tab leave the URL alone.
-   */
-  const selected = useRef(requested ?? TABS[0].name);
-  const [epoch, setEpoch] = useState(0);
-  useEffect(
-    () =>
-      onNavigate(() => {
-        const name = tabFromUrl(allTabs.map((tab) => tab.name)) ?? TABS[0].name;
-        if (name === selected.current) return;
-        selected.current = name;
-        setEpoch((n) => n + 1);
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [allTabs.map((tab) => tab.name).join()],
+  const names = allTabs.map((tab) => tab.name);
+  const enabled = (name: string) =>
+    loading || isConnected || ALWAYS_ENABLED.includes(name);
+
+  /* The open tab: the URL's on load and after Back or Forward, else Connect. */
+  const [selected, setSelected] = useState(
+    () => tabFromUrl(names) ?? TABS[0].name,
   );
-  const onSelect = (name: string) => {
-    if (name === selected.current) return;
-    selected.current = name;
-    rememberTabInUrl(name);
+  useEffect(
+    () => onNavigate(() => setSelected(tabFromUrl(names) ?? TABS[0].name)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [names.join()],
+  );
+  /* A tab no longer offered (disconnected, developer mode off, an extension gone) falls back to Connect, URL included. */
+  useEffect(() => {
+    if (names.includes(selected) && enabled(selected)) return;
+    setSelected(TABS[0].name);
+    rememberTabInUrl(TABS[0].name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [names.join(), selected, loading, isConnected]);
+
+  const select = (name: string) => {
+    if (name === selected || !names.includes(name)) return;
+    guard(() => {
+      setSelected(name);
+      rememberTabInUrl(name);
+    });
   };
 
-  useEffect(() => {
-    if (
-      !loading &&
-      !isConnected &&
-      requested &&
-      !ALWAYS_ENABLED.includes(requested)
-    ) {
-      rememberTabInUrl(TABS[0].name);
+  const content = (tab: Tab) => {
+    switch (tab.name) {
+      case "connection":
+        return <TabConnection title={tab.title} />;
+      case "settings":
+        return <TabSettings title={tab.title} />;
+      case "moments":
+        return <TabRules title={tab.title} />;
+      case "journeys":
+        return <TabJourneys title={tab.title} />;
+      case "triggers":
+        return <TabTriggers title={tab.title} />;
+      case "explorer":
+        return <TabExplorer title={tab.title} />;
+      case "extensions":
+        return <TabExtensions title={tab.title} />;
+      default: {
+        const ext = extensionTabs.find((e) => e.name === tab.name);
+        return ext ? <ext.render /> : null;
+      }
     }
-  }, [loading, isConnected, requested]);
-
-  useEffect(() => {
-    // A link to a developer tab while developer mode is off lands on Connect; the URL follows.
-    const linked = new URLSearchParams(window.location.search).get("tab");
-    if (!developerMode && linked && DEVELOPER_TABS.includes(linked)) {
-      rememberTabInUrl(TABS[0].name);
-    }
-  }, [developerMode]);
+  };
 
   return (
-    <TabPanel
-      key={epoch}
-      className="wpsignal-settings-app"
-      tabs={allowedTabs}
-      initialTabName={requested}
-      onSelect={onSelect}
+    <div
+      style={{
+        overflow: "auto",
+        boxSizing: "content-box",
+      }}
     >
-      {(tab) => (
-        <div className="wpsignal-tab-content">
-          {tab.name === "connection" && <TabConnection title={tab.title} />}
-          {tab.name === "settings" && <TabSettings title={tab.title} />}
-          {tab.name === "moments" && <TabRules title={tab.title} />}
-          {tab.name === "journeys" && <TabJourneys title={tab.title} />}
-          {tab.name === "triggers" && <TabTriggers title={tab.title} />}
-          {tab.name === "explorer" && <TabExplorer title={tab.title} />}
-          {tab.name === "extensions" && <TabExtensions title={tab.title} />}
-          {extensionTabs
-            .filter((ext) => ext.name === tab.name)
-            .map((ext) => (
-              <ext.render key={ext.name} />
-            ))}
-        </div>
-      )}
-    </TabPanel>
+      <Tabs.Root
+        className="wpsignal-settings-app"
+        value={selected}
+        onValueChange={(value) => select(String(value))}
+      >
+        <Tabs.List
+          className="wpsignal-settings-app__tabs"
+          style={{
+            maxWidth: "100%",
+          }}
+        >
+          {allTabs.map((tab) => (
+            <Tabs.Tab
+              key={tab.name}
+              value={tab.name}
+              className={tab.className}
+              disabled={!enabled(tab.name)}
+            >
+              {tab.title}
+              {tab.new && (
+                <Badge intent="informational" className="wpsignal-tab-new">
+                  {__("New", "wordsocket")}
+                </Badge>
+              )}
+            </Tabs.Tab>
+          ))}
+        </Tabs.List>
+        {allTabs.map((tab) => (
+          <Tabs.Panel
+            key={tab.name}
+            value={tab.name}
+            tabIndex={-1}
+            className="wpsignal-tab-content"
+          >
+            {content(tab)}
+          </Tabs.Panel>
+        ))}
+      </Tabs.Root>
+    </div>
   );
 }
 

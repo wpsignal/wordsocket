@@ -4,9 +4,9 @@
  *   the admin menu) and the flag the in-app guards read.
  * - `useLeaveGuard()` for a Back or Cancel control: `guard( leave )` runs `leave` at once when
  *   nothing is dirty, else after the "Discard changes?" dialog is confirmed.
- * - `UnsavedChangesProvider` at the app root owns the flag and the one dialog, guards the tab list
- *   the same way (a click or arrow key on another tab), and is the navigation guard Back and
- *   Forward go through (`useUrlParam.ts`).
+ * - `UnsavedChangesProvider` at the app root owns the flag and the one dialog, and is the navigation
+ *   guard Back and Forward go through (`useUrlParam.ts`); the tab list asks `useLeaveGuard()` before
+ *   it switches.
  */
 
 /**
@@ -32,7 +32,7 @@ import { setNavigateGuard } from "./useUrlParam";
 /**
  * External dependencies.
  */
-import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
+import type { ReactNode } from "react";
 
 type Leave = () => void;
 
@@ -46,8 +46,6 @@ const GuardContext = createContext<Guard>({
   dirty: { current: false },
   guard: (leave) => leave(),
 });
-
-const TAB_KEYS = ["ArrowLeft", "ArrowRight", "Home", "End"];
 
 export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
   const dirty = useRef(false);
@@ -77,46 +75,9 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  /*
-   * TabPanel selects on its own, so the tab list is guarded one step earlier: a click or a key
-   * on a tab that is not the current one is swallowed and replayed after the confirm.
-   */
-  const onClickCapture = (event: MouseEvent<HTMLDivElement>) => {
-    const tab = (event.target as HTMLElement).closest<HTMLElement>(
-      '[role="tab"]',
-    );
-    if (!tab || !dirty.current || tab.getAttribute("aria-selected") === "true")
-      return;
-    event.preventDefault();
-    event.stopPropagation();
-    guard(() => tab.click());
-  };
-  const onKeyDownCapture = (event: KeyboardEvent<HTMLDivElement>) => {
-    const tab = (event.target as HTMLElement).closest<HTMLElement>(
-      '[role="tab"]',
-    );
-    if (!tab || !dirty.current || !TAB_KEYS.includes(event.key)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    /* The key's own target, worked out here since the list will not see the key: wrapping like the list does. */
-    const tabs = Array.from(
-      tab.parentElement?.querySelectorAll<HTMLElement>('[role="tab"]') ?? [],
-    ).filter((t) => t.getAttribute("aria-disabled") !== "true");
-    const at = tabs.indexOf(tab);
-    const target = {
-      ArrowLeft: tabs[(at - 1 + tabs.length) % tabs.length],
-      ArrowRight: tabs[(at + 1) % tabs.length],
-      Home: tabs[0],
-      End: tabs[tabs.length - 1],
-    }[event.key];
-    if (target && target !== tab) guard(() => target.click());
-  };
-
   return (
     <GuardContext.Provider value={value}>
-      <div onClickCapture={onClickCapture} onKeyDownCapture={onKeyDownCapture}>
-        {children}
-      </div>
+      {children}
       <AlertDialog.Root
         open={asking}
         onOpenChange={(open) => {
