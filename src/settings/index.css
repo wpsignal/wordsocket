@@ -507,15 +507,265 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
   }
 }
 
-/* Replay samples: a card with a list of samples. */
+/*
+ * Replay aside: the figure blocks and their bars (a segmented bar, the kind rows, the tiles), and
+ * the journeys dialog's filter row, journey rows and time strips. Hues come inline: an outcome's
+ * registered colour, a kind's `kindColor()`, or a token, each on `--c`.
+ */
 
-.wpsignal-replay-samples {
-  .wpsignal-replay-sample {
-    border-bottom: 1px dashed var(--wpds-color-stroke-surface-neutral);
-    padding-bottom: var(--wpds-dimension-padding-md);
-    &:last-child {
-      border-bottom: none;
-      padding-bottom: 0;
+.wpsignal-replay__header {
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.wpsignal-replay__label {
+  color: var(--wpds-color-fg-content-neutral-weak);
+  font-weight: var(--wpds-font-weight-medium);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.wpsignal-replay__hero {
+  font-variant-numeric: tabular-nums;
+
+  .wpsignal-replay__pct {
+    margin-inline-start: auto;
+    font-weight: var(--wpds-font-weight-medium);
+  }
+}
+
+.wpsignal-replay__seg {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+  border-radius: var(--wpds-border-radius-sm);
+  overflow: hidden;
+
+  i {
+    display: block;
+    height: 100%;
+    min-width: 2px;
+  }
+}
+
+.wpsignal-replay__legend {
+  font-variant-numeric: tabular-nums;
+
+  > *::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-inline-end: var(--wpds-dimension-gap-xs);
+    border-radius: var(--wpds-border-radius-xs);
+    background: var(--c);
+    vertical-align: 1px;
+  }
+}
+
+.wpsignal-replay__rows {
+  display: grid;
+  gap: var(--wpds-dimension-gap-sm);
+}
+
+.wpsignal-replay__row {
+  display: grid;
+  grid-template-columns: minmax(64px, 1fr) minmax(0, 2fr) 3ch 5ch;
+  align-items: center;
+  gap: var(--wpds-dimension-gap-sm);
+  font-variant-numeric: tabular-nums;
+
+  .wpsignal-replay__kind {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &::before {
+      content: "";
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin-inline-end: var(--wpds-dimension-gap-xs);
+      border-radius: var(--wpds-border-radius-xs);
+      background: var(--c);
+      vertical-align: 1px;
+    }
+  }
+
+  .wpsignal-replay__bar {
+    display: block;
+    height: 10px;
+    border-radius: var(--wpds-border-radius-sm);
+    background: var(--wpds-color-bg-track-neutral-weak);
+    overflow: hidden;
+
+    i {
+      display: block;
+      height: 100%;
+      border-radius: var(--wpds-border-radius-sm);
+      background: var(--c);
+    }
+  }
+
+  .wpsignal-replay__share {
+    text-align: end;
+    font-weight: var(--wpds-font-weight-medium);
+  }
+
+  .wpsignal-replay__time {
+    text-align: end;
+    color: var(--wpds-color-fg-content-neutral-weak);
+    white-space: nowrap;
+  }
+}
+
+.wpsignal-replay__tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--wpds-border-width-xs);
+  border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
+  border-radius: var(--wpds-border-radius-md);
+  background: var(--wpds-color-stroke-surface-neutral-weak);
+  overflow: hidden;
+
+  .wpsignal-replay__tile {
+    align-items: center;
+    display: grid;
+    gap: 2px;
+    padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
+    background: var(--wpds-color-bg-surface-neutral);
+    font-variant-numeric: tabular-nums;
+    min-width: 0;
+    text-align: center;
+    
+    > * {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}
+
+.wpsignal-replay__open {
+  align-self: start;
+}
+
+.wpsignal-replay__dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-inline-end: var(--wpds-dimension-gap-xs);
+  border-radius: 50%;
+}
+
+.wpsignal-replay-dialog__tabs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-lg);
+}
+
+.wpsignal-replay-dialog__spacer {
+  flex: 1;
+}
+
+.wpsignal-replay-dialog__list {
+  display: grid;
+}
+
+.wpsignal-replay-journey {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr) auto;
+  gap: var(--wpds-dimension-gap-lg);
+  align-items: start;
+  padding-block: var(--wpds-dimension-padding-md);
+  border-bottom: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  .wpsignal-replay-journey__when {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .wpsignal-replay-journey__trail {
+    min-width: 0;
+  }
+
+  .wpsignal-replay-journey__crumbs {
+    margin-top: var(--wpds-dimension-gap-sm);
+    color: var(--wpds-color-fg-content-neutral-weak);
+
+    mark {
+      color: var(--wpds-color-fg-content-neutral);
+      background: var(--wpds-color-bg-surface-info-weak);
+      border-radius: var(--wpds-border-radius-xs);
+      padding-inline: 0.25em;
+      font-weight: var(--wpds-font-weight-medium);
+    }
+  }
+
+  .wpsignal-replay-journey__end {
+    display: grid;
+    gap: var(--wpds-dimension-gap-xs);
+    justify-items: end;
+    text-align: end;
+  }
+}
+
+/* The strip: each step a block as wide as its time; a hit step carries the firing's mark at `--at`. */
+.wpsignal-replay-strip {
+  display: flex;
+  gap: 2px;
+  height: 14px;
+  margin-top: 3px;
+
+  i {
+    position: relative;
+    display: block;
+    height: 100%;
+    min-width: 3px;
+    border-radius: var(--wpds-border-radius-xs);
+    background: var(--c);
+
+    &.is-away {
+      background: repeating-linear-gradient(135deg, var(--c) 0 2px, transparent 2px 5px);
+    }
+
+    &.is-hit::before,
+    &.is-hit::after {
+      content: "";
+      position: absolute;
+      left: var(--at);
+      background: var(--wpds-color-fg-content-neutral);
+    }
+
+    &.is-hit::after {
+      top: -5px;
+      width: 2px;
+      height: 24px;
+      margin-left: -1px;
+      border-radius: 1px;
+    }
+
+    &.is-hit::before {
+      top: -8px;
+      width: 8px;
+      height: 8px;
+      margin-left: -4px;
+      border-radius: 50%;
+    }
+  }
+}
+
+@media (max-width: 782px) {
+  .wpsignal-replay-journey {
+    grid-template-columns: 1fr;
+    gap: var(--wpds-dimension-gap-sm);
+
+    .wpsignal-replay-journey__end {
+      justify-items: start;
+      text-align: start;
     }
   }
 }
@@ -586,7 +836,6 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
 .wpsignal-chart__labels {
   position: sticky;
   left: 0;
-  z-index: 1;
   flex: none;
   display: grid;
   align-items: center;

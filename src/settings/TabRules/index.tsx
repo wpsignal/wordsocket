@@ -17,7 +17,7 @@ import { AlertDialog, Badge, Card, Stack, Text, Notice } from "@wordpress/ui";
  */
 import { TabHeading } from "../TabHeading";
 import { RuleEditor } from "./RuleEditor";
-import { firedHistory, replayRule } from "./ReplayPanel";
+import { firedHistory, replayRule } from "./replay";
 import { getRules, saveRules } from "../api";
 import {
   newId,
@@ -277,13 +277,10 @@ export function TabRules({ title }: { title: string }) {
 
   return (
     <Stack direction="column" gap="lg" className="wpsignal-rules-tab">
-      <TabHeading title={title} />
-      <Text render={<p />}>
-        {__(
-          "A moment watches each visitor in their own browser and steps in when its conditions come true: a prompt, and the tab title while they are away. Nothing fires until a moment is on.",
-          "wordsocket",
-        )}
-      </Text>
+      <TabHeading title={title} help={__(
+        "A moment watches each visitor in their own browser and steps in when its conditions come true: a prompt, and the tab title while they are away. Nothing fires until a moment is on.",
+        "wordsocket",
+      )} />
       {rules.length === 0 ? (
         <Text className="wpsignal-rules-empty wpsignal-muted" render={<p />}>
           {__("No moments yet.", "wordsocket")}

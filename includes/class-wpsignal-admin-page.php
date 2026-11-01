@@ -219,6 +219,7 @@ class Admin_Page {
 					'history'       => array(
 						'enabled'  => $this->config->history_enabled(),
 						'currency' => WPS::journeys()->currency(),
+						'outcomes' => WPS::journeys()->outcomes(),
 					),
 				),
 				JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
