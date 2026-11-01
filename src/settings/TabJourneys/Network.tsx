@@ -17,8 +17,23 @@ import {
   useRef,
   useState,
 } from "@wordpress/element";
-import { IconButton, RadioGroupControl, Stack, Text } from "@wordpress/ui";
-import { chevronLeft, chevronRight } from "@wordpress/icons";
+import {
+  Button,
+  Collapsible,
+  Icon,
+  IconButton,
+  RadioGroupControl,
+  Stack,
+  Text,
+} from "@wordpress/ui";
+import {
+  chevronDown,
+  chevronLeft,
+  chevronRight,
+  filter,
+  funnel,
+  settings,
+} from "@wordpress/icons";
 
 /**
  * Internal dependencies.
@@ -490,83 +505,99 @@ export function Network({
       gap="sm"
       className={pager.loading ? "is-loading" : undefined}
     >
-      <Stack
-        direction="row"
-        gap="lg"
-        wrap="wrap"
-        align="end"
-        className="wpsignal-chart__filters"
-      >
-        <Choice
-          label={__("Month", "wordsocket")}
-          value={pager.month}
-          options={pager.months.map((m) => ({
-            value: m.month,
-            label: `${monthLabel(m.month)} (${m.count.toLocaleString()})`,
-          }))}
-          onChange={pager.onMonth}
-        />
-        <Choice
-          label={__("How it ended", "wordsocket")}
-          value={filters.outcome || ANY}
-          options={[
-            { value: ANY, label: __("All", "wordsocket") },
-            ...outcomeKeys(outcomes, journeys).map((o) => ({
-              value: o,
-              label: outcomeLabel(o, outcomes),
-            })),
-          ]}
-          onChange={(value) =>
-            onFilters({ ...filters, outcome: value === ANY ? "" : value })
-          }
-        />
-        <Choice
-          label={__("Visited", "wordsocket")}
-          value={filters.through || ANY}
-          options={[
-            { value: ANY, label: __("Any page", "wordsocket") },
-            ...allKinds.map((k) => ({ value: k, label: kindLabel(k, kinds) })),
-          ]}
-          onChange={(value) =>
-            onFilters({ ...filters, through: value === ANY ? "" : value })
-          }
-        />
-        <Choice
-          label={__("Show routes taken by at least", "wordsocket")}
-          value={String(filters.min)}
-          options={EDGE_MIN.map((n) => ({
-            value: String(n),
-            label:
-              n === 1
-                ? __("1 journey (all routes)", "wordsocket")
-                : /* translators: %d: journeys */ sprintf(
-                    __("%d journeys", "wordsocket"),
-                    n,
-                  ),
-          }))}
-          onChange={(value) =>
-            onFilters({ ...filters, min: Number(value) || 1 })
-          }
-        />
-      </Stack>
-      <RadioGroupControl
-        className="wpsignal-chart__radios"
-        label={__("Pages viewed", "wordsocket")}
-        value={String(filters.pages)}
-        onValueChange={(value) =>
-          onFilters({ ...filters, pages: Number(value) || 1 })
-        }
-        items={PAGE_MIN.map((n) => ({
-          value: String(n),
-          label:
-            n === 1
-              ? __("Any number", "wordsocket")
-              : /* translators: %d: pages */ sprintf(
-                  __("%d or more", "wordsocket"),
-                  n,
-                ),
-        }))}
-      />
+      <Collapsible.Root>
+        <Collapsible.Trigger
+          nativeButton={false}
+          style={{ display: 'flex', marginLeft: 'auto', gap: 'sm' }}
+          render={<Button variant="minimal" size="small" tone="neutral" />}
+        >
+          <Icon icon={settings} />
+          {__("Filter", "wordsocket")}
+        </Collapsible.Trigger>
+        <Collapsible.Panel style={{ padding: '1rem', backgroundColor: 'var(--wpds-color-background-surface-neutral-weak)' }}>
+          <Stack
+            direction="row"
+            gap="sm"
+            wrap="wrap"
+            className="wpsignal-chart__filters"
+          >
+            <Choice
+              label={__("Month", "wordsocket")}
+              value={pager.month}
+              options={pager.months.map((m) => ({
+                value: m.month,
+                label: `${monthLabel(m.month)} (${m.count.toLocaleString()})`,
+              }))}
+              onChange={pager.onMonth}
+            />
+            <Choice
+              label={__("How it ended", "wordsocket")}
+              value={filters.outcome || ANY}
+              options={[
+                { value: ANY, label: __("All", "wordsocket") },
+                ...outcomeKeys(outcomes, journeys).map((o) => ({
+                  value: o,
+                  label: outcomeLabel(o, outcomes),
+                })),
+              ]}
+              onChange={(value) =>
+                onFilters({ ...filters, outcome: value === ANY ? "" : value })
+              }
+            />
+            <Choice
+              label={__("Visited", "wordsocket")}
+              value={filters.through || ANY}
+              options={[
+                { value: ANY, label: __("Any page", "wordsocket") },
+                ...allKinds.map((k) => ({
+                  value: k,
+                  label: kindLabel(k, kinds),
+                })),
+              ]}
+              onChange={(value) =>
+                onFilters({ ...filters, through: value === ANY ? "" : value })
+              }
+            />
+            <Choice
+              label={__("Routes taken by", "wordsocket")}
+              value={String(filters.min)}
+              options={EDGE_MIN.map((n) => ({
+                value: String(n),
+                label:
+                  n === 1
+                    ? __("1 journey (all routes)", "wordsocket")
+                    : /* translators: %d: journeys */ sprintf(
+                        __("%d journeys", "wordsocket"),
+                        n,
+                      ),
+              }))}
+              onChange={(value) =>
+                onFilters({ ...filters, min: Number(value) || 1 })
+              }
+            />
+          
+            <RadioGroupControl
+              className="wpsignal-chart__radios"
+              label={__("Pages viewed", "wordsocket")}
+              value={String(filters.pages)}
+              onValueChange={(value) =>
+                onFilters({ ...filters, pages: Number(value) || 1 })
+              }
+              items={PAGE_MIN.map((n) => ({
+                value: String(n),
+                label:
+                  n === 1
+                    ? __("Any number", "wordsocket")
+                    : /* translators: %d: pages */ sprintf(
+                        __("%d or more", "wordsocket"),
+                        n,
+                      ),
+              }))}
+            />
+          </Stack>
+        </Collapsible.Panel>
+      </Collapsible.Root>
+
       <Count shown={shown.length} listed={journeys.length} pager={pager} />
       {shown.length === 0 ? (
         <Text variant="body-sm" className="wpsignal-muted">

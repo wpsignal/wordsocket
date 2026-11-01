@@ -245,7 +245,7 @@ export function ReplayPanel({ rule }: { rule: Rule }) {
             </Text>
           )}
           {result && (
-            <CollapsibleCard.Root>
+            <CollapsibleCard.Root defaultOpen>
               <CollapsibleCard.Header>
                 <Text variant="heading-sm">
                   {__("If this moment were on", "wordsocket")}

@@ -71,7 +71,10 @@ function HistoryCard() {
     if (months !== journeysRetentionMonths) void saveMonths.run(months);
   };
   return (
-    <CollapsibleCard.Root className="wpsignal-settings-card" defaultOpen>
+    <CollapsibleCard.Root
+      className="wpsignal-settings-card"
+      defaultOpen={!history.checked}
+    >
       <CollapsibleCard.Header>
         <Card.Title>{__("History", "wordsocket")}</Card.Title>
       </CollapsibleCard.Header>
@@ -88,14 +91,13 @@ function HistoryCard() {
             checked={history.checked}
             disabled={history.isPending}
             onChange={history.change}
-            __nextHasNoMarginBottom
           />
           {history.checked && (
             <TextControl
               type="number"
               min={MONTHS_MIN}
               max={MONTHS_MAX}
-              label={__("Keep journeys for (months)", "wordsocket")}
+              label={__("Retention (months)", "wordsocket")}
               help={__(
                 "Older journeys are deleted automatically.",
                 "wordsocket",
@@ -120,23 +122,30 @@ function HistoryCard() {
 /** One visual in its card: a title, the one sentence on what it is for, the chart. */
 function VisualCard({
   title,
-  lede,
+  desc,
   children,
 }: {
   title: string;
-  lede: string;
+  desc: string;
   children: React.ReactNode;
 }) {
   return (
     <Card.Root className="wpsignal-visual">
       <Card.Header>
-        <Card.Title>{title}</Card.Title>
+        <Stack direction="row" gap="lg" align="center" justify="space-between">
+          <Card.Title>{title}</Card.Title>
+          <Text
+            variant="body-sm"
+            style={{ textAlign: "right" }}
+            className="wpsignal-muted"
+            render={<p />}
+          >
+            {desc}
+          </Text>
+        </Stack>
       </Card.Header>
       <Card.Content>
         <Stack direction="column" gap="md">
-          <Text variant="body-sm" className="wpsignal-muted" render={<p />}>
-            {lede}
-          </Text>
           {children}
         </Stack>
       </Card.Content>
@@ -198,8 +207,8 @@ function Visuals() {
   return (
     <Stack direction="column" gap="lg">
       <VisualCard
-        title={__("Where journeys go", "wordsocket")}
-        lede={__(
+        title={__("Journeys", "wordsocket")}
+        desc={__(
           "Each line is one visit, from the first page to how it ended. Spot the routes that end well and the pages where people drop off.",
           "wordsocket",
         )}
@@ -226,7 +235,7 @@ function Visuals() {
       </VisualCard>
       <VisualCard
         title={__("How the weeks are going", "wordsocket")}
-        lede={__(
+        desc={__(
           "Visits and how they ended, day by day, with a weekly average, so you notice a change the week it happens.",
           "wordsocket",
         )}
@@ -235,7 +244,7 @@ function Visuals() {
       </VisualCard>
       <VisualCard
         title={__("When visitors are here", "wordsocket")}
-        lede={__(
+        desc={__(
           "Your busiest days and hours, in your site's time zone.",
           "wordsocket",
         )}

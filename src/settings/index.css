@@ -528,19 +528,25 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
 }
 
 /* The filter row: every control shares the width evenly, wrapping when there is no room. */
-.wpsignal-visual .wpsignal-chart__filters > * {
-  flex: 1 1 160px;
-  min-width: 160px;
+.wpsignal-visual .wpsignal-chart__filters {
+  margin-top: var(--wpds-dimension-gap-lg);
+  > *:not(.wpsignal-chart__radios) {
+    flex: 1 1 160px;
+    min-width: 160px;
+  }
 }
 
 /* The pages radio group: its legend above a row of options; the control sets the column direction inline. */
-.wpsignal-chart__radios [role="radiogroup"] {
-  flex-direction: row !important;
-  flex-wrap: wrap;
-  gap: var(--wpds-dimension-gap-lg, 16px) !important;
+.wpsignal-chart__radios {
+  flex-basis: 100%;
+  [role="radiogroup"] {
+    flex-direction: row !important;
+    flex-wrap: wrap;
+    gap: var(--wpds-dimension-gap-lg, 16px) !important;
 
-  > :first-child {
-    flex-basis: 100%;
+    > :first-child {
+      flex-basis: 100%;
+    }
   }
 }
 
@@ -612,13 +618,18 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
 }
 
 .wpsignal-net__labels {
-  grid-template-rows: var(--wpsignal-top) repeat(var(--wpsignal-rows), var(--wpsignal-row));
+  grid-template-rows: var(--wpsignal-top) repeat(
+      var(--wpsignal-rows),
+      var(--wpsignal-row)
+    );
   border-right: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
 }
 
 /* Seven weekdays, the gap, then the all-days strip. */
 .wpsignal-hours__labels {
-  grid-template-rows: var(--wpsignal-top) repeat(7, var(--wpsignal-cell)) var(--wpsignal-gap) var(--wpsignal-strip);
+  grid-template-rows:
+    var(--wpsignal-top) repeat(7, var(--wpsignal-cell)) var(--wpsignal-gap)
+    var(--wpsignal-strip);
 
   span:last-child {
     grid-row: 10;
@@ -626,7 +637,6 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
 }
 
 .wpsignal-chart {
-
   svg text {
     fill: var(--wpds-color-fg-content-neutral);
     font-size: var(--wpds-font-size-sm);
@@ -749,7 +759,8 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
   stroke: var(--wpds-color-fg-content-neutral-weak);
 }
 
-.wpsignal-net:has(.wpsignal-net__journey:hover, .wpsignal-net__node:hover) .wpsignal-net__edge {
+.wpsignal-net:has(.wpsignal-net__journey:hover, .wpsignal-net__node:hover)
+  .wpsignal-net__edge {
   stroke-opacity: 0.05;
 
   &.is-on {
@@ -884,7 +895,6 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
   gap: var(--wpds-dimension-gap-sm);
   font-size: var(--wpds-font-size-sm);
   color: var(--wpds-color-fg-content-neutral);
-  padding-bottom: var(--wpds-dimension-padding-sm);
 }
 
 .wpsignal-hours__steps {
@@ -897,6 +907,15 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
     display: block;
     width: 18px;
     height: 10px;
+  }
+}
+
+.wpsignal-hours__filters {
+  > * {
+    width: 50%;
+  }
+  .wpsignal-hours__ramp {
+    justify-content: flex-end;
   }
 }
 

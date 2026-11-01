@@ -315,8 +315,8 @@ export function TabRules({ title }: { title: string }) {
                           {rule.frequency === "page"
                             ? __("per page view", "wordsocket")
                             : rule.frequency === "visit"
-                            ? __("once per visit", "wordsocket")
-                            : __("once per visitor", "wordsocket")}
+                              ? __("once per visit", "wordsocket")
+                              : __("once per visitor", "wordsocket")}
                         </Badge>
                       )}
                       {rule.source && (
@@ -337,7 +337,7 @@ export function TabRules({ title }: { title: string }) {
                   <Stack
                     direction="row"
                     gap="lg"
-                    align="flex-start"
+                    align="flex-end"
                     justify="space-between"
                     wrap="wrap"
                   >
@@ -409,20 +409,29 @@ export function TabRules({ title }: { title: string }) {
                           borderRadius: "0.5rem",
                         }}
                       >
-                        <Text variant="heading-2xl">
-                          {reach(rule)?.count ?? 0}
-                        </Text>
-                        <Text variant="heading-lg">
-                          / {history.journeys.length}
-                        </Text>
-                        <Text variant="body-md" className="wpsignal-muted">
-                          {_n(
-                            "match",
-                            "matches",
-                            history.journeys.length,
-                            "wordsocket",
-                          )}
-                        </Text>
+                        <Stack direction="row" gap="xs" align="center">
+                          <Text
+                            variant="heading-2xl"
+                            style={{ display: "inline-flex" }}
+                          >
+                            {reach(rule)?.count ?? 0}
+                          </Text>
+                          <Text
+                            variant="heading-lg"
+                            style={{ display: "inline-flex" }}
+                          >
+                            / {history.journeys.length}
+                            <br />
+                          </Text>
+                          <Text variant="body-md" className="wpsignal-muted" style={{ flexGrow: 1 }}>
+                            {_n(
+                              "match",
+                              "matches",
+                              history.journeys.length,
+                              "wordsocket",
+                            )}
+                          </Text>
+                        </Stack>
                         {firing && firing.shown > 0 && (
                           <Text variant="body-sm" className="wpsignal-muted">
                             {[

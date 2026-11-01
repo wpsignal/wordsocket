@@ -157,13 +157,7 @@ export function Hours({
 
   return (
     <Stack direction="column" gap="sm">
-      <Stack
-        direction="row"
-        gap="lg"
-        wrap="wrap"
-        align="end"
-        className="wpsignal-chart__filters"
-      >
+      <Stack align="center" direction="row" wrap="wrap" justify="space-between" className="wpsignal-hours__filters">
         <Choice
           label={__("Show", "wordsocket")}
           value={current.key}
