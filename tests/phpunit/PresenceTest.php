@@ -65,6 +65,7 @@ final class PresenceTest extends WordSocketTestCase {
 				'user_id'    => 0,
 				'data'       => array( 'b' => 'cart-abc' ),
 				'leaving'    => false,
+				'ago'        => 0,
 			),
 			$this->visits[0],
 			'ids are lower-cased, steps counted, a guest is user 0'
@@ -89,6 +90,44 @@ final class PresenceTest extends WordSocketTestCase {
 		$this->assertTrue( $this->leaves[0]['leaving'] );
 		$this->assertSame( 2, $this->leaves[0]['steps'] );
 		$this->assertSame( array(), $this->leaves[0]['data'], 'no data is an empty array, never null' );
+	}
+
+	public function test_a_report_may_say_how_long_ago_it_happened(): void {
+		list( $status ) = $this->rest(
+			'POST',
+			'leave',
+			array(
+				'v'       => self::V,
+				'n'       => self::N,
+				'journey' => 'home:2:1200>away:0:1800',
+				'ago'     => 900,
+			)
+		);
+		$this->assertSame( 200, $status );
+		$this->assertSame( 900, $this->leaves[0]['ago'] );
+		list( $status ) = $this->rest(
+			'POST',
+			'visit',
+			array(
+				'v' => self::V,
+				'n' => self::N,
+			)
+		);
+		$this->assertSame( 200, $status );
+		$this->assertSame( 0, $this->visits[0]['ago'], 'a live report is now' );
+		foreach ( array( -1, 2592001, 'yesterday' ) as $bad ) {
+			list( $status ) = $this->rest(
+				'POST',
+				'leave',
+				array(
+					'v'   => self::V,
+					'n'   => self::N,
+					'ago' => $bad,
+				)
+			);
+			$this->assertSame( 400, $status, (string) $bad );
+		}
+		$this->assertCount( 1, $this->leaves );
 	}
 
 	public function test_an_empty_journey_is_a_visit_with_no_steps(): void {

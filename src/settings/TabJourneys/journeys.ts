@@ -15,11 +15,14 @@ import { __, _n, sprintf } from "@wordpress/i18n";
 import type { JourneyRow, JourneyVisuals } from "../types";
 
 /**
- * An outcome key as the site registered it: `open`, `left`, or an extension's.
+ * An outcome key as the site registered it: `open`, `left`, `incomplete`, or an extension's.
  *
  * @since 0.31.0
  */
 export type Outcome = string;
+
+/** WordSocket's own outcomes, none of them a win. */
+const NOT_WON: readonly Outcome[] = ["open", "left", "incomplete"];
 
 /**
  * The outcomes a site knows, keyed, in registration order.
@@ -312,12 +315,12 @@ export interface NetGeometry {
 }
 
 /**
- * Whether an outcome is a win for the site: anything an extension registered beyond open and left.
+ * Whether an outcome is a win for the site: anything an extension registered beyond WordSocket's own.
  *
  * @since 0.31.0
  */
 export function isWin(outcome: Outcome): boolean {
-  return outcome !== "open" && outcome !== "left";
+  return !NOT_WON.includes(outcome);
 }
 
 /**

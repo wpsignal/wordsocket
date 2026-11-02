@@ -33,6 +33,13 @@ class Presence {
 	 */
 	const JOURNEY_PATTERN = '/^[a-z_]+:\d{1,12}:\d{1,6}(>[a-z_]+:\d{1,12}:\d{1,6})*$/';
 
+	/**
+	 * The furthest back a report may say it happened, in seconds (30 days).
+	 *
+	 * @since 0.31.0
+	 */
+	const MAX_AGO = 2592000;
+
 	/** The visitor id and the journey id are version 4 UUIDs. */
 	const UUID_PATTERN = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i';
 
@@ -187,6 +194,12 @@ class Presence {
 				'default'           => array(),
 				'validate_callback' => static fn( $value ): bool => is_array( $value ) && count( $value ) <= self::MAX_DATA_FIELDS,
 			),
+			'ago'     => array(
+				'type'    => 'integer',
+				'default' => 0,
+				'minimum' => 0,
+				'maximum' => self::MAX_AGO,
+			),
 		);
 		$routes = array(
 			'visit' => false,
@@ -207,9 +220,10 @@ class Presence {
 	}
 
 	/**
-	 * Hand a report to the action for it.
+	 * Hand a report to the action for it; `ago` says how many seconds ago the report was true, 0 for
+	 * one sent live.
 	 *
-	 * @since 0.31.0 Answers a visit with `wpsignal_visitor_visit_response`.
+	 * @since 0.31.0 Answers a visit with `wpsignal_visitor_visit_response`, and carries `ago`.
 	 *
 	 * @param WP_REST_Request $request The request.
 	 * @param bool            $leaving Whether this is `/leave`.
@@ -225,13 +239,14 @@ class Presence {
 			'user_id'    => get_current_user_id(),
 			'data'       => self::sanitize_data( (array) $request->get_param( 'data' ) ),
 			'leaving'    => $leaving,
+			'ago'        => (int) $request->get_param( 'ago' ),
 		);
 		if ( $leaving ) {
 			/**
 			 * Fires when a visitor's browser reports leaving a page (`pagehide`),
 			 * with the journey closed.
 			 *
-			 * @param array{visitor: string, journey_id: string, journey: string, steps: int, user_id: int, data: array, leaving: bool} $report The report.
+			 * @param array{visitor: string, journey_id: string, journey: string, steps: int, user_id: int, data: array, leaving: bool, ago: int} $report The report.
 			 */
 			do_action( 'wpsignal_visitor_leave', $report );
 		} else {
@@ -239,7 +254,7 @@ class Presence {
 			 * Fires when a visitor's browser reports arriving on a page, with the
 			 * journey so far (this page's step open).
 			 *
-			 * @param array{visitor: string, journey_id: string, journey: string, steps: int, user_id: int, data: array, leaving: bool} $report The report.
+			 * @param array{visitor: string, journey_id: string, journey: string, steps: int, user_id: int, data: array, leaving: bool, ago: int} $report The report.
 			 */
 			do_action( 'wpsignal_visitor_visit', $report );
 		}
@@ -253,7 +268,7 @@ class Presence {
 			 * `tracker.onVisit()`.
 			 *
 			 * @param array $answer Fields to add, empty to begin with.
-			 * @param array{visitor: string, journey_id: string, journey: string, steps: int, user_id: int, data: array, leaving: bool} $report The report.
+			 * @param array{visitor: string, journey_id: string, journey: string, steps: int, user_id: int, data: array, leaving: bool, ago: int} $report The report.
 			 */
 			$answer = array( 'ok' => true ) + (array) apply_filters( 'wpsignal_visitor_visit_response', array(), $report );
 		}

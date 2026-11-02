@@ -1,4 +1,5 @@
 import "../env";
+import { randomUUID } from "node:crypto";
 import { expect, test } from "@wordpress/e2e-test-utils-playwright";
 import type { Page } from "@playwright/test";
 import { wp } from "../env";
@@ -7,7 +8,8 @@ import { waitForState } from "./helpers";
 /*
  * Journeys (0.31): with History on, a visitor's pages become a journey row WordSocket keeps, the
  * Journeys tab draws the last 28 days, and the Moments tab's replay has a provider. With History off
- * nothing new is written, but what was kept stays on the tab under a notice and in the replay.
+ * nothing new is written, but what was kept stays on the tab under a notice and in the replay. A
+ * journey the browser never got to report (a crash) is sent from the outbox when the visitor is back.
  */
 
 const TAB = "page=wordsocket&tab=journeys";
@@ -68,7 +70,7 @@ test.describe("Journeys", () => {
     // The row: two steps, under the visitor's journey id.
     const table = `${wp("db", "prefix")}wpsignal_journeys`;
     await expect
-      .poll(() => Number(wp("db", "query", `SELECT steps FROM ${table} WHERE journey_id = '${journeyId}'`, "--skip-column-names")), { timeout: 15_000 })
+      .poll(() => Number(wp("db", "query", `SELECT steps FROM ${table} WHERE journey_id = UNHEX('${journeyId.replace(/-/g, "")}')`, "--skip-column-names")), { timeout: 15_000 })
       .toBeGreaterThanOrEqual(2);
 
     // The tab draws it.
@@ -93,6 +95,35 @@ test.describe("Journeys", () => {
     await admin.visitAdminPage("admin.php", "page=wordsocket&tab=moments&moment=new");
     await expect(page.locator(".wpsignal-rule-replay")).toBeVisible({ timeout: 20_000 });
     await expect(page.locator(".wpsignal-rule-replay")).toContainText("Would reach");
+  });
+
+  test("a journey the browser never got to report is sent from the outbox once the visitor is back", async ({ browser, baseURL }) => {
+    const visitor = await browser.newContext({ baseURL, ignoreHTTPSErrors: true });
+    const shop = await visitor.newPage();
+    const table = `${wp("db", "prefix")}wpsignal_journeys`;
+    const journeyId = randomUUID();
+    const hex = journeyId.replace(/-/g, "");
+    const row = (column: string) => wp("db", "query", `SELECT ${column} FROM ${table} WHERE journey_id = UNHEX('${hex}')`, "--skip-column-names").trim();
+    try {
+      // A journey held 45 minutes ago, its tab hidden, that a crash kept from being reported.
+      await shop.goto("/");
+      await shop.evaluate(
+        ([n, at]) => window.localStorage.setItem("wordsocket-outbox", JSON.stringify([{ n, j: "home:1:40>away:0:0", at }])),
+        [journeyId, Date.now() - 45 * 60_000] as const,
+      );
+      await shop.reload();
+      await waitForState(shop, { connected: true, transport: "ws" });
+      // The flush: a leave ending in the gap's away, dated when the away reached it, 15 minutes ago.
+      await expect.poll(() => row("outcome"), { timeout: 20_000 }).toBe("left");
+      expect(row("journey")).toBe("h:1:40>w:0:1800");
+      const ago = Number(row("TIMESTAMPDIFF(SECOND, last_seen, UTC_TIMESTAMP())"));
+      expect(ago).toBeGreaterThan(14 * 60);
+      expect(ago).toBeLessThan(17 * 60);
+      await expect.poll(() => shop.evaluate(() => window.localStorage.getItem("wordsocket-outbox"))).toBeNull();
+    } finally {
+      await visitor.close();
+      wp("db", "query", `DELETE FROM ${table} WHERE journey_id = UNHEX('${hex}')`);
+    }
   });
 
   test("with History off the tab still draws what was kept under a notice, and the replay keeps its provider", async ({ admin, page }) => {

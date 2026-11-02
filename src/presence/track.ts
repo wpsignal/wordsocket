@@ -2,8 +2,17 @@
  * `WPS.presence.track( channel, options )`: enters relay presence as `{ v, n, j, ...state }`,
  * announces again on every journey change, and reports visits and leaves to WordPress, which keeps
  * them while History is on. The lab in `examples/wordsocket-presence-lab` is its test.
+ *
+ * - The outbox (`outbox.ts`) holds the journey's last known state while reporting, and the page's
+ *   first tracker sends the leaves for held journeys that can no longer continue.
  */
 
+import {
+  OUTBOX_FLUSH_DELAY_MS,
+  OUTBOX_HEARTBEAT_MS,
+  claimFlush,
+  createOutbox,
+} from "./outbox";
 import { pageJourney } from "./page-journey";
 import { sendReport, type ReportAnswer } from "./report";
 import { isCrawler, visitorId } from "../utils/identity";
@@ -64,8 +73,9 @@ export interface PresenceTracker {
  * @since 0.31.0 `report` may be a predicate, `onVisit()` hands out the visit answer, `report()` sends
  *               the visit again (coalesced, a failure not handed on), a journey WordPress answers as ended starts a new one, a same-site
  *               navigation sends no leave, a null channel enters no presence, a site that keeps
- *               journeys reports every visitor, and a new journey is announced and reported from the
- *               visitor's first interaction.
+ *               journeys reports every visitor, a new journey is announced and reported from the
+ *               visitor's first interaction, and an outbox in `localStorage` reports the end of a
+ *               journey the browser never got to.
  */
 export function createTracker(
   client: PresenceClient,
@@ -87,6 +97,24 @@ export function createTracker(
         : options.report !== false));
   let state = options.state ?? {};
   let stopped = false;
+  const outbox = createOutbox();
+  /* The journey as it stands, held for the flush of a later page. */
+  const hold = (j: string = journey.current()) => {
+    if (!reporting()) return;
+    outbox.hold({
+      n: journey.id(),
+      j,
+      at: Date.now(),
+      ...(Object.keys(state).length ? { data: state } : {}),
+    });
+  };
+  let heartbeat: ReturnType<typeof setInterval> | null = null;
+  const beat = () => {
+    hold();
+    heartbeat ??= setInterval(() => {
+      if (!document.hidden) hold();
+    }, OUTBOX_HEARTBEAT_MS);
+  };
   const handlers = new Set<(journey: string, journeyId: string) => void>();
   const visitHandlers = new Set<(answer: ReportAnswer | null) => void>();
   /* The newest visit answer, undefined until the first report settles, so a late subscriber gets it. */
@@ -140,6 +168,7 @@ export function createTracker(
        */
       const ended = (answer?.journey as { ended?: boolean } | undefined)?.ended;
       if (ended && n === journey.id()) {
+        outbox.drop(n);
         journey.restart();
         announce();
         visit();
@@ -161,6 +190,7 @@ export function createTracker(
   if (page.started()) {
     announce();
     visit();
+    beat();
   }
   const off = page.onChange((event) => {
     if (stopped) return;
@@ -168,9 +198,11 @@ export function createTracker(
       case "step":
         announce();
         visit();
+        beat();
         break;
       case "away":
         announce();
+        hold();
         break;
       case "back":
         /*
@@ -178,12 +210,19 @@ export function createTracker(
          * this return is the first step of a new one.
          */
         if (event.ended) {
-          send(config?.leaveUrl, event.ended.n, event.ended.journey, false);
+          const { n } = event.ended;
+          void send(config?.leaveUrl, n, event.ended.journey, false).then(
+            (answer) => {
+              if (answer) outbox.drop(n);
+            },
+          );
           visit();
         }
         announce();
+        hold();
         break;
       case "close":
+        hold(event.closed ?? journey.current());
         /* The next page's visit carries this step; the leave is for a tab that closes or goes elsewhere. */
         if (event.navigating) break;
         send(
@@ -195,6 +234,31 @@ export function createTracker(
         break;
     }
   });
+
+  /*
+   * The leaves WordPress never heard: every held journey past the gap, each as a leave dated by how
+   * long ago it ended, dropped once acknowledged. One flush per page, by whichever tracker came first.
+   */
+  if (config?.leaveUrl && !isCrawler() && claimFlush()) {
+    const url = config.leaveUrl;
+    setTimeout(() => {
+      outbox.due().forEach((due) => {
+        void sendReport(
+          url,
+          {
+            v,
+            n: due.n,
+            journey: due.journey,
+            ...(due.data ? { data: due.data } : {}),
+            ago: due.ago,
+          },
+          nonce,
+        ).then((answer) => {
+          if (answer) outbox.drop(due.n);
+        });
+      });
+    }, OUTBOX_FLUSH_DELAY_MS);
+  }
 
   return {
     visitor: v,
@@ -224,6 +288,7 @@ export function createTracker(
     stop() {
       if (stopped) return;
       stopped = true;
+      if (heartbeat !== null) clearInterval(heartbeat);
       off();
       handlers.clear();
       visitHandlers.clear();

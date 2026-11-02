@@ -12,6 +12,12 @@ export interface PresenceReport {
   journey: string;
   /** The extension's own fields, as given to `track()`. */
   data?: Record<string, unknown>;
+  /**
+   * Whole seconds since the report was true, for a leave sent from the outbox; absent when live.
+   *
+   * @since 0.31.0
+   */
+  ago?: number;
 }
 
 /** What WordPress answered a report: `{ ok, ...fields }` from the response filter. */
