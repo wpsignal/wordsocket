@@ -57,6 +57,13 @@ class WPS {
 	private $config_instance;
 
 	/**
+	 * The abilities (0.31).
+	 *
+	 * @var Abilities
+	 */
+	private $abilities_instance;
+
+	/**
 	 * Event publisher.
 	 *
 	 * @var Publisher
@@ -192,6 +199,8 @@ class WPS {
 		add_action( 'init', array( $this->rules_instance, 'register_defaults' ), 5 );
 		$this->journeys_instance = new Journeys( $this->config_instance );
 		$this->journeys_instance->init();
+		$this->abilities_instance = new Abilities( $this->rules_instance, $this->journeys_instance, $this->publisher_instance );
+		$this->abilities_instance->init();
 		Cli::register();
 		$this->client_instance  = new Client( $this->config_instance, $this->token_instance, $this->presence_instance, $this->rules_instance );
 		$this->admin_instance   = new Admin_Page( $this->config_instance );
