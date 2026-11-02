@@ -98,7 +98,7 @@ test.describe("Journeys", () => {
     await expect(page.getByLabel("Keep a history of journeys")).toBeChecked();
     await expect(page.locator(".wpsignal-net")).toBeVisible({ timeout: 20_000 });
     expect(await page.locator(".wpsignal-net__journey").count()).toBeGreaterThan(0);
-    await expect(page.locator(".wpsignal-trend__dot").first()).toBeVisible();
+    await expect(page.locator(".wpsignal-trend__raw").first()).toBeVisible();
     // A three-second visit rounds to no minutes: count the visit itself.
     const hours = page.locator(".wpsignal-visual").nth(2);
     await hours.locator("[role=combobox]").first().click();
@@ -113,7 +113,7 @@ test.describe("Journeys", () => {
     // The Moments tab's replay has WordSocket's own provider.
     await admin.visitAdminPage("admin.php", "page=wordsocket&tab=moments&moment=new");
     await expect(page.locator(".wpsignal-rule-replay")).toBeVisible({ timeout: 20_000 });
-    await expect(page.locator(".wpsignal-rule-replay")).toContainText("Would reach");
+    await expect(page.locator(".wpsignal-rule-replay")).toContainText("Projections");
   });
 
   test("a journey the browser never got to report is sent from the outbox once the visitor is back", async ({ browser, baseURL }) => {
