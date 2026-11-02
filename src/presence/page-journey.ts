@@ -99,8 +99,9 @@ let instance: PageJourney | null = null;
  * The one journey of this page.
  *
  * @since 0.30.0
- * @since 0.31.0 A `close` says whether a same-site navigation caused it, and a new journey begins on
- *               the visitor's first interaction rather than at load.
+ * @since 0.31.0 A `close` says whether a same-site navigation caused it, a new journey begins on
+ *               the visitor's first interaction rather than at load, and the visibility change an
+ *               unloading document fires is not an `away`.
  */
 export function pageJourney(): PageJourney {
   if (instance) return instance;
@@ -149,7 +150,10 @@ export function pageJourney(): PageJourney {
     if (sameSite(form.action || window.location.href)) navigatedAt = Date.now();
   });
 
+  /* Whether `pagehide` has run: a document unloading or parked in the back/forward cache is not away. */
+  let unloaded = false;
   document.addEventListener("visibilitychange", () => {
+    if (unloaded) return;
     if (!started) {
       if (!document.hidden) shownAt = Date.now();
       return;
@@ -163,6 +167,7 @@ export function pageJourney(): PageJourney {
     }
   });
   window.addEventListener("pagehide", () => {
+    unloaded = true;
     if (!started) return;
     emit({
       type: "close",
@@ -172,6 +177,7 @@ export function pageJourney(): PageJourney {
   });
   window.addEventListener("pageshow", (event) => {
     if (!event.persisted) return;
+    unloaded = false;
     navigatedAt = 0;
     if (started) begin();
   });
