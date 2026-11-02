@@ -5,6 +5,9 @@
  * - One row per journey in `{prefix}wpsignal_journeys`, written from the visit, leave and fired routes.
  * - A row holds the visitor id, the steps, an outcome (`open`, `left`, or one an extension ends it with),
  *   a value, an extension's `ref` (ShopSocket's cart id), the firings, and the user id of a logged-in visit.
+ * - Ids are stored as 16 bytes (`hex()`, `uuid()`), step kinds as codes (`pack_journey()`,
+ *   `unpack_journeys()`, the `wpsignal_kind_codes` filter) and firings as tuples under one credited
+ *   order (`pack_firings()`, `unpack_firings()`); every reader gets the named shapes back.
  * - Extensions describe their outcomes and their ref, end journeys, credit firings and erase by ref
  *   through `WPS::journeys()`, and add to a report's record through `wpsignal_journey_record`.
  * - The feed behind the Moments tab's replay, the figures behind the Journeys tab, WordPress's privacy
@@ -37,7 +40,7 @@ class Journeys {
 	 *
 	 * @since 0.31.0
 	 */
-	const DB_VERSION = '3';
+	const DB_VERSION = '4';
 
 	/**
 	 * The daily prune.
@@ -127,11 +130,63 @@ class Journeys {
 	const MAX_DATA_BYTES = 4000;
 
 	/**
+	 * The step kind codes WordSocket owns: one letter each, `p` for any post type and `t` for any
+	 * taxonomy, a post type's archive `<type>_a`; extensions add theirs through `wpsignal_kind_codes`.
+	 *
+	 * @since 0.31.0
+	 */
+	const KIND_CODES     = array(
+		'home'    => 'h',
+		'away'    => 'w',
+		'search'  => 's',
+		'archive' => 'a',
+		'other'   => 'o',
+		'admin'   => 'ad',
+	);
+	const POST_CODE      = 'p';
+	const TERM_CODE      = 't';
+	const CODE_PATTERN   = '/^[a-z_]+\z/';
+	const ARCHIVE_SUFFIX = '_archive';
+	const ARCHIVE_CODE   = '_' . self::KIND_CODES['archive'];
+	/**
+	 * What a step reads as when its post or term is gone.
+	 *
+	 * @since 0.31.0
+	 */
+	const DELETED_KIND = 'deleted';
+
+	/**
+	 * A firing's kind as the tuple stores it.
+	 *
+	 * @since 0.31.0
+	 */
+	const FIRING_KIND_CODES = array(
+		'fired'     => 0,
+		'returned'  => 1,
+		'dismissed' => 2,
+		'clicked'   => 3,
+	);
+
+	/**
 	 * The outcomes a journey can still move on from; every other outcome is final.
 	 *
 	 * @since 0.31.0
 	 */
-	const NOT_FINAL = array( 'open', 'left' );
+	const NOT_FINAL = array( 'open', 'left', 'incomplete' );
+
+	/**
+	 * How long an open journey may go unreported before the prune marks it incomplete, in seconds.
+	 *
+	 * @since 0.31.0
+	 */
+	const STALE_SECONDS = 3600;
+
+	/**
+	 * How far back the prune looks for open journeys to mark, in seconds (30 days).
+	 *
+	 * @since 0.31.0
+	 */
+	const STALE_SCAN_SECONDS = 2592000;
 
 	/**
 	 * Configuration accessor.
@@ -223,10 +278,14 @@ class Journeys {
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		$table   = self::table();
 		$collate = $wpdb->get_charset_collate();
+		if ( '' !== $this->config->db_version() ) {
+			$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
+		}
 		dbDelta(
 			"CREATE TABLE {$table} (
-			journey_id char(36) NOT NULL,
-			visitor char(36) NOT NULL,
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			journey_id binary(16) NOT NULL,
+			visitor binary(16) NOT NULL,
 			user_id bigint(20) unsigned NULL,
 			ref varchar(32) NULL,
 			journey text NULL,
@@ -235,15 +294,14 @@ class Journeys {
 			value decimal(13,4) NULL,
 			started_at datetime NOT NULL,
 			last_seen datetime NOT NULL,
-			ended_at datetime NULL,
 			firings text NULL,
 			data text NULL,
-			PRIMARY KEY  (journey_id),
+			PRIMARY KEY  (id),
+			UNIQUE KEY journey_id (journey_id),
 			KEY visitor_started (visitor, started_at),
 			KEY user_id (user_id),
 			KEY ref (ref),
-			KEY started_at (started_at),
-			KEY outcome (outcome)
+			KEY started_at (started_at)
 		) {$collate};"
 		);
 		$this->config->save_db_version( self::DB_VERSION );
@@ -298,6 +356,13 @@ class Journeys {
 				'color' => '#3c434a',
 			)
 		);
+		$this->outcome(
+			'incomplete',
+			array(
+				'label' => __( 'Incomplete', 'wordsocket' ),
+				'color' => '#787c82',
+			)
+		);
 	}
 
 	/**
@@ -350,14 +415,15 @@ class Journeys {
 	}
 
 	/**
-	 * Now, as SQL UTC.
+	 * Now, or `$ago` seconds before it, as SQL UTC.
 	 *
 	 * @since 0.31.0
 	 *
+	 * @param int $ago Seconds before now.
 	 * @return string
 	 */
-	private static function now(): string {
-		return gmdate( 'Y-m-d H:i:s' );
+	private static function now( int $ago = 0 ): string {
+		return gmdate( 'Y-m-d H:i:s', time() - $ago );
 	}
 
 	/**
@@ -373,18 +439,443 @@ class Journeys {
 	}
 
 	/**
+	 * A UUID as the 32 hex digits `UNHEX()` stores in a `binary(16)` column, or '' when it is not one.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string $uuid The id as the browser sends it.
+	 * @return string
+	 */
+	public static function hex( string $uuid ): string {
+		$hex = strtolower( str_replace( '-', '', $uuid ) );
+		return 1 === preg_match( '/^[0-9a-f]{32}\z/', $hex ) ? $hex : '';
+	}
+
+	/**
+	 * A column's `HEX()` back as the UUID string, or '' when it is not 32 hex digits.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string $hex `HEX(journey_id)` or `HEX(visitor)`.
+	 * @return string
+	 */
+	public static function uuid( string $hex ): string {
+		$hex = strtolower( $hex );
+		if ( 1 !== preg_match( '/^[0-9a-f]{32}\z/', $hex ) ) {
+			return '';
+		}
+		return sprintf( '%s-%s-%s-%s-%s', substr( $hex, 0, 8 ), substr( $hex, 8, 4 ), substr( $hex, 12, 4 ), substr( $hex, 16, 4 ), substr( $hex, 20 ) );
+	}
+
+	/**
+	 * The step kind a taxonomy's term archives are recorded under: the taxonomy's name, `tag` for
+	 * `post_tag`, and whatever `wpsignal_taxonomy_kind` renames (ShopSocket: `product_cat` as `category`).
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string $taxonomy The taxonomy.
+	 * @return string
+	 */
+	public static function taxonomy_kind( string $taxonomy ): string {
+		$kind = 'post_tag' === $taxonomy ? 'tag' : $taxonomy;
+		/**
+		 * Filters the step kind a taxonomy's term archives are recorded under.
+		 *
+		 * @since 0.31.0
+		 *
+		 * @param string $kind     The kind, the taxonomy's name by default (`tag` for `post_tag`).
+		 * @param string $taxonomy The taxonomy.
+		 */
+		$kind = sanitize_key( (string) apply_filters( 'wpsignal_taxonomy_kind', $kind, $taxonomy ) );
+		return '' === $kind ? $taxonomy : $kind;
+	}
+
+	/**
+	 * The codes by kind: WordSocket's, then the extensions' through `wpsignal_kind_codes`. A code of
+	 * one letter outside WordSocket's, a malformed one, or one claimed twice is dropped, so the kind
+	 * is stored by its full name.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return array<string, string>
+	 */
+	private static function kind_codes(): array {
+		static $codes = null;
+		if ( null !== $codes ) {
+			return $codes;
+		}
+		/**
+		 * Filters the codes step kinds are stored under, `{ kind: code }`, codes of two or more
+		 * letters (ShopSocket: `shop` as `sh`, `cart` as `ct`, `checkout` as `ck`, `thanks` as `ty`).
+		 *
+		 * @since 0.31.0
+		 *
+		 * @param array<string, string> $codes Empty to begin with; WordSocket's own are fixed.
+		 */
+		$added = (array) apply_filters( 'wpsignal_kind_codes', array() );
+		$codes = self::KIND_CODES;
+		$taken = array();
+		$dupes = array();
+		foreach ( $added as $kind => $code ) {
+			$kind = sanitize_key( (string) $kind );
+			$code = (string) $code;
+			// WordSocket's kinds and codes are fixed; an extension's code is two or more letters.
+			if ( '' === $kind || isset( $codes[ $kind ] ) || in_array( $code, $codes, true ) || strlen( $code ) < 2 || 1 !== preg_match( self::CODE_PATTERN, $code ) ) {
+				continue;
+			}
+			if ( isset( $taken[ $code ] ) ) {
+				$dupes[ $code ] = true;
+				continue;
+			}
+			$codes[ $kind ] = $code;
+			$taken[ $code ] = $kind;
+		}
+		foreach ( $dupes as $code => $unused ) {
+			unset( $codes[ $taken[ $code ] ] );
+		}
+		return $codes;
+	}
+
+	/**
+	 * The kinds that are taxonomy archives right now, as `taxonomy_kind()` names them.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return array<string, true>
+	 */
+	private static function taxonomy_kinds(): array {
+		static $kinds = null;
+		if ( null === $kinds ) {
+			$kinds = array();
+			foreach ( get_taxonomies() as $taxonomy ) {
+				$kinds[ (string) $taxonomy ]                        = true;
+				$kinds[ self::taxonomy_kind( (string) $taxonomy ) ] = true;
+			}
+		}
+		return $kinds;
+	}
+
+	/**
+	 * A journey in kind names as the row stores it: each kind its code, a post type `p`, a taxonomy
+	 * `t`, an archive `<type>_a`, anything else by its name.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string $journey `kind:id:s` steps joined by `>`.
+	 * @return string
+	 */
+	public static function pack_journey( string $journey ): string {
+		if ( '' === $journey ) {
+			return '';
+		}
+		$out = array();
+		foreach ( explode( '>', $journey ) as $step ) {
+			$parts = explode( ':', $step, 2 );
+			$kind  = self::pack_kind( $parts[0] );
+			$out[] = isset( $parts[1] ) ? $kind . ':' . $parts[1] : $kind;
+		}
+		return implode( '>', $out );
+	}
+
+	/**
+	 * A step kind as the row stores it: its code, `p` for a post type, `t` for a taxonomy,
+	 * `<type>_a` for an archive, the name itself for anything else.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string $kind The kind.
+	 * @return string
+	 */
+	public static function pack_kind( string $kind ): string {
+		$codes = self::kind_codes();
+		if ( isset( $codes[ $kind ] ) ) {
+			return $codes[ $kind ];
+		}
+		if ( str_ends_with( $kind, self::ARCHIVE_SUFFIX ) ) {
+			return substr( $kind, 0, -strlen( self::ARCHIVE_SUFFIX ) ) . self::ARCHIVE_CODE;
+		}
+		if ( post_type_exists( $kind ) ) {
+			return self::POST_CODE;
+		}
+		if ( isset( self::taxonomy_kinds()[ $kind ] ) ) {
+			return self::TERM_CODE;
+		}
+		return $kind;
+	}
+
+	/**
+	 * A `WHERE` fragment matching journeys with a step of the kind, for a reader's own SQL.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string $kind   The kind, in its name.
+	 * @param string $column The journey column, `journey` by default.
+	 * @return string
+	 */
+	public static function step_where( string $kind, string $column = 'journey' ): string {
+		global $wpdb;
+		$code = $wpdb->esc_like( self::pack_kind( $kind ) . ':' );
+		return $wpdb->prepare( "({$column} LIKE %s OR {$column} LIKE %s)", $code . '%', '%>' . $code . '%' );
+	}
+
+	/**
+	 * A `WHERE` fragment matching rows an order was credited to.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return string
+	 */
+	public static function credited_where(): string {
+		global $wpdb;
+		return $wpdb->prepare( 'firings LIKE %s', '%' . $wpdb->esc_like( '"o":{' ) . '%' );
+	}
+
+	/**
+	 * Stored journeys back to kind names, the post types and taxonomies of `p` and `t` steps read
+	 * from the tables in one query each (a type no longer registered still reads; a row that is gone
+	 * reads as `deleted`), an unknown code as itself.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string[] $stored Journeys as the rows hold them.
+	 * @return string[] In the same order.
+	 */
+	public static function unpack_journeys( array $stored ): array {
+		global $wpdb;
+		$posts = array();
+		$terms = array();
+		foreach ( $stored as $journey ) {
+			if ( '' === (string) $journey ) {
+				continue;
+			}
+			foreach ( explode( '>', (string) $journey ) as $step ) {
+				$parts = explode( ':', $step );
+				$id    = (int) ( $parts[1] ?? 0 );
+				if ( self::POST_CODE === $parts[0] && $id > 0 ) {
+					$posts[ $id ] = true;
+				} elseif ( self::TERM_CODE === $parts[0] && $id > 0 ) {
+					$terms[ $id ] = true;
+				}
+			}
+		}
+		$types = array();
+		if ( $posts ) {
+			$in = implode( ',', array_map( 'intval', array_keys( $posts ) ) );
+			foreach ( (array) $wpdb->get_results( "SELECT ID, post_type FROM {$wpdb->posts} WHERE ID IN ({$in})", ARRAY_A ) as $row ) {
+				$types[ (int) $row['ID'] ] = sanitize_key( (string) $row['post_type'] );
+			}
+		}
+		$taxes = array();
+		if ( $terms ) {
+			$in = implode( ',', array_map( 'intval', array_keys( $terms ) ) );
+			// A pre-4.2 shared term has a row per taxonomy: the first wins.
+			foreach ( (array) $wpdb->get_results( "SELECT term_id, taxonomy FROM {$wpdb->term_taxonomy} WHERE term_id IN ({$in}) ORDER BY term_taxonomy_id", ARRAY_A ) as $row ) {
+				$taxes[ (int) $row['term_id'] ] = $taxes[ (int) $row['term_id'] ] ?? self::taxonomy_kind( (string) $row['taxonomy'] );
+			}
+		}
+		$names = array_flip( self::kind_codes() );
+		$out   = array();
+		foreach ( $stored as $journey ) {
+			$journey = (string) $journey;
+			if ( '' === $journey ) {
+				$out[] = '';
+				continue;
+			}
+			$steps = array();
+			foreach ( explode( '>', $journey ) as $step ) {
+				$parts = explode( ':', $step, 2 );
+				$code  = $parts[0];
+				$rest  = $parts[1] ?? '';
+				$id    = (int) explode( ':', $rest )[0];
+				if ( self::POST_CODE === $code ) {
+					$kind = $types[ $id ] ?? self::DELETED_KIND;
+				} elseif ( self::TERM_CODE === $code ) {
+					$kind = $taxes[ $id ] ?? self::DELETED_KIND;
+				} elseif ( isset( $names[ $code ] ) ) {
+					$kind = $names[ $code ];
+				} elseif ( str_ends_with( $code, self::ARCHIVE_CODE ) ) {
+					$kind = substr( $code, 0, -strlen( self::ARCHIVE_CODE ) ) . self::ARCHIVE_SUFFIX;
+				} else {
+					$kind = $code;
+				}
+				$steps[] = '' === $rest ? $kind : $kind . ':' . $rest;
+			}
+			$out[] = implode( '>', $steps );
+		}
+		return $out;
+	}
+
+	/**
+	 * One stored journey back to kind names.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string $stored The journey as the row holds it.
+	 * @return string
+	 */
+	public static function unpack_journey( string $stored ): string {
+		return self::unpack_journeys( array( $stored ) )[0];
+	}
+
+	/**
+	 * Firings in the named shape as the row stores them: `{ "o": { id, at, v }, "f": [[ rule, action,
+	 * step, s, kind, at ], ... ] }`, the order credited to the row once, each firing a tuple with its
+	 * kind as a number and its time in Unix seconds.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param array $firings Named firings, `{ rule, action, step, s, kind, at, order?, order_at?, value? }` each.
+	 * @return string JSON, '' for none.
+	 */
+	public static function pack_firings( array $firings ): string {
+		$stored = array( 'f' => array() );
+		foreach ( $firings as $firing ) {
+			if ( ! is_array( $firing ) ) {
+				continue;
+			}
+			$kind          = (string) ( $firing['kind'] ?? 'fired' );
+			$stored['f'][] = array(
+				(string) ( $firing['rule'] ?? '' ),
+				(string) ( $firing['action'] ?? '' ),
+				max( 0, (int) ( $firing['step'] ?? 0 ) ),
+				max( 0, (int) ( $firing['s'] ?? 0 ) ),
+				self::FIRING_KIND_CODES[ $kind ] ?? 0,
+				self::unix( (string) ( $firing['at'] ?? '' ) ),
+			);
+			if ( ! isset( $stored['o'] ) && ! empty( $firing['order'] ) ) {
+				$stored['o'] = array(
+					'id' => (int) $firing['order'],
+					'at' => self::unix( (string) ( $firing['order_at'] ?? '' ) ),
+					'v'  => round( (float) ( $firing['value'] ?? 0 ), 2 ),
+				);
+			}
+		}
+		return $stored['f'] ? (string) wp_json_encode( $stored ) : '';
+	}
+
+	/**
+	 * A row's firings back in the named shape, `order`, `order_at` and `value` on every `fired`
+	 * entry when the row was credited.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string|null $json The `firings` column.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function unpack_firings( ?string $json ): array {
+		$stored = json_decode( (string) $json, true );
+		if ( ! is_array( $stored ) || ! is_array( $stored['f'] ?? null ) ) {
+			return array();
+		}
+		$kinds = array_flip( self::FIRING_KIND_CODES );
+		$order = is_array( $stored['o'] ?? null ) ? $stored['o'] : null;
+		$out   = array();
+		foreach ( $stored['f'] as $tuple ) {
+			if ( ! is_array( $tuple ) || count( $tuple ) < 6 ) {
+				continue;
+			}
+			$firing = array(
+				'rule'   => (string) $tuple[0],
+				'action' => (string) $tuple[1],
+				'step'   => (int) $tuple[2],
+				's'      => (int) $tuple[3],
+				'kind'   => $kinds[ (int) $tuple[4] ] ?? 'fired',
+				'at'     => gmdate( 'Y-m-d H:i:s', (int) $tuple[5] ),
+			);
+			if ( null !== $order && 'fired' === $firing['kind'] ) {
+				$firing['order']    = (int) ( $order['id'] ?? 0 );
+				$firing['order_at'] = gmdate( 'Y-m-d H:i:s', (int) ( $order['at'] ?? 0 ) );
+				$firing['value']    = (float) ( $order['v'] ?? 0 );
+			}
+			$out[] = $firing;
+		}
+		return $out;
+	}
+
+	/**
+	 * A SQL UTC datetime as Unix seconds, now when empty.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string $datetime `Y-m-d H:i:s`.
+	 * @return int
+	 */
+	private static function unix( string $datetime ): int {
+		return '' === $datetime ? time() : (int) strtotime( $datetime . ' UTC' );
+	}
+
+	/**
+	 * Insert a row as given, for seeds and tests: `journey_id` and `visitor` as UUID strings, the
+	 * journey in kind names, firings in the named shape, `data` an array or JSON, the times SQL UTC
+	 * (`last_seen` defaults to `started_at`). False when an id is not a UUID or the insert fails.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param array $row The columns to write.
+	 * @return bool
+	 */
+	public static function insert_row( array $row ): bool {
+		global $wpdb;
+		$journey_id = self::hex( (string) ( $row['journey_id'] ?? '' ) );
+		$visitor    = self::hex( (string) ( $row['visitor'] ?? '' ) );
+		if ( '' === $journey_id || '' === $visitor ) {
+			return false;
+		}
+		$journey    = (string) ( $row['journey'] ?? '' );
+		$started_at = (string) ( $row['started_at'] ?? self::now() );
+		$data       = $row['data'] ?? null;
+		$data       = is_array( $data ) ? self::encode_data( $data ) : (string) $data;
+		$firings    = $row['firings'] ?? null;
+		$firings    = is_array( $firings ) ? self::pack_firings( $firings ) : (string) $firings;
+		$columns    = array(
+			'journey_id' => array( 'UNHEX(%s)', $journey_id ),
+			'visitor'    => array( 'UNHEX(%s)', $visitor ),
+			'user_id'    => (int) ( $row['user_id'] ?? 0 ) > 0 ? array( '%d', (int) $row['user_id'] ) : null,
+			'ref'        => '' !== (string) ( $row['ref'] ?? '' ) ? array( '%s', (string) $row['ref'] ) : null,
+			'journey'    => array( '%s', self::pack_journey( $journey ) ),
+			'steps'      => array( '%d', (int) ( $row['steps'] ?? ( '' === $journey ? 0 : substr_count( $journey, '>' ) + 1 ) ) ),
+			'outcome'    => array( '%s', (string) ( $row['outcome'] ?? 'open' ) ),
+			'value'      => isset( $row['value'] ) ? array( '%f', (float) $row['value'] ) : null,
+			'data'       => '' !== $data ? array( '%s', $data ) : null,
+			'started_at' => array( '%s', $started_at ),
+			'last_seen'  => array( '%s', (string) ( $row['last_seen'] ?? $started_at ) ),
+			'firings'    => '' !== $firings ? array( '%s', $firings ) : null,
+		);
+		$names      = array();
+		$holders    = array();
+		$values     = array();
+		foreach ( $columns as $name => $spec ) {
+			if ( null === $spec ) {
+				continue;
+			}
+			$names[]   = $name;
+			$holders[] = $spec[0];
+			$values[]  = $spec[1];
+		}
+		return 1 === (int) $wpdb->query(
+			$wpdb->prepare(
+				'INSERT INTO ' . self::table() . ' (' . implode( ', ', $names ) . ') VALUES (' . implode( ', ', $holders ) . ')',
+				...$values
+			)
+		);
+	}
+
+	/**
 	 * Whether a journey id may take a row: one on file always may, a new one only while the visitor
 	 * id has started fewer than NEW_PER_HOUR (`wpsignal_journeys_per_hour`) in the last hour.
 	 *
 	 * @since 0.31.0
 	 *
-	 * @param string $visitor    The visitor id.
-	 * @param string $journey_id The journey.
+	 * @param string $visitor    The visitor id, as `hex()` gives it.
+	 * @param string $journey_id The journey, as `hex()` gives it.
 	 * @return bool
 	 */
 	private function may_start( string $visitor, string $journey_id ): bool {
 		global $wpdb;
-		if ( '' !== (string) $wpdb->get_var( $wpdb->prepare( 'SELECT journey_id FROM ' . self::table() . ' WHERE journey_id = %s', $journey_id ) ) ) {
+		if ( '' === $visitor || '' === $journey_id ) {
+			return false;
+		}
+		if ( '' !== (string) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM ' . self::table() . ' WHERE journey_id = UNHEX(%s)', $journey_id ) ) ) {
 			return true;
 		}
 		/**
@@ -397,7 +888,7 @@ class Journeys {
 		$limit  = max( 1, (int) apply_filters( 'wpsignal_journeys_per_hour', self::NEW_PER_HOUR ) );
 		$recent = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				'SELECT COUNT(*) FROM ' . self::table() . ' WHERE visitor = %s AND started_at >= %s',
+				'SELECT COUNT(*) FROM ' . self::table() . ' WHERE visitor = UNHEX(%s) AND started_at >= %s',
 				$visitor,
 				gmdate( 'Y-m-d H:i:s', time() - HOUR_IN_SECONDS )
 			)
@@ -462,13 +953,14 @@ class Journeys {
 
 	/**
 	 * Write a visit or leave report: the first report creates the row, a later one from the same
-	 * visitor that is at least as far along updates it, and a visit that creates a row ends the
-	 * visitor's other open journeys. A journey an extension ended keeps its outcome, value and data.
-	 * Hooked at priority 5, so an extension on the default priority reads the written row.
+	 * visitor that is at least as far along updates it, and a visit that creates a row marks the
+	 * visitor's other open journeys incomplete. A journey an extension ended keeps its outcome,
+	 * value and data; a report's `ago` dates it. Hooked at priority 5, so an extension on the
+	 * default priority reads the written row.
 	 *
 	 * @since 0.31.0
 	 *
-	 * @param array $report `{ visitor, journey_id, journey, steps, user_id, data, leaving }`.
+	 * @param array $report `{ visitor, journey_id, journey, steps, user_id, data, leaving, ago }`.
 	 * @return void
 	 */
 	public function on_report( array $report ): void {
@@ -476,21 +968,21 @@ class Journeys {
 		if ( ! $this->enabled() ) {
 			return;
 		}
-		$journey_id = (string) $report['journey_id'];
-		$visitor    = (string) $report['visitor'];
-		if ( '' === $journey_id || ! $this->may_start( $visitor, $journey_id ) ) {
+		$journey_id = self::hex( (string) $report['journey_id'] );
+		$visitor    = self::hex( (string) $report['visitor'] );
+		if ( ! $this->may_start( $visitor, $journey_id ) ) {
 			return;
 		}
 		$leaving = (bool) $report['leaving'];
 		$record  = $this->record_of( $report );
-		$now     = self::now();
+		$now     = self::now( max( 0, (int) ( $report['ago'] ?? 0 ) ) );
 		$owned   = 'visitor = VALUES(visitor)';
 		$ahead   = $owned . ' AND VALUES(steps) >= steps';
 		$final   = "outcome NOT IN ('" . implode( "', '", self::NOT_FINAL ) . "')";
 		$wpdb->query(
 			$wpdb->prepare(
-				'INSERT INTO ' . self::table() . " (journey_id, visitor, user_id, ref, journey, steps, outcome, value, data, started_at, last_seen, ended_at)
-				VALUES (%s, %s, IF(%d > 0, %d, NULL), NULLIF(%s, ''), %s, %d, %s, IF(%d = 1, %f, NULL), NULLIF(%s, ''), %s, %s, NULLIF(%s, ''))
+				'INSERT INTO ' . self::table() . " (journey_id, visitor, user_id, ref, journey, steps, outcome, value, data, started_at, last_seen)
+				VALUES (UNHEX(%s), UNHEX(%s), IF(%d > 0, %d, NULL), NULLIF(%s, ''), %s, %d, %s, IF(%d = 1, %f, NULL), NULLIF(%s, ''), %s, %s)
 				ON DUPLICATE KEY UPDATE
 					user_id = IF(" . $owned . ' AND VALUES(user_id) IS NOT NULL, VALUES(user_id), user_id),
 					ref = IF(' . $owned . ' AND VALUES(ref) IS NOT NULL, VALUES(ref), ref),
@@ -499,31 +991,29 @@ class Journeys {
 					last_seen = IF(' . $ahead . ', VALUES(last_seen), last_seen),
 					journey = IF(' . $ahead . ', VALUES(journey), journey),
 					outcome = IF(' . $final . ' OR NOT (' . $ahead . '), outcome, VALUES(outcome)),
-					ended_at = IF(' . $final . ' OR NOT (' . $ahead . '), ended_at, VALUES(ended_at)),
 					steps = IF(' . $owned . ', GREATEST(steps, VALUES(steps)), steps)',
 				$journey_id,
 				$visitor,
 				(int) ( $report['user_id'] ?? 0 ),
 				(int) ( $report['user_id'] ?? 0 ),
 				$record['ref'],
-				(string) $report['journey'],
+				self::pack_journey( (string) $report['journey'] ),
 				(int) $report['steps'],
 				$leaving ? 'left' : 'open',
 				null === $record['value'] ? 0 : 1,
 				(float) $record['value'],
 				$record['data'],
 				$now,
-				$now,
-				$leaving ? $now : ''
+				$now
 			)
 		);
-		// An insert affects one row, an update two: only a journey's first report ends the others.
+		// An insert affects one row, an update two: only a journey's first report marks the others.
 		if ( $leaving || 1 !== (int) $wpdb->rows_affected ) {
 			return;
 		}
 		$wpdb->query(
 			$wpdb->prepare(
-				'UPDATE ' . self::table() . " SET outcome = 'left', ended_at = last_seen WHERE visitor = %s AND journey_id <> %s AND outcome = 'open'",
+				'UPDATE ' . self::table() . " SET outcome = 'incomplete' WHERE visitor = UNHEX(%s) AND journey_id <> UNHEX(%s) AND outcome = 'open'",
 				$visitor,
 				$journey_id
 			)
@@ -547,9 +1037,9 @@ class Journeys {
 		}
 		$outcome = (string) $wpdb->get_var(
 			$wpdb->prepare(
-				'SELECT outcome FROM ' . self::table() . ' WHERE journey_id = %s AND visitor = %s',
-				(string) $report['journey_id'],
-				(string) $report['visitor']
+				'SELECT outcome FROM ' . self::table() . ' WHERE journey_id = UNHEX(%s) AND visitor = UNHEX(%s)',
+				self::hex( (string) $report['journey_id'] ),
+				self::hex( (string) $report['visitor'] )
 			)
 		);
 		if ( '' !== $outcome && ! in_array( $outcome, self::NOT_FINAL, true ) ) {
@@ -564,21 +1054,21 @@ class Journeys {
 	 *
 	 * @since 0.31.0
 	 *
-	 * @param string $visitor    The visitor id.
-	 * @param string $journey_id The journey id.
+	 * @param string $visitor    The visitor id, as `hex()` gives it.
+	 * @param string $journey_id The journey id, as `hex()` gives it.
 	 * @param int    $user_id    The logged-in visitor, or 0.
 	 * @return bool Whether the visitor's row exists afterwards.
 	 */
 	private function start( string $visitor, string $journey_id, int $user_id ): bool {
 		global $wpdb;
-		if ( '' === $journey_id || ! $this->may_start( $visitor, $journey_id ) ) {
+		if ( ! $this->may_start( $visitor, $journey_id ) ) {
 			return false;
 		}
 		$now = self::now();
 		$wpdb->query(
 			$wpdb->prepare(
 				'INSERT IGNORE INTO ' . self::table() . " (journey_id, visitor, user_id, journey, steps, outcome, started_at, last_seen)
-				VALUES (%s, %s, IF(%d > 0, %d, NULL), '', 0, 'open', %s, %s)",
+				VALUES (UNHEX(%s), UNHEX(%s), IF(%d > 0, %d, NULL), '', 0, 'open', %s, %s)",
 				$journey_id,
 				$visitor,
 				$user_id,
@@ -587,7 +1077,7 @@ class Journeys {
 				$now
 			)
 		);
-		return '' !== (string) $wpdb->get_var( $wpdb->prepare( 'SELECT journey_id FROM ' . self::table() . ' WHERE journey_id = %s AND visitor = %s', $journey_id, $visitor ) );
+		return '' !== (string) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM ' . self::table() . ' WHERE journey_id = UNHEX(%s) AND visitor = UNHEX(%s)', $journey_id, $visitor ) );
 	}
 
 	/**
@@ -604,35 +1094,38 @@ class Journeys {
 		if ( ! $this->enabled() ) {
 			return;
 		}
-		$journey_id = (string) $report['journey_id'];
-		$visitor    = (string) $report['visitor'];
-		$row        = $wpdb->get_row( $wpdb->prepare( 'SELECT firings FROM ' . self::table() . ' WHERE journey_id = %s AND visitor = %s', $journey_id, $visitor ), ARRAY_A );
+		$journey_id = self::hex( (string) $report['journey_id'] );
+		$visitor    = self::hex( (string) $report['visitor'] );
+		if ( '' === $journey_id || '' === $visitor ) {
+			return;
+		}
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT firings FROM ' . self::table() . ' WHERE journey_id = UNHEX(%s) AND visitor = UNHEX(%s)', $journey_id, $visitor ), ARRAY_A );
 		if ( ! is_array( $row ) ) {
 			if ( ! $this->start( $visitor, $journey_id, (int) ( $report['user_id'] ?? 0 ) ) ) {
 				return;
 			}
 			$row = array( 'firings' => null );
 		}
-		$firings   = json_decode( (string) ( $row['firings'] ?? '' ), true );
-		$firings   = is_array( $firings ) ? $firings : array();
-		$kind      = (string) ( $report['kind'] ?? 'fired' );
-		$firings[] = array(
-			'rule'   => (string) $report['rule_id'],
-			'action' => (string) $report['action'],
-			'step'   => max( 0, (int) $report['step'] ),
-			's'      => max( 0, (int) ( $report['s'] ?? 0 ) ),
-			'kind'   => in_array( $kind, Rules::FIRING_KINDS, true ) ? $kind : 'fired',
-			'at'     => self::now(),
+		$stored = json_decode( (string) ( $row['firings'] ?? '' ), true );
+		$stored = is_array( $stored ) && is_array( $stored['f'] ?? null ) ? $stored : array( 'f' => array() );
+		$kind   = (string) ( $report['kind'] ?? 'fired' );
+		// The tuple: rule, action, step, seconds into it, kind as a number, Unix seconds.
+		$stored['f'][] = array(
+			(string) $report['rule_id'],
+			(string) $report['action'],
+			max( 0, (int) $report['step'] ),
+			max( 0, (int) ( $report['s'] ?? 0 ) ),
+			self::FIRING_KIND_CODES[ $kind ] ?? 0,
+			time(),
 		);
-		$wpdb->update(
-			self::table(),
-			array( 'firings' => wp_json_encode( array_slice( $firings, -self::MAX_FIRINGS ) ) ),
-			array(
-				'journey_id' => $journey_id,
-				'visitor'    => $visitor,
-			),
-			array( '%s' ),
-			array( '%s', '%s' )
+		$stored['f']   = array_slice( $stored['f'], -self::MAX_FIRINGS );
+		$wpdb->query(
+			$wpdb->prepare(
+				'UPDATE ' . self::table() . ' SET firings = %s WHERE journey_id = UNHEX(%s) AND visitor = UNHEX(%s)',
+				wp_json_encode( $stored ),
+				$journey_id,
+				$visitor
+			)
 		);
 	}
 
@@ -657,11 +1150,10 @@ class Journeys {
 		$now   = self::now();
 		$ended = (int) $wpdb->query(
 			$wpdb->prepare(
-				'UPDATE ' . self::table() . " SET outcome = %s, value = IF(%d = 1, %f, value), ended_at = %s, last_seen = %s WHERE ref = %s AND outcome = 'open'",
+				'UPDATE ' . self::table() . " SET outcome = %s, value = IF(%d = 1, %f, value), last_seen = %s WHERE ref = %s AND outcome = 'open'",
 				$outcome,
 				null === $value ? 0 : 1,
 				(float) $value,
-				$now,
 				$now,
 				$ref
 			)
@@ -671,63 +1163,69 @@ class Journeys {
 		}
 		/* The rows this call ended: final now, so no report changes their data before the merge lands. */
 		$rows = (array) $wpdb->get_results(
-			$wpdb->prepare( 'SELECT journey_id, data FROM ' . self::table() . ' WHERE ref = %s AND outcome = %s AND ended_at = %s', $ref, $outcome, $now ),
+			$wpdb->prepare( 'SELECT id, data FROM ' . self::table() . ' WHERE ref = %s AND outcome = %s AND last_seen = %s', $ref, $outcome, $now ),
 			ARRAY_A
 		);
 		foreach ( $rows as $row ) {
 			$was    = json_decode( (string) ( $row['data'] ?? '' ), true );
 			$merged = self::encode_data( array_merge( is_array( $was ) ? $was : array(), $data ) );
 			if ( '' !== $merged ) {
-				$wpdb->update( self::table(), array( 'data' => $merged ), array( 'journey_id' => (string) $row['journey_id'] ), array( '%s' ), array( '%s' ) );
+				$wpdb->update( self::table(), array( 'data' => $merged ), array( 'id' => (int) $row['id'] ), array( '%s' ), array( '%d' ) );
 			}
 		}
 		return $ended;
 	}
 
 	/**
-	 * Stamp an order on every firing of the ref's journeys within the window, across journeys, so
-	 * the Moments tab can say what a moment led to; a firing already credited keeps its order.
+	 * Credit an order to the ref's journeys that a moment fired in within the window, across
+	 * journeys, so the Moments tab can say what a moment led to: one order per row, on every
+	 * `fired` entry when read; a row already credited keeps its order.
 	 *
 	 * @since 0.31.0
+	 * @since 0.31.0 Credits the row once instead of stamping each firing.
 	 *
 	 * @param string $ref    The ref.
 	 * @param int    $order  The order the ref became.
 	 * @param float  $value  The order's value.
 	 * @param int    $window Seconds back from now a firing still counts; CREDIT_WINDOW by default.
-	 * @return int Firings stamped.
+	 * @return int Firings credited.
 	 */
 	public function credit( string $ref, int $order, float $value, int $window = self::CREDIT_WINDOW ): int {
 		global $wpdb;
 		if ( ! $this->enabled() || '' === $ref || $order <= 0 ) {
 			return 0;
 		}
-		$now     = self::now();
-		$since   = gmdate( 'Y-m-d H:i:s', time() - max( 0, $window ) );
+		$now     = time();
+		$since   = $now - max( 0, $window );
 		$rows    = (array) $wpdb->get_results(
-			$wpdb->prepare( 'SELECT journey_id, firings FROM ' . self::table() . ' WHERE ref = %s AND firings IS NOT NULL', $ref ),
+			$wpdb->prepare( 'SELECT id, firings FROM ' . self::table() . ' WHERE ref = %s AND firings IS NOT NULL', $ref ),
 			ARRAY_A
 		);
 		$stamped = 0;
 		foreach ( $rows as $row ) {
-			$firings = json_decode( (string) $row['firings'], true );
-			if ( ! is_array( $firings ) ) {
+			$stored = json_decode( (string) $row['firings'], true );
+			if ( ! is_array( $stored ) || ! is_array( $stored['f'] ?? null ) || isset( $stored['o'] ) ) {
 				continue;
 			}
-			$changed = false;
-			foreach ( $firings as &$firing ) {
-				if ( ! is_array( $firing ) || isset( $firing['order'] ) || 'fired' !== (string) ( $firing['kind'] ?? 'fired' ) || (string) ( $firing['at'] ?? '' ) < $since ) {
-					continue;
+			$within = 0;
+			$fired  = self::FIRING_KIND_CODES['fired'];
+			foreach ( $stored['f'] as $tuple ) {
+				$at   = is_array( $tuple ) ? (int) ( $tuple[5] ?? 0 ) : 0;
+				$kind = is_array( $tuple ) ? (int) ( $tuple[4] ?? -1 ) : -1;
+				if ( $fired === $kind && $at >= $since ) {
+					++$within;
 				}
-				$firing['order']    = $order;
-				$firing['order_at'] = $now;
-				$firing['value']    = round( $value, 2 );
-				$changed            = true;
-				++$stamped;
 			}
-			unset( $firing );
-			if ( $changed ) {
-				$wpdb->update( self::table(), array( 'firings' => wp_json_encode( $firings ) ), array( 'journey_id' => $row['journey_id'] ), array( '%s' ), array( '%s' ) );
+			if ( 0 === $within ) {
+				continue;
 			}
+			$stored['o'] = array(
+				'id' => $order,
+				'at' => $now,
+				'v'  => round( $value, 2 ),
+			);
+			$wpdb->update( self::table(), array( 'firings' => wp_json_encode( $stored ) ), array( 'id' => (int) $row['id'] ), array( '%s' ), array( '%d' ) );
+			$stamped += $within;
 		}
 		return $stamped;
 	}
@@ -851,8 +1349,8 @@ class Journeys {
 	 */
 	public function feed( int $days, int $limit ): array {
 		global $wpdb;
-		$since = gmdate( 'Y-m-d H:i:s', time() - min( self::FEED_MAX_DAYS, max( 1, $days ) ) * DAY_IN_SECONDS );
-		$rows  = (array) $wpdb->get_results(
+		$since    = gmdate( 'Y-m-d H:i:s', time() - min( self::FEED_MAX_DAYS, max( 1, $days ) ) * DAY_IN_SECONDS );
+		$rows     = (array) $wpdb->get_results(
 			$wpdb->prepare(
 				'SELECT journey, started_at, outcome, value, ref, firings, data FROM ' . self::table() . ' WHERE started_at >= %s ORDER BY started_at DESC LIMIT %d',
 				$since,
@@ -860,16 +1358,17 @@ class Journeys {
 			),
 			ARRAY_A
 		);
+		$journeys = self::unpack_journeys( array_column( $rows, 'journey' ) );
 		return array_map(
-			static function ( array $row ): array {
-				$firings = json_decode( (string) ( $row['firings'] ?? '' ), true );
-				$entry   = array(
-					'journey'    => (string) $row['journey'],
+			static function ( array $row, string $journey ): array {
+				$row['journey'] = $journey;
+				$entry          = array(
+					'journey'    => $journey,
 					'started_at' => self::rfc3339( (string) $row['started_at'] ),
 					'outcome'    => (string) $row['outcome'],
 					'value'      => round( (float) ( $row['value'] ?? 0 ), 2 ),
 					'has_ref'    => '' !== (string) ( $row['ref'] ?? '' ),
-					'firings'    => is_array( $firings ) ? array_values( $firings ) : array(),
+					'firings'    => self::unpack_firings( $row['firings'] ?? null ),
 				);
 				/**
 				 * Filters the context a stored journey offers the replay, for the conditions an
@@ -878,12 +1377,13 @@ class Journeys {
 				 * @since 0.31.0
 				 *
 				 * @param array $context Empty to begin with.
-				 * @param array $row     The row: `journey`, `started_at`, `outcome`, `value`, `ref`, `firings`, `data` (JSON).
+				 * @param array $row     The row: `journey` (in kind names), `started_at`, `outcome`, `value`, `ref`, `firings` (as stored), `data` (JSON).
 				 */
 				$entry['context'] = (array) apply_filters( 'wpsignal_journey_context', array(), $row );
 				return $entry;
 			},
-			$rows
+			$rows,
+			$journeys
 		);
 	}
 
@@ -1136,9 +1636,9 @@ class Journeys {
 	 */
 	private function listed( string $since, ?string $until, \DateTimeZone $tz, int $offset = 0, ?array &$hours = null ): array {
 		global $wpdb;
-		$rows = (array) $wpdb->get_results(
+		$rows     = (array) $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT journey, started_at, outcome, ref, value FROM ' . self::table() . ' WHERE started_at >= %s AND started_at < %s ORDER BY started_at DESC, journey_id DESC LIMIT %d OFFSET %d',
+				'SELECT journey, started_at, outcome, ref, value FROM ' . self::table() . ' WHERE started_at >= %s AND started_at < %s ORDER BY started_at DESC, id DESC LIMIT %d OFFSET %d',
 				$since,
 				$until ?? '9999-12-31 23:59:59',
 				self::VISUALS_JOURNEYS,
@@ -1146,17 +1646,18 @@ class Journeys {
 			),
 			ARRAY_A
 		);
-		$list = array();
-		foreach ( $rows as $row ) {
+		$journeys = self::unpack_journeys( array_column( $rows, 'journey' ) );
+		$list     = array();
+		foreach ( $rows as $i => $row ) {
 			$list[] = array(
-				'journey'    => (string) $row['journey'],
+				'journey'    => $journeys[ $i ],
 				'started_at' => self::rfc3339( (string) $row['started_at'] ),
 				'outcome'    => (string) $row['outcome'],
 				'has_ref'    => '' !== (string) ( $row['ref'] ?? '' ),
 				'value'      => round( (float) ( $row['value'] ?? 0 ), 2 ),
 			);
 			if ( null !== $hours ) {
-				self::pour( (string) $row['journey'], (int) strtotime( $row['started_at'] . ' UTC' ), $tz, $hours );
+				self::pour( $journeys[ $i ], (int) strtotime( $row['started_at'] . ' UTC' ), $tz, $hours );
 			}
 		}
 		return $list;
@@ -1199,7 +1700,8 @@ class Journeys {
 	}
 
 	/**
-	 * Delete journeys past the retention, History on or off, in batches for at most PRUNE_SECONDS.
+	 * Mark the open journeys nobody has reported on for STALE_SECONDS incomplete, then delete journeys
+	 * past the retention, History on or off, in batches for at most PRUNE_SECONDS.
 	 *
 	 * @since 0.31.0
 	 *
@@ -1207,6 +1709,14 @@ class Journeys {
 	 */
 	public function prune(): void {
 		global $wpdb;
+		$wpdb->query(
+			$wpdb->prepare(
+				'UPDATE ' . self::table() . " SET outcome = 'incomplete' WHERE outcome = 'open' AND started_at >= %s AND started_at < %s AND last_seen < %s",
+				self::now( self::STALE_SCAN_SECONDS ),
+				self::now( self::STALE_SECONDS ),
+				self::now( self::STALE_SECONDS )
+			)
+		);
 		$where = $wpdb->prepare( 'started_at < %s', $this->retention_floor() );
 		$began = microtime( true );
 		do {
@@ -1259,15 +1769,16 @@ class Journeys {
 		$user = get_user_by( 'email', $email );
 		$data = array();
 		if ( $user ) {
-			$rows = (array) $wpdb->get_results(
-				$wpdb->prepare( 'SELECT journey_id, journey, outcome, value, started_at, ended_at, data FROM ' . self::table() . ' WHERE user_id = %d ORDER BY started_at', $user->ID ),
+			$rows     = (array) $wpdb->get_results(
+				$wpdb->prepare( 'SELECT HEX(journey_id) AS journey_id, journey, outcome, value, started_at, last_seen, data FROM ' . self::table() . ' WHERE user_id = %d ORDER BY started_at', $user->ID ),
 				ARRAY_A
 			);
-			foreach ( $rows as $row ) {
+			$journeys = self::unpack_journeys( array_column( $rows, 'journey' ) );
+			foreach ( $rows as $i => $row ) {
 				$data[] = array(
 					'group_id'    => 'wpsignal_journeys',
 					'group_label' => __( 'WordSocket journeys', 'wordsocket' ),
-					'item_id'     => 'wpsignal-journey-' . $row['journey_id'],
+					'item_id'     => 'wpsignal-journey-' . self::uuid( (string) $row['journey_id'] ),
 					'data'        => array(
 						array(
 							'name'  => __( 'Started', 'wordsocket' ),
@@ -1275,7 +1786,7 @@ class Journeys {
 						),
 						array(
 							'name'  => __( 'Ended', 'wordsocket' ),
-							'value' => (string) ( $row['ended_at'] ?? '' ),
+							'value' => in_array( (string) $row['outcome'], array( 'open', 'incomplete' ), true ) ? '' : (string) $row['last_seen'],
 						),
 						array(
 							'name'  => __( 'Outcome', 'wordsocket' ),
@@ -1287,7 +1798,7 @@ class Journeys {
 						),
 						array(
 							'name'  => __( 'Pages', 'wordsocket' ),
-							'value' => (string) $row['journey'],
+							'value' => $journeys[ $i ],
 						),
 						array(
 							'name'  => __( 'Details', 'wordsocket' ),
@@ -1348,7 +1859,7 @@ class Journeys {
 	 * @return void
 	 */
 	public function register_routes(): void {
-		$staff = static fn() => current_user_can( 'manage_options' );
+		$staff   = static fn() => current_user_can( 'manage_options' );
 		register_rest_route(
 			'wpsignal/v1',
 			'/journeys',

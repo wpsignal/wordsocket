@@ -8,6 +8,7 @@
  * - `wp wordsocket journeys unseed` deletes them again.
  * - `wp wordsocket journeys purge [--from=<date>] [--to=<date>] [--yes]` deletes stored journeys, every one or those started between two days on the site's clock, after a confirmation.
  * - Seeded visitor ids start with `5eed0000-`, which no browser makes, so only seeded rows are ever removed and `list` leaves them out unless asked.
+ * - Rows hold ids as 16 bytes and journeys and firings in their stored shapes; every read goes through `Journeys` to print names and UUIDs.
  * - Seeding refuses a production environment (`wp_get_environment_type()`).
  *
  * @package WordSocket
@@ -62,6 +63,13 @@ class Cli {
 	const LIST_FIELDS = array( 'journey_id', 'started_at', 'visitor', 'user_id', 'outcome', 'value', 'ref', 'steps', 'firings', 'path' );
 
 	/**
+	 * The columns `list` and `get` select, the ids as hex.
+	 *
+	 * @since 0.31.0
+	 */
+	const COLUMNS = 'HEX(journey_id) AS journey_id, HEX(visitor) AS visitor, user_id, ref, journey, steps, outcome, value, started_at, last_seen, firings, data';
+
+	/**
 	 * Register the commands when WP-CLI is running.
 	 *
 	 * @since 0.31.0
@@ -114,7 +122,7 @@ class Cli {
 					array(
 						'type'        => 'assoc',
 						'name'        => 'outcome',
-						'description' => 'Only journeys with this outcome: open, left, or one an extension registered.',
+						'description' => 'Only journeys with this outcome: open, left, incomplete, or one an extension registered.',
 						'optional'    => true,
 					),
 					array(
@@ -138,7 +146,7 @@ class Cli {
 					array(
 						'type'        => 'assoc',
 						'name'        => 'fields',
-						'description' => 'Comma-separated columns to print. Also: last_seen, ended_at, journey, data.',
+						'description' => 'Comma-separated columns to print. Also: last_seen, journey, data.',
 						'optional'    => true,
 					),
 					array(
@@ -254,18 +262,26 @@ class Cli {
 		if ( isset( $assoc_args['user'] ) ) {
 			$where[] = $wpdb->prepare( 'user_id = %d', (int) $assoc_args['user'] );
 		}
-		foreach ( array( 'visitor', 'ref', 'outcome' ) as $column ) {
+		if ( isset( $assoc_args['visitor'] ) ) {
+			$hex = Journeys::hex( (string) $assoc_args['visitor'] );
+			if ( '' === $hex ) {
+				WP_CLI::error( '--visitor must be a UUID.' );
+			}
+			$where[] = $wpdb->prepare( 'visitor = UNHEX(%s)', $hex );
+		}
+		foreach ( array( 'ref', 'outcome' ) as $column ) {
 			if ( isset( $assoc_args[ $column ] ) ) {
 				$where[] = $wpdb->prepare( "{$column} = %s", (string) $assoc_args[ $column ] );
 			}
 		}
+		// A firing tuple opens with its rule: `["<id>",`.
 		if ( isset( $assoc_args['rule'] ) ) {
-			$where[] = $wpdb->prepare( 'firings LIKE %s', '%' . $wpdb->esc_like( '"rule":"' . (string) $assoc_args['rule'] . '"' ) . '%' );
+			$where[] = $wpdb->prepare( 'firings LIKE %s', '%' . $wpdb->esc_like( '["' . (string) $assoc_args['rule'] . '",' ) . '%' );
 		} elseif ( ! empty( $assoc_args['fired'] ) ) {
-			$where[] = "firings IS NOT NULL AND firings <> '' AND firings <> '[]'";
+			$where[] = $wpdb->prepare( 'firings LIKE %s', '%' . $wpdb->esc_like( '"f":[[' ) . '%' );
 		}
 		if ( empty( $assoc_args['seeded'] ) ) {
-			$where[] = $wpdb->prepare( 'visitor NOT LIKE %s', $wpdb->esc_like( self::SEED_PREFIX ) . '%' );
+			$where[] = 'NOT (' . self::seeded_where() . ')';
 		}
 		$format = (string) ( $assoc_args['format'] ?? 'table' );
 		if ( 'count' === $format ) {
@@ -273,11 +289,43 @@ class Cli {
 			return;
 		}
 		$rows   = (array) $wpdb->get_results(
-			$wpdb->prepare( 'SELECT * FROM ' . Journeys::table() . ' WHERE ' . implode( ' AND ', $where ) . ' ORDER BY started_at DESC LIMIT %d', $count ),
+			$wpdb->prepare( 'SELECT ' . self::COLUMNS . ' FROM ' . Journeys::table() . ' WHERE ' . implode( ' AND ', $where ) . ' ORDER BY started_at DESC LIMIT %d', $count ),
 			ARRAY_A
 		);
+		$rows   = self::named( $rows );
 		$fields = isset( $assoc_args['fields'] ) ? array_map( 'trim', explode( ',', (string) $assoc_args['fields'] ) ) : self::LIST_FIELDS;
 		\WP_CLI\Utils\format_items( $format, 'ids' === $format ? array_column( $rows, 'journey_id' ) : array_map( array( $this, 'summary' ), $rows ), $fields );
+	}
+
+	/**
+	 * Rows as the table holds them, with the ids as UUIDs and the journeys in kind names.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param array<int, array<string, mixed>> $rows Rows selected with COLUMNS.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function named( array $rows ): array {
+		$journeys = Journeys::unpack_journeys( array_column( $rows, 'journey' ) );
+		foreach ( $rows as $i => $row ) {
+			$rows[ $i ]['journey_id'] = Journeys::uuid( (string) $row['journey_id'] );
+			$rows[ $i ]['visitor']    = Journeys::uuid( (string) $row['visitor'] );
+			$rows[ $i ]['journey']    = $journeys[ $i ];
+		}
+		return $rows;
+	}
+
+	/**
+	 * The `WHERE` that picks seeded rows: visitor ids starting with SEED_PREFIX, as the bytes store them.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return string
+	 */
+	private static function seeded_where(): string {
+		global $wpdb;
+		$prefix = Journeys::hex( self::SEED_PREFIX . '0000-4000-8000-000000000000' );
+		return $wpdb->prepare( 'HEX(visitor) LIKE %s', $wpdb->esc_like( strtoupper( substr( $prefix, 0, 8 ) ) ) . '%' );
 	}
 
 	/**
@@ -291,10 +339,11 @@ class Cli {
 	 */
 	public function get( array $args, array $assoc_args ): void {
 		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Journeys::table() . ' WHERE journey_id = %s', (string) $args[0] ), ARRAY_A );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT ' . self::COLUMNS . ' FROM ' . Journeys::table() . ' WHERE journey_id = UNHEX(%s)', Journeys::hex( (string) $args[0] ) ), ARRAY_A );
 		if ( ! is_array( $row ) ) {
 			WP_CLI::error( sprintf( 'No journey %s.', $args[0] ) );
 		}
+		$row     = self::named( array( $row ) )[0];
 		$steps   = $this->steps( (string) $row['journey'] );
 		$firings = $this->firings( (string) ( $row['firings'] ?? '' ) );
 		$data    = json_decode( (string) ( $row['data'] ?? '' ), true );
@@ -342,15 +391,13 @@ class Cli {
 	 * @return array
 	 */
 	public function summary( array $row, bool $short = true ): array {
-		$firings = json_decode( (string) ( $row['firings'] ?? '' ), true );
-		$firings = is_array( $firings ) ? $firings : array();
+		$firings = Journeys::unpack_firings( $row['firings'] ?? null );
 		$kinds   = array_map( static fn( string $step ): string => explode( ':', $step )[0], array_filter( explode( '>', (string) $row['journey'] ) ) );
 		$path    = implode( ' > ', $kinds );
 		return array(
 			'journey_id' => (string) $row['journey_id'],
 			'started_at' => (string) $row['started_at'],
 			'last_seen'  => (string) $row['last_seen'],
-			'ended_at'   => (string) ( $row['ended_at'] ?? '' ),
 			'visitor'    => (string) $row['visitor'],
 			'user_id'    => (int) ( $row['user_id'] ?? 0 ),
 			'outcome'    => (string) $row['outcome'],
@@ -407,8 +454,8 @@ class Cli {
 	 * @return array<int, array{at: string, moment: string, action: string, kind: string, step: int, after: string, order: string, value: string}>
 	 */
 	private function firings( string $json ): array {
-		$firings = json_decode( $json, true );
-		if ( ! is_array( $firings ) ) {
+		$firings = Journeys::unpack_firings( $json );
+		if ( ! $firings ) {
 			return array();
 		}
 		$names = array();
@@ -481,7 +528,6 @@ class Cli {
 		mt_srand( 42 );
 		$days  = self::day_weights( $months );
 		$hours = array_combine( range( 0, 23 ), array( 1, 0.6, 0.4, 0.3, 0.3, 0.5, 1, 2, 3, 3.5, 3.5, 3.5, 4, 3.5, 3.2, 3, 3, 3.5, 4, 4.5, 5, 4.5, 3.5, 2 ) );
-		$table = Journeys::table();
 		$made  = 0;
 		for ( $i = 0; $i < $count; $i++ ) {
 			$steps   = $this->walk( $walk, $catalogue );
@@ -490,8 +536,7 @@ class Cli {
 			$hour    = (int) self::pick( $hours );
 			$started = min( time() - 60, (int) strtotime( gmdate( 'Y-m-d', (int) strtotime( "-{$day} days" ) ) . sprintf( ' %02d:%02d:%02d', $hour, mt_rand( 0, 59 ), mt_rand( 0, 59 ) ) ) );
 			$ended   = $started + intdiv( $total, 1000 );
-			$made   += (int) $wpdb->insert(
-				$table,
+			$made   += (int) Journeys::insert_row(
 				array(
 					'journey_id' => wp_generate_uuid4(),
 					'visitor'    => self::SEED_PREFIX . substr( wp_generate_uuid4(), strlen( self::SEED_PREFIX ) ),
@@ -500,7 +545,6 @@ class Cli {
 					'outcome'    => 'left',
 					'started_at' => gmdate( 'Y-m-d H:i:s', $started ),
 					'last_seen'  => gmdate( 'Y-m-d H:i:s', $ended ),
-					'ended_at'   => gmdate( 'Y-m-d H:i:s', $ended ),
 				)
 			);
 		}
@@ -517,9 +561,7 @@ class Cli {
 	 */
 	public function unseed(): void {
 		global $wpdb;
-		$deleted = (int) $wpdb->query(
-			$wpdb->prepare( 'DELETE FROM ' . Journeys::table() . ' WHERE visitor LIKE %s', $wpdb->esc_like( self::SEED_PREFIX ) . '%' )
-		);
+		$deleted = (int) $wpdb->query( 'DELETE FROM ' . Journeys::table() . ' WHERE ' . self::seeded_where() );
 		delete_transient( Journeys::VISUALS_TRANSIENT );
 		WP_CLI::success( sprintf( 'Deleted %d seeded journeys.', $deleted ) );
 	}

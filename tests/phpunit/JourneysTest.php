@@ -33,11 +33,21 @@ final class JourneysTest extends WordSocketTestCase {
 	/** Every row the tests wrote: their visitors are the two constants. */
 	private function clear(): void {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Journeys::table() . ' WHERE visitor IN (%s, %s)', self::V, self::V2 ) ); // phpcs:ignore WordPress.DB
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Journeys::table() . ' WHERE visitor IN (UNHEX(%s), UNHEX(%s))', Journeys::hex( self::V ), Journeys::hex( self::V2 ) ) ); // phpcs:ignore WordPress.DB
+	}
+
+	/** A journey as the row stores it. */
+	private function stored( string $journey ): string {
+		return Journeys::pack_journey( $journey );
+	}
+
+	/** A row written as given, ids as UUIDs and the journey in kind names. */
+	private function insert( array $row ): void {
+		$this->assertTrue( Journeys::insert_row( $row ), 'the row was written' );
 	}
 
 	/** A report as the visit and leave routes hand it to the actions. */
-	private function report( string $journey, bool $leaving, string $journey_id = self::N, string $visitor = self::V, int $user_id = 0 ): array {
+	private function report( string $journey, bool $leaving, string $journey_id = self::N, string $visitor = self::V, int $user_id = 0, int $ago = 0 ): array {
 		return array(
 			'visitor'    => $visitor,
 			'journey_id' => $journey_id,
@@ -46,13 +56,26 @@ final class JourneysTest extends WordSocketTestCase {
 			'user_id'    => $user_id,
 			'data'       => array(),
 			'leaving'    => $leaving,
+			'ago'        => $ago,
 		);
 	}
 
+	/** The row as stored, `journey_id` and `visitor` as UUIDs; the journey stays in its stored form. */
 	private function row( string $journey_id ): ?array {
 		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Journeys::table() . ' WHERE journey_id = %s', $journey_id ), ARRAY_A ); // phpcs:ignore WordPress.DB
-		return is_array( $row ) ? $row : null;
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT *, HEX(journey_id) AS journey_hex, HEX(visitor) AS visitor_hex FROM ' . Journeys::table() . ' WHERE journey_id = UNHEX(%s)', Journeys::hex( $journey_id ) ), ARRAY_A ); // phpcs:ignore WordPress.DB
+		if ( ! is_array( $row ) ) {
+			return null;
+		}
+		$row['journey_id'] = Journeys::uuid( (string) $row['journey_hex'] );
+		$row['visitor']    = Journeys::uuid( (string) $row['visitor_hex'] );
+		unset( $row['journey_hex'], $row['visitor_hex'] );
+		return $row;
+	}
+
+	/** A row's firings in the named shape. */
+	private function firings_of( string $journey_id ): array {
+		return Journeys::unpack_firings( $this->row( $journey_id )['firings'] ?? null );
 	}
 
 	private function journeys(): Journeys {
@@ -63,7 +86,54 @@ final class JourneysTest extends WordSocketTestCase {
 		global $wpdb;
 		$this->assertSame( Journeys::DB_VERSION, WPS::instance()->config()->db_version() );
 		$this->assertSame( Journeys::table(), $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', Journeys::table() ) ) ); // phpcs:ignore WordPress.DB
-		$this->assertContains( 'ref', $wpdb->get_col( 'DESCRIBE ' . Journeys::table() ) ); // phpcs:ignore WordPress.DB
+		$columns = array_column( (array) $wpdb->get_results( 'DESCRIBE ' . Journeys::table(), ARRAY_A ), 'Type', 'Field' ); // phpcs:ignore WordPress.DB
+		$this->assertArrayHasKey( 'ref', $columns );
+		$this->assertArrayNotHasKey( 'ended_at', $columns, 'outcome says whether a journey ended, last_seen when' );
+		$this->assertSame( 'binary(16)', $columns['journey_id'] );
+		$this->assertSame( 'binary(16)', $columns['visitor'] );
+		$this->assertStringStartsWith( 'bigint', $columns['id'] );
+		$indexes = array_unique( array_column( (array) $wpdb->get_results( 'SHOW INDEX FROM ' . Journeys::table(), ARRAY_A ), 'Key_name' ) ); // phpcs:ignore WordPress.DB
+		$this->assertEqualsCanonicalizing( array( 'PRIMARY', 'journey_id', 'visitor_started', 'user_id', 'ref', 'started_at' ), array_values( $indexes ), 'no index on outcome, none on visitor alone' );
+	}
+
+	public function test_ids_are_stored_as_bytes_and_kinds_as_codes_that_read_back_as_names(): void {
+		global $wpdb;
+		$post = (int) wp_insert_post(
+			array(
+				'post_title'  => 'Codec fixture',
+				'post_status' => 'publish',
+				'post_type'   => 'post',
+			)
+		);
+		$term = wp_insert_term( 'Codec fixture ' . wp_generate_password( 6, false ), 'category' );
+		$term = is_array( $term ) ? (int) $term['term_id'] : 0;
+		add_filter( 'wpsignal_kind_codes', static fn( array $codes ): array => $codes + array( 'wps_thing' => 'wt', 'wps_clash' => 'h', 'wps_short' => 'q' ) );
+		try {
+			$journey = "home:1:10>post:{$post}:20>category:{$term}:30>post_archive:0:5>wps_thing:3:1>wps_clash:0:1>wps_short:0:1>admin:0:2>away:0:4";
+			do_action( 'wpsignal_visitor_visit', $this->report( $journey, false ) );
+			$row = $this->row( self::N );
+			$this->assertNotNull( $row, 'the row was written' );
+			$this->assertSame( "h:1:10>p:{$post}:20>t:{$term}:30>post_a:0:5>wt:3:1>wps_clash:0:1>wps_short:0:1>ad:0:2>w:0:4", $row['journey'], 'codes in the row; a code already WordSocket\'s or of one letter leaves the kind by name' );
+			$this->assertSame( self::N, $row['journey_id'] );
+			$this->assertSame( self::V, $row['visitor'] );
+			$this->assertSame( 32, strlen( (string) $wpdb->get_var( $wpdb->prepare( 'SELECT HEX(journey_id) FROM ' . Journeys::table() . ' WHERE journey_id = UNHEX(%s)', Journeys::hex( self::N ) ) ) ), '16 bytes' ); // phpcs:ignore WordPress.DB
+			$feed = array_values( array_filter( $this->journeys()->feed( 1, 100 ), static fn( array $j ): bool => str_starts_with( $j['journey'], 'home:1:10>' ) ) );
+			$this->assertSame( $journey, $feed[0]['journey'], 'names again on the way out' );
+			wp_delete_post( $post, true );
+			wp_delete_term( $term, 'category' );
+			$feed = array_values( array_filter( $this->journeys()->feed( 1, 100 ), static fn( array $j ): bool => str_starts_with( $j['journey'], 'home:1:10>' ) ) );
+			$this->assertSame( "home:1:10>deleted:{$post}:20>deleted:{$term}:30>post_archive:0:5>wps_thing:3:1>wps_clash:0:1>wps_short:0:1>admin:0:2>away:0:4", $feed[0]['journey'], 'a post or term that is gone reads as deleted' );
+			$this->assertSame( 'tag', Journeys::taxonomy_kind( 'post_tag' ) );
+			$this->assertSame( '', Journeys::hex( 'not-a-uuid' ) );
+			$this->assertSame( self::N, Journeys::uuid( strtoupper( Journeys::hex( self::N ) ) ) );
+			$this->assertFalse( Journeys::insert_row( array( 'journey_id' => 'nope', 'visitor' => self::V ) ), 'an id that is not a UUID is refused' );
+		} finally {
+			remove_all_filters( 'wpsignal_kind_codes' );
+			wp_delete_post( $post, true );
+			if ( $term ) {
+				wp_delete_term( $term, 'category' );
+			}
+		}
 	}
 
 	public function test_nothing_is_written_with_history_off(): void {
@@ -84,29 +154,27 @@ final class JourneysTest extends WordSocketTestCase {
 		);
 		do_action( 'wpsignal_visitor_visit', $this->report( 'home:1:1200>post:5:300', false ) );
 		$row = $this->row( self::N );
-		$this->assertSame( 'home:1:1200>post:5:300', $row['journey'] );
+		$this->assertSame( $this->stored( 'home:1:1200>post:5:300' ), $row['journey'] );
 		$this->assertSame( 'open', $row['outcome'] );
 		$this->assertSame( 'cart0001', $row['ref'] );
 		$this->assertSame( 12.5, (float) $row['value'] );
 		$this->assertNull( $row['user_id'], 'a guest' );
-		$this->assertNull( $row['ended_at'] );
 
 		// The leave of the first page lands after the visit of the second: it never shortens the journey.
 		do_action( 'wpsignal_visitor_leave', $this->report( 'home:1:1500', true ) );
 		$row = $this->row( self::N );
-		$this->assertSame( 'home:1:1200>post:5:300', $row['journey'] );
+		$this->assertSame( $this->stored( 'home:1:1200>post:5:300' ), $row['journey'] );
 		$this->assertSame( 'open', $row['outcome'], 'a leave that is behind changes nothing' );
 
 		// A leave at least as far along closes it.
 		do_action( 'wpsignal_visitor_leave', $this->report( 'home:1:1200>post:5:9000', true ) );
 		$row = $this->row( self::N );
-		$this->assertSame( 'home:1:1200>post:5:9000', $row['journey'] );
+		$this->assertSame( $this->stored( 'home:1:1200>post:5:9000' ), $row['journey'] );
 		$this->assertSame( 'left', $row['outcome'] );
-		$this->assertNotNull( $row['ended_at'] );
 
 		// A report under another visitor id changes nothing on the row.
 		do_action( 'wpsignal_visitor_visit', $this->report( 'home:1:1>post:5:1>post:6:1', false, self::N, self::V2 ) );
-		$this->assertSame( 'home:1:1200>post:5:9000', $this->row( self::N )['journey'] );
+		$this->assertSame( $this->stored( 'home:1:1200>post:5:9000' ), $this->row( self::N )['journey'] );
 		$this->assertSame( self::V, $this->row( self::N )['visitor'] );
 	}
 
@@ -126,32 +194,57 @@ final class JourneysTest extends WordSocketTestCase {
 
 		do_action( 'wpsignal_visitor_visit', $this->report( 'home:1:100', false, self::N2 ) );
 		do_action( 'wpsignal_visitor_visit', $this->report( 'home:1:100', false, self::N3 ) );
-		$this->assertSame( 'left', $this->row( self::N2 )['outcome'], 'a new visit ends the visitor\'s other open journeys' );
-		$this->assertNotNull( $this->row( self::N2 )['ended_at'] );
+		$this->assertSame( 'incomplete', $this->row( self::N2 )['outcome'], 'a new visit marks the visitor\'s other open journeys incomplete, since nobody saw them end' );
 		$this->assertSame( 'open', $this->row( self::N3 )['outcome'] );
+	}
+
+	public function test_a_late_leave_is_dated_by_how_long_ago_it_happened_and_the_prune_marks_stale_open_journeys_incomplete(): void {
+		$two_days_ago = gmdate( 'Y-m-d H:i:s', time() - 2 * DAY_IN_SECONDS );
+		$this->insert(
+			array(
+				'journey_id' => self::N,
+				'visitor'    => self::V,
+				'journey'    => 'home:1:40>away:0:0',
+				'outcome'    => 'open',
+				'started_at' => $two_days_ago,
+				'last_seen'  => $two_days_ago,
+			)
+		);
+		do_action( 'wpsignal_visitor_visit', $this->report( 'home:1:0', false, self::N2, self::V2 ) );
+		$this->journeys()->prune();
+		$this->assertSame( 'incomplete', $this->row( self::N )['outcome'], 'open for two days with nothing heard' );
+		$this->assertSame( 'open', $this->row( self::N2 )['outcome'], 'a journey reported a moment ago stays open' );
+		$this->assertArrayNotHasKey( 'journey', apply_filters( 'wpsignal_visitor_visit_response', array(), $this->report( 'home:1:40>away:0:0', false ) ), 'incomplete is not final' );
+		$this->assertSame( 'Incomplete', $this->journeys()->outcomes()['incomplete']['label'] );
+
+		// The browser is back and sends the leave it never got to, twenty minutes after the journey ended.
+		do_action( 'wpsignal_visitor_leave', $this->report( 'home:1:40>away:0:1800', true, self::N, self::V, 0, 1200 ) );
+		$row = $this->row( self::N );
+		$this->assertSame( 'left', $row['outcome'], 'a leave that arrives is a leave' );
+		$this->assertSame( $this->stored( 'home:1:40>away:0:1800' ), $row['journey'] );
+		$ago = time() - strtotime( $row['last_seen'] . ' UTC' );
+		$this->assertGreaterThanOrEqual( 1195, $ago, 'last seen is when the report says, not when it arrived' );
+		$this->assertLessThanOrEqual( 1215, $ago );
 	}
 
 	public function test_a_visitor_starts_at_most_thirty_journeys_an_hour(): void {
 		global $wpdb;
 		$now = gmdate( 'Y-m-d H:i:s' );
 		for ( $i = 0; $i < 30; $i++ ) {
-			$wpdb->insert(
-				Journeys::table(),
+			$this->insert(
 				array(
 					'journey_id' => sprintf( '%08x-0000-4000-8000-000000000000', $i ),
 					'visitor'    => self::V,
 					'journey'    => 'home:1:1',
-					'steps'      => 1,
 					'started_at' => $now,
-					'last_seen'  => $now,
 				)
-			); // phpcs:ignore WordPress.DB
+			);
 		}
 		do_action( 'wpsignal_visitor_visit', $this->report( 'home:1:100', false ) );
 		$this->assertNull( $this->row( self::N ), 'the thirty-first in an hour is refused' );
 		do_action( 'wpsignal_visitor_visit', $this->report( 'home:1:100', false, self::N2, self::V2 ) );
 		$this->assertNotNull( $this->row( self::N2 ), 'another visitor is not' );
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Journeys::table() . ' WHERE visitor = %s', self::V ) ); // phpcs:ignore WordPress.DB
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Journeys::table() . ' WHERE visitor = UNHEX(%s)', Journeys::hex( self::V ) ) ); // phpcs:ignore WordPress.DB
 	}
 
 	public function test_a_firing_is_appended_and_starts_the_row_when_it_comes_first_but_never_onto_another_visitors_row(): void {
@@ -169,37 +262,36 @@ final class JourneysTest extends WordSocketTestCase {
 		$this->journeys()->on_fired( $firing );
 		$row = $this->row( self::N );
 		$this->assertSame( '', $row['journey'], 'started empty, the next report fills it in' );
-		$firings = json_decode( $row['firings'], true );
+		$this->assertSame( array( 'r1', 'show', 2, 4, 0 ), array_slice( json_decode( $row['firings'], true )['f'][0], 0, 5 ), 'a tuple: rule, action, step, seconds, kind 0 for fired' );
+		$firings = $this->firings_of( self::N );
 		$this->assertSame( 'r1', $firings[0]['rule'] );
 		$this->assertSame( 4, $firings[0]['s'] );
 		$this->assertSame( 'fired', $firings[0]['kind'] );
+		$this->assertMatchesRegularExpression( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $firings[0]['at'] );
 
 		$this->journeys()->on_fired( array( 'kind' => 'dismissed' ) + $firing );
 		do_action( 'wpsignal_visitor_visit', $this->report( 'home:1:100>post:2:5000', false ) );
 		$row     = $this->row( self::N );
-		$firings = json_decode( $row['firings'], true );
+		$firings = $this->firings_of( self::N );
 		$this->assertCount( 2, $firings );
 		$this->assertSame( 'dismissed', $firings[1]['kind'] );
-		$this->assertSame( 'home:1:100>post:2:5000', $row['journey'] );
+		$this->assertSame( $this->stored( 'home:1:100>post:2:5000' ), $row['journey'] );
 
 		$this->journeys()->on_fired( array( 'visitor' => self::V2 ) + $firing );
-		$this->assertCount( 2, json_decode( $this->row( self::N )['firings'], true ), 'a firing under another visitor id reaches nothing' );
+		$this->assertCount( 2, $this->firings_of( self::N ), 'a firing under another visitor id reaches nothing' );
 	}
 
 	public function test_a_steps_time_is_bounded_and_its_digits_too(): void {
 		global $wpdb;
 		$now = gmdate( 'Y-m-d H:i:s' );
-		$wpdb->insert(
-			Journeys::table(),
+		$this->insert(
 			array(
 				'journey_id' => self::N,
 				'visitor'    => self::V,
 				'journey'    => 'home:1:999999>away:0:999999>post:2:60',
-				'steps'      => 3,
 				'started_at' => $now,
-				'last_seen'  => $now,
 			)
-		); // phpcs:ignore WordPress.DB
+		);
 		delete_transient( Journeys::VISUALS_TRANSIENT );
 		$visuals = $this->journeys()->visuals();
 		$minutes = 0;
@@ -249,12 +341,12 @@ final class JourneysTest extends WordSocketTestCase {
 		do_action( 'wpsignal_visitor_visit', $this->report( 'cart:0:100', false, self::N2 ) );
 
 		$this->assertSame( 0, $this->journeys()->end_by_ref( 'cart0001', 'bogus' ), 'an outcome nobody registered is refused' );
-		$this->assertSame( 1, $this->journeys()->end_by_ref( 'cart0001', 'converted', 40.0, array( 'order' => 77 ) ), 'the open journey of the cart; the one already left stays left' );
-		$this->assertSame( 'left', $this->row( self::N )['outcome'] );
+		$this->assertSame( 1, $this->journeys()->end_by_ref( 'cart0001', 'converted', 40.0, array( 'order' => 77 ) ), 'the open journey of the cart; the one marked incomplete stays so' );
+		$this->assertSame( 'incomplete', $this->row( self::N )['outcome'] );
 		$this->assertSame( 'converted', $this->row( self::N2 )['outcome'] );
 		$this->assertSame( 40.0, (float) $this->row( self::N2 )['value'] );
 		$this->assertSame( array( 'order' => 77 ), json_decode( $this->row( self::N2 )['data'], true ), 'the data merged over the row\'s' );
-		$this->assertNull( $this->row( self::N )['data'], 'the left journey\'s untouched' );
+		$this->assertNull( $this->row( self::N )['data'], 'the incomplete journey\'s untouched' );
 		$this->assertSame( 0, $this->journeys()->end_by_ref( 'cart0001', 'converted' ), 'nothing open is left' );
 		// The thank-you page's report, the cart emptied: the converted journey keeps its value and data.
 		add_filter(
@@ -269,16 +361,20 @@ final class JourneysTest extends WordSocketTestCase {
 		do_action( 'wpsignal_visitor_visit', $this->report( 'cart:0:100>thanks:0:0', false, self::N2 ) );
 		$this->assertSame( 40.0, (float) $this->row( self::N2 )['value'] );
 		$this->assertSame( array( 'order' => 77 ), json_decode( $this->row( self::N2 )['data'], true ) );
-		$this->assertSame( 'cart:0:100>thanks:0:0', $this->row( self::N2 )['journey'], 'the journey itself still grows' );
+		$this->assertSame( $this->stored( 'cart:0:100>thanks:0:0' ), $this->row( self::N2 )['journey'], 'the journey itself still grows' );
 		$answer = apply_filters( 'wpsignal_visitor_visit_response', array(), $this->report( 'cart:0:100>thanks:0:0', false, self::N2 ) );
 		$this->assertSame( array( 'ended' => true ), $answer['journey'], 'and the browser is told to start a new one' );
 		$this->assertArrayNotHasKey( 'journey', apply_filters( 'wpsignal_visitor_visit_response', array(), $this->report( 'home:1:100', false ) ), 'a journey merely left is not ended' );
 
 		$this->assertSame( 1, $this->journeys()->credit( 'cart0001', 77, 40.0 ) );
-		$firings = json_decode( $this->row( self::N )['firings'], true );
+		$stored = json_decode( $this->row( self::N )['firings'], true );
+		$this->assertSame( 77, $stored['o']['id'], 'the order once on the row' );
+		$this->assertSame( 40.0, (float) $stored['o']['v'] );
+		$firings = $this->firings_of( self::N );
 		$this->assertSame( 77, $firings[0]['order'] );
 		$this->assertSame( 40.0, (float) $firings[0]['value'] );
-		$this->assertSame( 0, $this->journeys()->credit( 'cart0001', 78, 1.0 ), 'a credited firing keeps its order' );
+		$this->assertArrayHasKey( 'order_at', $firings[0] );
+		$this->assertSame( 0, $this->journeys()->credit( 'cart0001', 78, 1.0 ), 'a credited row keeps its order' );
 
 		remove_all_filters( 'wpsignal_journey_record' );
 		do_action( 'wpsignal_visitor_visit', $this->report( 'home:1:100', false, self::N3 ) );
@@ -301,7 +397,15 @@ final class JourneysTest extends WordSocketTestCase {
 		);
 		add_filter( 'wpsignal_journey_context', static fn( array $context, array $row ): array => array( 'cart' => array( 'count' => '' === (string) $row['ref'] ? 0 : 1 ) ), 10, 2 );
 		add_filter( 'wpsignal_journeys_currency', static fn(): string => 'EUR' );
-		do_action( 'wpsignal_visitor_visit', $this->report( 'home:1:100>post:2:200', false ) );
+		$post    = (int) wp_insert_post(
+			array(
+				'post_title'  => 'Feed fixture',
+				'post_status' => 'publish',
+				'post_type'   => 'post',
+			)
+		);
+		$journey = "home:1:100>post:{$post}:200";
+		do_action( 'wpsignal_visitor_visit', $this->report( $journey, false ) );
 
 		list( $status ) = $this->rest( 'GET', 'journeys' );
 		$this->assertSame( 401, $status, 'visitors cannot read the journeys' );
@@ -320,8 +424,8 @@ final class JourneysTest extends WordSocketTestCase {
 		$this->assertSame( 200, $status );
 		$this->assertTrue( $data['enabled'] );
 		$this->assertSame( 'EUR', $data['currency'] );
-		$mine = array_values( array_filter( $data['journeys'], static fn( array $j ): bool => 'home:1:100>post:2:200' === $j['journey'] ) );
-		$this->assertCount( 1, $mine );
+		$mine = array_values( array_filter( $data['journeys'], static fn( array $j ): bool => $journey === $j['journey'] ) );
+		$this->assertCount( 1, $mine, 'the journey reads back in kind names' );
 		$this->assertSame( 'open', $mine[0]['outcome'] );
 		$this->assertSame( 9.5, $mine[0]['value'] );
 		$this->assertTrue( $mine[0]['has_ref'] );
@@ -333,12 +437,13 @@ final class JourneysTest extends WordSocketTestCase {
 		list( $status, $data ) = $this->rest( 'GET', 'journeys' );
 		$this->assertSame( 200, $status );
 		$this->assertFalse( $data['enabled'] );
-		$mine = array_values( array_filter( $data['journeys'], static fn( array $j ): bool => 'home:1:100>post:2:200' === $j['journey'] ) );
+		$mine = array_values( array_filter( $data['journeys'], static fn( array $j ): bool => $journey === $j['journey'] ) );
 		$this->assertCount( 1, $mine, 'history off keeps what was kept readable' );
 		list( $status, $data ) = $this->rest( 'GET', 'journeys/visuals' );
 		$this->assertSame( 200, $status );
 		$this->assertIsArray( $data, 'history off still draws what was kept' );
 		$this->assertGreaterThanOrEqual( 1, $data['total'] );
+		wp_delete_post( $post, true );
 	}
 
 	public function test_the_visuals_bucket_days_and_hours_on_the_site_clock_and_list_the_newest_journeys(): void {
@@ -364,19 +469,16 @@ final class JourneysTest extends WordSocketTestCase {
 				array( self::N3, 'home:1:60', 'left', null, $utc( $old ) ),
 			);
 			foreach ( $rows as list( $jid, $journey, $outcome, $ref, $started ) ) {
-				$wpdb->insert(
-					Journeys::table(),
+				$this->insert(
 					array(
 						'journey_id' => $jid,
 						'visitor'    => self::V,
 						'ref'        => $ref,
 						'journey'    => $journey,
-						'steps'      => substr_count( $journey, '>' ) + 1,
 						'outcome'    => $outcome,
 						'started_at' => $started,
-						'last_seen'  => $started,
 					)
-				); // phpcs:ignore WordPress.DB
+				);
 			}
 			delete_transient( Journeys::VISUALS_TRANSIENT );
 			$visuals = $this->journeys()->visuals();
@@ -443,17 +545,14 @@ final class JourneysTest extends WordSocketTestCase {
 			self::N  => $fresh,
 			self::N2 => $stale,
 		) as $jid => $started ) {
-			$wpdb->insert(
-				Journeys::table(),
+			$this->insert(
 				array(
 					'journey_id' => $jid,
 					'visitor'    => self::V,
 					'journey'    => 'home:1:1',
-					'steps'      => 1,
 					'started_at' => $started,
-					'last_seen'  => $started,
 				)
-			); // phpcs:ignore WordPress.DB
+			);
 		}
 		$this->journeys()->prune();
 		$this->assertNotNull( $this->row( self::N ) );
@@ -473,17 +572,14 @@ final class JourneysTest extends WordSocketTestCase {
 				self::N2 => '2001-10-15 12:00:00',
 				self::N3 => '2001-10-17 12:00:00',
 			) as $jid => $started ) {
-				$wpdb->insert(
-					Journeys::table(),
+				$this->insert(
 					array(
 						'journey_id' => $jid,
 						'visitor'    => self::V,
 						'journey'    => 'home:1:1',
-						'steps'      => 1,
 						'started_at' => $started,
-						'last_seen'  => $started,
 					)
-				); // phpcs:ignore WordPress.DB
+				);
 			}
 			$this->assertSame( 1, $this->journeys()->count( '2001-10-15', '2001-10-15' ), '02:00 UTC is still the 14th in New York' );
 			$this->assertSame( 2, $this->journeys()->count( null, '2001-10-15' ) );
