@@ -20,6 +20,7 @@
 
 namespace WPSignal;
 
+use WP_Error;
 use WP_REST_Request;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -189,6 +190,30 @@ class Journeys {
 	const STALE_SCAN_SECONDS = 2592000;
 
 	/**
+	 * The columns `query()` selects, the ids as hex.
+	 *
+	 * @since 0.31.0
+	 */
+	const QUERY_COLUMNS = 'HEX(journey_id) AS journey_id, HEX(visitor) AS visitor, user_id, ref, journey, steps, outcome, value, started_at, last_seen, firings, data';
+
+	/**
+	 * What `query()` reads by default and at most: the days back and the rows.
+	 *
+	 * @since 0.31.0
+	 */
+	const QUERY_DAYS      = 28;
+	const QUERY_MAX_DAYS  = 365;
+	const QUERY_MAX_LIMIT = 10000;
+
+	/**
+	 * The journeys download: the `admin-post.php` action, its nonce and the rows it holds at most.
+	 *
+	 * @since 0.31.0
+	 */
+	const DOWNLOAD_ACTION = 'wpsignal_journeys_download';
+	const DOWNLOAD_LIMIT  = 10000;
+
+	/**
 	 * Configuration accessor.
 	 *
 	 * @var Config
@@ -238,6 +263,277 @@ class Journeys {
 		add_filter( 'wp_privacy_personal_data_exporters', array( $this, 'register_exporter' ) );
 		add_filter( 'wp_privacy_personal_data_erasers', array( $this, 'register_eraser' ) );
 		add_action( 'admin_init', array( $this, 'privacy_policy' ) );
+		add_action( 'admin_post_' . self::DOWNLOAD_ACTION, array( $this, 'handle_download' ) );
+	}
+
+	/**
+	 * The `WHERE` a query's arguments describe: `days` back (QUERY_DAYS, up to QUERY_MAX_DAYS), `user`,
+	 * `visitor` (a UUID), `ref`, `outcome`, `rule` (a firing of that moment), `fired` (any firing), and
+	 * `exclude_visitor_prefix` (the leading hex digits of a UUID: rows whose visitor id starts with them are left out).
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param array $args The arguments.
+	 * @return string|WP_Error The clause, or `wpsignal_invalid_query` naming the argument.
+	 */
+	public static function query_where( array $args ) {
+		global $wpdb;
+		$days = (int) ( $args['days'] ?? self::QUERY_DAYS );
+		if ( $days < 1 || $days > self::QUERY_MAX_DAYS ) {
+			return new WP_Error( 'wpsignal_invalid_query', sprintf( 'days must be between 1 and %d.', self::QUERY_MAX_DAYS ), array( 'status' => 400 ) );
+		}
+		$where = array( $wpdb->prepare( 'started_at >= %s', gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS ) ) );
+		if ( isset( $args['user'] ) && '' !== $args['user'] ) {
+			$where[] = $wpdb->prepare( 'user_id = %d', (int) $args['user'] );
+		}
+		if ( isset( $args['visitor'] ) && '' !== $args['visitor'] ) {
+			$hex = self::hex( (string) $args['visitor'] );
+			if ( '' === $hex ) {
+				return new WP_Error( 'wpsignal_invalid_query', 'visitor must be a UUID.', array( 'status' => 400 ) );
+			}
+			$where[] = $wpdb->prepare( 'visitor = UNHEX(%s)', $hex );
+		}
+		foreach ( array( 'ref', 'outcome' ) as $column ) {
+			if ( isset( $args[ $column ] ) && '' !== $args[ $column ] ) {
+				$where[] = $wpdb->prepare( "{$column} = %s", (string) $args[ $column ] );
+			}
+		}
+		// A firing tuple opens with its rule: `["<id>",`.
+		if ( isset( $args['rule'] ) && '' !== $args['rule'] ) {
+			$where[] = $wpdb->prepare( 'firings LIKE %s', '%' . $wpdb->esc_like( '["' . (string) $args['rule'] . '",' ) . '%' );
+		} elseif ( ! empty( $args['fired'] ) ) {
+			$where[] = $wpdb->prepare( 'firings LIKE %s', '%' . $wpdb->esc_like( '"f":[[' ) . '%' );
+		}
+		if ( isset( $args['exclude_visitor_prefix'] ) && '' !== $args['exclude_visitor_prefix'] ) {
+			$prefix = strtoupper( str_replace( '-', '', (string) $args['exclude_visitor_prefix'] ) );
+			if ( 1 !== preg_match( '/^[0-9A-F]{1,32}\z/', $prefix ) ) {
+				return new WP_Error( 'wpsignal_invalid_query', 'exclude_visitor_prefix must be the start of a UUID.', array( 'status' => 400 ) );
+			}
+			$where[] = $wpdb->prepare( 'HEX(visitor) NOT LIKE %s', $wpdb->esc_like( $prefix ) . '%' );
+		}
+		return implode( ' AND ', $where );
+	}
+
+	/**
+	 * How many stored journeys the arguments of `query_where()` match.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param array $args The arguments.
+	 * @return int|WP_Error
+	 */
+	public static function query_count( array $args ) {
+		global $wpdb;
+		$where = self::query_where( $args );
+		if ( is_wp_error( $where ) ) {
+			return $where;
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Table name from table(); the clause is prepared by query_where().
+		return (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . self::table() . ' WHERE ' . $where );
+	}
+
+	/**
+	 * Stored journeys as rows, newest first, as the table holds them: the arguments of `query_where()` plus `limit`
+	 * (QUERY_MAX_LIMIT at most), selected with QUERY_COLUMNS, so ids are hex, the journey is in kind codes and the
+	 * firings and data are their stored JSON.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param array $args The arguments.
+	 * @return array<int, array<string, mixed>>|WP_Error
+	 */
+	public static function query_rows( array $args ) {
+		global $wpdb;
+		$where = self::query_where( $args );
+		if ( is_wp_error( $where ) ) {
+			return $where;
+		}
+		$limit = (int) ( $args['limit'] ?? self::QUERY_MAX_LIMIT );
+		if ( $limit < 1 || $limit > self::QUERY_MAX_LIMIT ) {
+			return new WP_Error( 'wpsignal_invalid_query', sprintf( 'limit must be between 1 and %d.', self::QUERY_MAX_LIMIT ), array( 'status' => 400 ) );
+		}
+		return array_values(
+			(array) $wpdb->get_results(
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Table name from table(); the clause is prepared by query_where().
+				$wpdb->prepare( 'SELECT ' . self::QUERY_COLUMNS . ' FROM ' . self::table() . ' WHERE ' . $where . ' ORDER BY started_at DESC LIMIT %d', $limit ),
+				ARRAY_A
+			)
+		);
+	}
+
+	/**
+	 * Stored journeys as records, newest first: the rows of `query_rows()` through `record()`. What the CLI lists, the download holds and the `wordsocket/list-journeys` ability answers.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param array $args The arguments.
+	 * @return array<int, array<string, mixed>>|WP_Error
+	 */
+	public static function query( array $args ) {
+		$rows = self::query_rows( $args );
+		if ( is_wp_error( $rows ) ) {
+			return $rows;
+		}
+		$journeys = self::unpack_journeys( array_column( $rows, 'journey' ) );
+		foreach ( $rows as $i => $row ) {
+			$rows[ $i ] = self::record( $row, $journeys[ $i ] );
+		}
+		return array_values( $rows );
+	}
+
+	/**
+	 * A row selected with QUERY_COLUMNS as a record: ids as UUIDs, times as RFC 3339, the journey in kind
+	 * names with `path` its kinds alone, the firings named and the data decoded.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param array  $row     The row.
+	 * @param string $journey The journey in kind names.
+	 * @return array<string, mixed>
+	 */
+	public static function record( array $row, string $journey ): array {
+		$data  = json_decode( (string) ( $row['data'] ?? '' ), true );
+		$kinds = array_map( static fn( string $step ): string => explode( ':', $step )[0], array_filter( explode( '>', $journey ) ) );
+		return array(
+			'journey_id' => self::uuid( (string) $row['journey_id'] ),
+			'visitor'    => self::uuid( (string) $row['visitor'] ),
+			'user_id'    => (int) ( $row['user_id'] ?? 0 ),
+			'ref'        => (string) ( $row['ref'] ?? '' ),
+			'outcome'    => (string) $row['outcome'],
+			'value'      => null === $row['value'] ? null : (float) $row['value'],
+			'started_at' => self::rfc3339( (string) $row['started_at'] ),
+			'last_seen'  => self::rfc3339( (string) $row['last_seen'] ),
+			'steps'      => (int) $row['steps'],
+			'path'       => implode( ' > ', $kinds ),
+			'journey'    => $journey,
+			'firings'    => self::unpack_firings( $row['firings'] ?? null ),
+			'data'       => is_array( $data ) ? $data : null,
+		);
+	}
+
+	/**
+	 * What each record field means, for a file read without the docs.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return array<string, string>
+	 */
+	public static function legend(): array {
+		return array(
+			'journey_id' => 'One visit by one browser.',
+			'visitor'    => 'The browser; its visits share this id.',
+			'user_id'    => 'The WordPress user when logged in, 0 for a guest.',
+			'ref'        => 'What the visitor carried, as an extension names it (ShopSocket: the cart id); empty when nothing.',
+			'outcome'    => 'open (still going), left, incomplete (never heard ending), or an outcome an extension ends journeys with (ShopSocket: converted).',
+			'value'      => 'The value an extension put on the journey, in `currency` (ShopSocket: the cart or order total).',
+			'started_at' => 'When the visit began, UTC.',
+			'last_seen'  => 'The last report, UTC; when the visit ended for a final outcome.',
+			'steps'      => 'How many pages, with the hidden-tab spells (away) counted.',
+			'path'       => 'The page kinds in order.',
+			'journey'    => 'The steps in order as kind:id:seconds, joined by >; away:0:seconds is the tab hidden; ids are posts or terms.',
+			'firings'    => 'The moments that fired on this visit: rule, action, step index, seconds into the step, kind (fired, returned, dismissed, clicked), at (UTC), and the order credited with its time and value.',
+			'data'       => 'What the extension stored about the visit (ShopSocket: c the currency, i the cart items as product id to quantity, o the order id).',
+		);
+	}
+
+	/**
+	 * The journeys of the last `days` as a file, `csv` or `json`, newest first, DOWNLOAD_LIMIT rows at most:
+	 * `{ filename, type, body }`.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string $format `csv` or `json`.
+	 * @param array  $args   The arguments of `query()`.
+	 * @return array{filename: string, type: string, body: string}|WP_Error
+	 */
+	public function download( string $format, array $args = array() ) {
+		if ( ! in_array( $format, array( 'csv', 'json' ), true ) ) {
+			return new WP_Error( 'wpsignal_invalid_query', 'format must be csv or json.', array( 'status' => 400 ) );
+		}
+		$args['limit'] = min( self::DOWNLOAD_LIMIT, (int) ( $args['limit'] ?? self::DOWNLOAD_LIMIT ) );
+		$records       = self::query( $args );
+		if ( is_wp_error( $records ) ) {
+			return $records;
+		}
+		$name = sanitize_file_name( 'journeys-' . wp_parse_url( home_url(), PHP_URL_HOST ) . '-' . gmdate( 'Y-m-d' ) . '.' . $format );
+		if ( 'json' === $format ) {
+			$body = (string) wp_json_encode(
+				array(
+					'site'        => home_url(),
+					'exported_at' => gmdate( DATE_RFC3339 ),
+					'days'        => (int) ( $args['days'] ?? self::QUERY_DAYS ),
+					'count'       => count( $records ),
+					'currency'    => $this->currency(),
+					'legend'      => self::legend(),
+					'journeys'    => $records,
+				),
+				JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+			);
+			return array(
+				'filename' => $name,
+				'type'     => 'application/json',
+				'body'     => $body,
+			);
+		}
+		$out = fopen( 'php://temp', 'r+' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- An in-memory stream for fputcsv().
+		fputcsv( $out, array_keys( self::legend() ), ',', '"', '' );
+		foreach ( $records as $record ) {
+			$record['firings'] = (string) wp_json_encode( $record['firings'] );
+			$record['data']    = null === $record['data'] ? '' : (string) wp_json_encode( $record['data'] );
+			$record['value']   = null === $record['value'] ? '' : $record['value'];
+			fputcsv( $out, array_values( $record ), ',', '"', '' );
+		}
+		rewind( $out );
+		$body = (string) stream_get_contents( $out );
+		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- The in-memory stream above.
+		return array(
+			'filename' => $name,
+			'type'     => 'text/csv',
+			'body'     => $body,
+		);
+	}
+
+	/**
+	 * The download's URL, nonced for the current user; the browser adds `format` and `days`.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return string
+	 */
+	public static function download_url(): string {
+		return add_query_arg(
+			array(
+				'action'   => self::DOWNLOAD_ACTION,
+				'_wpnonce' => wp_create_nonce( self::DOWNLOAD_ACTION ),
+			),
+			admin_url( 'admin-post.php' )
+		);
+	}
+
+	/**
+	 * `admin-post.php?action=wpsignal_journeys_download&format=csv|json&days=N`: the download, for `manage_options`.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return void
+	 */
+	public function handle_download(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You are not allowed to download journeys.', 'wordsocket' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( self::DOWNLOAD_ACTION );
+		$format = sanitize_key( (string) wp_unslash( $_GET['format'] ?? 'csv' ) );
+		$days   = absint( wp_unslash( $_GET['days'] ?? self::QUERY_DAYS ) );
+		$file   = $this->download( $format, array( 'days' => $days ) );
+		if ( is_wp_error( $file ) ) {
+			wp_die( esc_html( $file->get_error_message() ), '', array( 'response' => 400 ) );
+		}
+		nocache_headers();
+		header( 'Content-Type: ' . $file['type'] . '; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="' . $file['filename'] . '"' );
+		header( 'Content-Length: ' . strlen( $file['body'] ) );
+		echo $file['body']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- A file the browser saves, not markup.
+		exit;
 	}
 
 	/**
@@ -427,6 +723,23 @@ class Journeys {
 	}
 
 	/**
+	 * How long a journey ran, in seconds: its steps' times added up, each counted for a day at most.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string $journey The `kind:id:s` steps joined by `>`.
+	 * @return int
+	 */
+	public static function duration( string $journey ): int {
+		$seconds = 0;
+		foreach ( array_filter( explode( '>', $journey ) ) as $step ) {
+			$parts    = explode( ':', $step );
+			$seconds += min( self::MAX_STEP_SECONDS, max( 0, (int) ( $parts[2] ?? 0 ) ) );
+		}
+		return $seconds;
+	}
+
+	/**
 	 * A SQL datetime as RFC 3339 UTC.
 	 *
 	 * @since 0.31.0
@@ -491,6 +804,24 @@ class Journeys {
 	}
 
 	/**
+	 * The memoised codes by kind, read once per request.
+	 *
+	 * @var array<string, string>|null
+	 */
+	private static ?array $kind_codes = null;
+
+	/**
+	 * Forget the memoised codes, so the next pack or unpack reads the filter again.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return void
+	 */
+	public static function reset_kind_codes(): void {
+		self::$kind_codes = null;
+	}
+
+	/**
 	 * The codes by kind: WordSocket's, then the extensions' through `wpsignal_kind_codes`. A code of
 	 * one letter outside WordSocket's, a malformed one, or one claimed twice is dropped, so the kind
 	 * is stored by its full name.
@@ -500,9 +831,8 @@ class Journeys {
 	 * @return array<string, string>
 	 */
 	private static function kind_codes(): array {
-		static $codes = null;
-		if ( null !== $codes ) {
-			return $codes;
+		if ( null !== self::$kind_codes ) {
+			return self::$kind_codes;
 		}
 		/**
 		 * Filters the codes step kinds are stored under, `{ kind: code }`, codes of two or more
@@ -533,6 +863,7 @@ class Journeys {
 		foreach ( $dupes as $code => $unused ) {
 			unset( $codes[ $taken[ $code ] ] );
 		}
+		self::$kind_codes = $codes;
 		return $codes;
 	}
 
@@ -975,7 +1306,9 @@ class Journeys {
 		}
 		$leaving = (bool) $report['leaving'];
 		$record  = $this->record_of( $report );
-		$now     = self::now( max( 0, (int) ( $report['ago'] ?? 0 ) ) );
+		$ago     = max( 0, (int) ( $report['ago'] ?? 0 ) );
+		$now     = self::now( $ago );
+		$started = self::now( $ago + self::duration( (string) $report['journey'] ) );
 		$owned   = 'visitor = VALUES(visitor)';
 		$ahead   = $owned . ' AND VALUES(steps) >= steps';
 		$final   = "outcome NOT IN ('" . implode( "', '", self::NOT_FINAL ) . "')";
@@ -1003,7 +1336,7 @@ class Journeys {
 				null === $record['value'] ? 0 : 1,
 				(float) $record['value'],
 				$record['data'],
-				$now,
+				$started,
 				$now
 			)
 		);

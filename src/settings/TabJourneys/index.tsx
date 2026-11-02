@@ -8,7 +8,12 @@
  */
 import { __, _n, sprintf } from "@wordpress/i18n";
 import { useEffect, useMemo, useState } from "@wordpress/element";
-import { Button, TextControl, ToggleControl } from "@wordpress/components";
+import {
+  Button,
+  SelectControl,
+  TextControl,
+  ToggleControl,
+} from "@wordpress/components";
 import { AlertDialog, Card, Notice, Spinner, Stack, Text } from "@wordpress/ui";
 
 /**
@@ -38,6 +43,62 @@ const MONTHS_MIN = 1;
 /** Journeys to a page of the network, as `Journeys::VISUALS_JOURNEYS` lists them. */
 const PAGE_SIZE = 1000;
 const MONTHS_MAX = 36;
+
+const DOWNLOAD_DAYS_MAX = 365;
+
+/** Download the last days of journeys as CSV or JSON, for a spreadsheet or an AI assistant without a connector. */
+function DownloadJourneys() {
+  const [format, setFormat] = useState<"csv" | "json">("csv");
+  const [days, setDays] = useState("28");
+  const base = window.wpsignalSettings?.history?.downloadUrl;
+  if (!base) return null;
+  const url = new URL(base, window.location.origin);
+  url.searchParams.set("format", format);
+  url.searchParams.set(
+    "days",
+    String(
+      Math.min(DOWNLOAD_DAYS_MAX, Math.max(1, Math.round(Number(days)) || 1)),
+    ),
+  );
+  return (
+    <Stack direction="column" gap="sm">
+      <Text variant="body-md" render={<p />}>
+        {__(
+          "Download the journeys of the last days as a file: CSV for a spreadsheet, JSON with a legend of every field to hand to an AI assistant. Up to 10,000 visits, newest first.",
+          "wordsocket",
+        )}
+      </Text>
+      <Stack direction="row" gap="md" wrap="wrap" align="end">
+        <SelectControl
+          label={__("Format", "wordsocket")}
+          value={format}
+          options={[
+            { label: "CSV", value: "csv" },
+            { label: "JSON", value: "json" },
+          ]}
+          onChange={(value: string) =>
+            setFormat(value === "json" ? "json" : "csv")
+          }
+          __nextHasNoMarginBottom
+          __next40pxDefaultSize
+        />
+        <TextControl
+          type="number"
+          min={1}
+          max={DOWNLOAD_DAYS_MAX}
+          label={__("Days", "wordsocket")}
+          value={days}
+          onChange={setDays}
+          __nextHasNoMarginBottom
+          __next40pxDefaultSize
+        />
+        <Button variant="secondary" href={url.toString()} download>
+          {__("Download journeys", "wordsocket")}
+        </Button>
+      </Stack>
+    </Stack>
+  );
+}
 
 /** Delete journeys, every one or those started between two days, behind a confirmation. */
 function PurgeJourneys({ onPurged }: { onPurged(): void }) {
@@ -214,6 +275,7 @@ function HistoryCard({ onPurged }: { onPurged(): void }) {
             __next40pxDefaultSize
           />
         )}
+        <DownloadJourneys />
         <PurgeJourneys onPurged={onPurged} />
       </Stack>
     </CollapsibleCard>

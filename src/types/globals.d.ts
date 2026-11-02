@@ -272,6 +272,8 @@ interface WpSignalSettings {
     enabled: boolean;
     currency: string;
     outcomes?: Record<string, { label: string; color: string; series: string }>;
+    /** The journeys download (`admin-post.php`, nonced); the tab adds `format` and `days` (0.31). */
+    downloadUrl?: string;
   };
 }
 

@@ -96,6 +96,15 @@ test.describe("Journeys", () => {
     await admin.visitAdminPage("admin.php", TAB);
     await expect(page.getByRole("tab", { name: "Journeys" })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByLabel("Keep a history of journeys")).toBeChecked();
+
+    // The download: a CSV of the last 28 days whose header is the legend's columns, served to this admin.
+    const downloadHref = (await page.locator("a[href*='wpsignal_journeys_download']").first().getAttribute("href")) ?? "";
+    expect(downloadHref).toContain("format=csv");
+    expect(downloadHref).toContain("days=28");
+    const file = await page.request.get(downloadHref);
+    expect(file.headers()["content-type"]).toContain("text/csv");
+    expect((await file.text()).split("\n")[0]).toBe("journey_id,visitor,user_id,ref,outcome,value,started_at,last_seen,steps,path,journey,firings,data");
+
     await expect(page.locator(".wpsignal-net")).toBeVisible({ timeout: 20_000 });
     expect(await page.locator(".wpsignal-net__journey").count()).toBeGreaterThan(0);
     await expect(page.locator(".wpsignal-trend__raw").first()).toBeVisible();

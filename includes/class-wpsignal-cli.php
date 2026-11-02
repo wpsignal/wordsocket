@@ -2,7 +2,7 @@
 /**
  * WPSignal\Cli: WordSocket's WP-CLI commands.
  *
- * - `wp wordsocket journeys list` prints stored journeys, newest first, with filters for the visitor, user, ref, outcome and moment.
+ * - `wp wordsocket journeys list` prints stored journeys, newest first, with filters for the visitor, user, ref, outcome and moment; `--raw` prints the rows as the table holds them, kind codes and all.
  * - `wp wordsocket journeys get <journey_id>` prints one journey step by step with every firing on it.
  * - `wp wordsocket journeys seed [--count=<n>] [--months=<n>]` fills the journeys table with made-up visits for a look at the Journeys tab.
  * - `wp wordsocket journeys unseed` deletes them again.
@@ -32,13 +32,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Cli {
 
 	/**
-	 * The visitor id prefix every seeded row carries.
-	 *
-	 * @since 0.31.0
-	 */
-	const SEED_PREFIX = '5eed0000-';
-
-	/**
 	 * Journeys seeded when `--count` is not given, and the most one call seeds.
 	 *
 	 * @since 0.31.0
@@ -63,11 +56,18 @@ class Cli {
 	const LIST_FIELDS = array( 'journey_id', 'started_at', 'visitor', 'user_id', 'outcome', 'value', 'ref', 'steps', 'firings', 'path' );
 
 	/**
-	 * The columns `list` and `get` select, the ids as hex.
+	 * The columns `list --raw` prints by default, in order.
 	 *
 	 * @since 0.31.0
 	 */
-	const COLUMNS = 'HEX(journey_id) AS journey_id, HEX(visitor) AS visitor, user_id, ref, journey, steps, outcome, value, started_at, last_seen, firings, data';
+	const LIST_RAW_FIELDS = array( 'journey_id', 'started_at', 'visitor', 'user_id', 'outcome', 'value', 'ref', 'steps', 'journey', 'firings' );
+
+	/**
+	 * The visitor ids seeded journeys start with.
+	 *
+	 * @since 0.31.0
+	 */
+	const SEED_PREFIX = '5eed0000-';
 
 	/**
 	 * Register the commands when WP-CLI is running.
@@ -141,6 +141,12 @@ class Cli {
 						'type'        => 'flag',
 						'name'        => 'seeded',
 						'description' => 'Include the journeys the seed command made.',
+						'optional'    => true,
+					),
+					array(
+						'type'        => 'flag',
+						'name'        => 'raw',
+						'description' => 'Print the rows as the table holds them: ids as hex, the journey in kind codes, firings and data as stored.',
 						'optional'    => true,
 					),
 					array(
@@ -244,11 +250,10 @@ class Cli {
 	 * @since 0.31.0
 	 *
 	 * @param array $args       Positional arguments.
-	 * @param array $assoc_args `count`, `days`, `user`, `visitor`, `ref`, `outcome`, `rule`, `fired`, `seeded`, `fields`, `format`.
+	 * @param array $assoc_args `count`, `days`, `user`, `visitor`, `ref`, `outcome`, `rule`, `fired`, `seeded`, `raw`, `fields`, `format`.
 	 * @return void
 	 */
 	public function list( array $args, array $assoc_args ): void {
-		global $wpdb;
 		unset( $args );
 		$count = (int) ( $assoc_args['count'] ?? self::LIST_COUNT );
 		if ( $count < 1 || $count > self::LIST_MAX_COUNT ) {
@@ -258,43 +263,55 @@ class Cli {
 		if ( $days < 1 ) {
 			WP_CLI::error( '--days must be at least 1.' );
 		}
-		$where = array( $wpdb->prepare( 'started_at >= %s', gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS ) ) );
-		if ( isset( $assoc_args['user'] ) ) {
-			$where[] = $wpdb->prepare( 'user_id = %d', (int) $assoc_args['user'] );
-		}
-		if ( isset( $assoc_args['visitor'] ) ) {
-			$hex = Journeys::hex( (string) $assoc_args['visitor'] );
-			if ( '' === $hex ) {
-				WP_CLI::error( '--visitor must be a UUID.' );
+		$format = (string) ( $assoc_args['format'] ?? 'table' );
+		$query  = array(
+			'days'  => $days,
+			'limit' => $count,
+		);
+		foreach ( array( 'user', 'visitor', 'ref', 'outcome', 'rule', 'fired' ) as $key ) {
+			if ( isset( $assoc_args[ $key ] ) ) {
+				$query[ $key ] = $assoc_args[ $key ];
 			}
-			$where[] = $wpdb->prepare( 'visitor = UNHEX(%s)', $hex );
-		}
-		foreach ( array( 'ref', 'outcome' ) as $column ) {
-			if ( isset( $assoc_args[ $column ] ) ) {
-				$where[] = $wpdb->prepare( "{$column} = %s", (string) $assoc_args[ $column ] );
-			}
-		}
-		// A firing tuple opens with its rule: `["<id>",`.
-		if ( isset( $assoc_args['rule'] ) ) {
-			$where[] = $wpdb->prepare( 'firings LIKE %s', '%' . $wpdb->esc_like( '["' . (string) $assoc_args['rule'] . '",' ) . '%' );
-		} elseif ( ! empty( $assoc_args['fired'] ) ) {
-			$where[] = $wpdb->prepare( 'firings LIKE %s', '%' . $wpdb->esc_like( '"f":[[' ) . '%' );
 		}
 		if ( empty( $assoc_args['seeded'] ) ) {
-			$where[] = 'NOT (' . self::seeded_where() . ')';
+			$query['exclude_visitor_prefix'] = self::SEED_PREFIX;
 		}
-		$format = (string) ( $assoc_args['format'] ?? 'table' );
 		if ( 'count' === $format ) {
-			WP_CLI::line( (string) (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Journeys::table() . ' WHERE ' . implode( ' AND ', $where ) ) );
+			$total = Journeys::query_count( $query );
+			if ( is_wp_error( $total ) ) {
+				WP_CLI::error( $total->get_error_message() );
+			}
+			WP_CLI::line( (string) $total );
 			return;
 		}
-		$rows   = (array) $wpdb->get_results(
-			$wpdb->prepare( 'SELECT ' . self::COLUMNS . ' FROM ' . Journeys::table() . ' WHERE ' . implode( ' AND ', $where ) . ' ORDER BY started_at DESC LIMIT %d', $count ),
-			ARRAY_A
-		);
-		$rows   = self::named( $rows );
-		$fields = isset( $assoc_args['fields'] ) ? array_map( 'trim', explode( ',', (string) $assoc_args['fields'] ) ) : self::LIST_FIELDS;
-		\WP_CLI\Utils\format_items( $format, 'ids' === $format ? array_column( $rows, 'journey_id' ) : array_map( array( $this, 'summary' ), $rows ), $fields );
+		$raw     = ! empty( $assoc_args['raw'] );
+		$records = $raw ? Journeys::query_rows( $query ) : Journeys::query( $query );
+		if ( is_wp_error( $records ) ) {
+			WP_CLI::error( $records->get_error_message() );
+		}
+		$fields = isset( $assoc_args['fields'] ) ? array_map( 'trim', explode( ',', (string) $assoc_args['fields'] ) ) : ( $raw ? self::LIST_RAW_FIELDS : self::LIST_FIELDS );
+		if ( 'ids' === $format ) {
+			$records = array_column( $records, 'journey_id' );
+		} elseif ( ! $raw ) {
+			$records = array_map( array( $this, 'listed' ), $records );
+		}
+		\WP_CLI\Utils\format_items( $format, $records, $fields );
+	}
+
+	/**
+	 * A record as the `list` table prints it: the path cut short, the firings their count, the data as JSON.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param array $record A record from `Journeys::query()`.
+	 * @return array
+	 */
+	public function listed( array $record ): array {
+		$record['firings'] = count( $record['firings'] );
+		$record['path']    = strlen( $record['path'] ) > 60 ? substr( $record['path'], 0, 57 ) . '...' : $record['path'];
+		$record['value']   = null === $record['value'] ? '' : $record['value'];
+		$record['data']    = null === $record['data'] ? '' : (string) wp_json_encode( $record['data'] );
+		return $record;
 	}
 
 	/**
@@ -316,19 +333,6 @@ class Cli {
 	}
 
 	/**
-	 * The `WHERE` that picks seeded rows: visitor ids starting with SEED_PREFIX, as the bytes store them.
-	 *
-	 * @since 0.31.0
-	 *
-	 * @return string
-	 */
-	private static function seeded_where(): string {
-		global $wpdb;
-		$prefix = Journeys::hex( self::SEED_PREFIX . '0000-4000-8000-000000000000' );
-		return $wpdb->prepare( 'HEX(visitor) LIKE %s', $wpdb->esc_like( strtoupper( substr( $prefix, 0, 8 ) ) ) . '%' );
-	}
-
-	/**
 	 * Show one journey: its row, then each step with what the page was, then each firing with the moment it belongs to.
 	 *
 	 * @since 0.31.0
@@ -339,7 +343,7 @@ class Cli {
 	 */
 	public function get( array $args, array $assoc_args ): void {
 		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT ' . self::COLUMNS . ' FROM ' . Journeys::table() . ' WHERE journey_id = UNHEX(%s)', Journeys::hex( (string) $args[0] ) ), ARRAY_A );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT ' . Journeys::QUERY_COLUMNS . ' FROM ' . Journeys::table() . ' WHERE journey_id = UNHEX(%s)', Journeys::hex( (string) $args[0] ) ), ARRAY_A );
 		if ( ! is_array( $row ) ) {
 			WP_CLI::error( sprintf( 'No journey %s.', $args[0] ) );
 		}
@@ -564,6 +568,18 @@ class Cli {
 		$deleted = (int) $wpdb->query( 'DELETE FROM ' . Journeys::table() . ' WHERE ' . self::seeded_where() );
 		delete_transient( Journeys::VISUALS_TRANSIENT );
 		WP_CLI::success( sprintf( 'Deleted %d seeded journeys.', $deleted ) );
+	}
+
+	/**
+	 * The `WHERE` that picks seeded rows: visitor ids starting with SEED_PREFIX, as the bytes store them.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return string
+	 */
+	private static function seeded_where(): string {
+		global $wpdb;
+		return $wpdb->prepare( 'HEX(visitor) LIKE %s', $wpdb->esc_like( strtoupper( str_replace( '-', '', self::SEED_PREFIX ) ) ) . '%' );
 	}
 
 	/**

@@ -18,6 +18,7 @@ final class JourneysTest extends WordSocketTestCase {
 	protected function setUp(): void {
 		parent::setUp();
 		$this->clear();
+		Journeys::reset_kind_codes();
 		update_option( 'wpsignal_history_enabled', true );
 		delete_transient( Journeys::VISUALS_TRANSIENT );
 	}
@@ -27,6 +28,7 @@ final class JourneysTest extends WordSocketTestCase {
 		remove_all_filters( 'wpsignal_journey_record' );
 		remove_all_filters( 'wpsignal_journey_context' );
 		remove_all_filters( 'wpsignal_journeys_currency' );
+		Journeys::reset_kind_codes();
 		parent::tearDown();
 	}
 
@@ -227,6 +229,27 @@ final class JourneysTest extends WordSocketTestCase {
 		$this->assertLessThanOrEqual( 1215, $ago );
 	}
 
+	public function test_a_report_that_creates_a_row_dates_its_start_by_the_journey_it_carries(): void {
+		// The outbox: a leave for a journey WordPress never heard of, sent twenty minutes after it ended.
+		do_action( 'wpsignal_visitor_leave', $this->report( 'home:1:40>product:7:60>away:0:1800', true, self::N, self::V, 0, 1200 ) );
+		$row       = $this->row( self::N );
+		$last_seen = strtotime( $row['last_seen'] . ' UTC' );
+		$started   = strtotime( $row['started_at'] . ' UTC' );
+		$this->assertEqualsWithDelta( time() - 1200, $last_seen, 10, 'last seen is when the leave says it happened' );
+		$this->assertSame( 1900, $last_seen - $started, 'the start is the end less the steps' );
+		$this->assertSame( 1900, Journeys::duration( 'home:1:40>product:7:60>away:0:1800' ) );
+		$this->assertSame( 0, Journeys::duration( '' ) );
+		$this->assertSame( Journeys::MAX_STEP_SECONDS + 5, Journeys::duration( 'home:1:999999>post:2:5' ), 'a step counts for a day at most' );
+
+		// A live first report with no history behind it: started now, as before.
+		do_action( 'wpsignal_visitor_visit', $this->report( 'home:1:0', false, self::N2, self::V2 ) );
+		$row = $this->row( self::N2 );
+		$this->assertEqualsWithDelta( time(), strtotime( $row['started_at'] . ' UTC' ), 10 );
+		// A later report never moves the start.
+		do_action( 'wpsignal_visitor_visit', $this->report( 'home:1:30>post:2:5', false, self::N2, self::V2 ) );
+		$this->assertSame( $row['started_at'], $this->row( self::N2 )['started_at'] );
+	}
+
 	public function test_a_visitor_starts_at_most_thirty_journeys_an_hour(): void {
 		global $wpdb;
 		$now = gmdate( 'Y-m-d H:i:s' );
@@ -384,6 +407,76 @@ final class JourneysTest extends WordSocketTestCase {
 		$this->assertSame( 2, $this->journeys()->erase_refs( array( 'cart0001', 'bad ref' ) ), 'the two rows with the ref; a malformed ref is ignored' );
 		$this->assertNull( $this->row( self::N ) );
 		$this->assertNotNull( $this->row( self::N3 ) );
+	}
+
+	public function test_query_lists_records_newest_first_with_filters_and_the_download_formats_them(): void {
+		$earlier = gmdate( 'Y-m-d H:i:s', time() - HOUR_IN_SECONDS );
+		$now     = gmdate( 'Y-m-d H:i:s' );
+		$this->insert(
+			array(
+				'journey_id' => self::N,
+				'visitor'    => self::V,
+				'journey'    => 'home:1:4>search:0:9',
+				'outcome'    => 'left',
+				'ref'        => 'qry-ref',
+				'value'      => 10.5,
+				'started_at' => $earlier,
+				'last_seen'  => $earlier,
+			)
+		);
+		$this->insert(
+			array(
+				'journey_id' => self::N2,
+				'visitor'    => self::V2,
+				'journey'    => 'home:1:2',
+				'outcome'    => 'open',
+				'ref'        => 'qry-ref',
+				'started_at' => $now,
+				'last_seen'  => $now,
+			)
+		);
+		$records = Journeys::query( array( 'ref' => 'qry-ref' ) );
+		$this->assertCount( 2, $records );
+		$this->assertSame( self::N2, $records[0]['journey_id'], 'newest first' );
+		$this->assertSame( array_keys( Journeys::legend() ), array_keys( $records[0] ) );
+		$this->assertSame( self::V, $records[1]['visitor'] );
+		$this->assertSame( 'home > search', $records[1]['path'] );
+		$this->assertSame( 10.5, $records[1]['value'] );
+		$this->assertNull( $records[0]['value'] );
+		$this->assertNull( $records[0]['data'] );
+		$this->assertSame( array(), $records[0]['firings'] );
+		$this->assertMatchesRegularExpression( '/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+00:00$/', $records[0]['started_at'] );
+		$this->assertSame( 2, Journeys::query_count( array( 'ref' => 'qry-ref' ) ) );
+		$this->assertSame( array( self::N ), array_column( Journeys::query( array( 'ref' => 'qry-ref', 'outcome' => 'left' ) ), 'journey_id' ) );
+		$this->assertSame( array( self::N2 ), array_column( Journeys::query( array( 'visitor' => self::V2 ) ), 'journey_id' ) );
+		$this->assertSame( array( self::N2 ), array_column( Journeys::query( array( 'ref' => 'qry-ref', 'limit' => 1 ) ), 'journey_id' ) );
+		$this->assertSame( array( self::N ), array_column( Journeys::query( array( 'ref' => 'qry-ref', 'exclude_visitor_prefix' => substr( self::V2, 0, 9 ) ) ), 'journey_id' ), 'a visitor prefix leaves those rows out' );
+		$this->assertInstanceOf( WP_Error::class, Journeys::query( array( 'exclude_visitor_prefix' => 'seed' ) ), 'a prefix must be hex digits' );
+		$rows = Journeys::query_rows( array( 'ref' => 'qry-ref' ) );
+		$this->assertSame( 'h:1:4>s:0:9', $rows[1]['journey'], 'a row keeps the stored kind codes' );
+		$this->assertSame( strtoupper( Journeys::hex( self::V ) ), $rows[1]['visitor'], 'and its ids as hex' );
+		$this->assertInstanceOf( WP_Error::class, Journeys::query( array( 'visitor' => 'nope' ) ) );
+		$this->assertInstanceOf( WP_Error::class, Journeys::query( array( 'days' => 0 ) ) );
+		$this->assertInstanceOf( WP_Error::class, Journeys::query( array( 'limit' => Journeys::QUERY_MAX_LIMIT + 1 ) ) );
+
+		$csv = $this->journeys()->download( 'csv', array( 'ref' => 'qry-ref' ) );
+		$this->assertStringEndsWith( '.csv', $csv['filename'] );
+		$this->assertSame( 'text/csv', $csv['type'] );
+		$lines = array_values( array_filter( explode( "\n", $csv['body'] ) ) );
+		$this->assertCount( 3, $lines, 'a header and two rows' );
+		$this->assertSame( array_keys( Journeys::legend() ), str_getcsv( $lines[0], ',', '"', '' ) );
+		$this->assertSame( self::N2, str_getcsv( $lines[1], ',', '"', '' )[0] );
+		$this->assertSame( '', str_getcsv( $lines[1], ',', '"', '' )[5], 'no value reads as empty' );
+		$json = $this->journeys()->download( 'json', array( 'ref' => 'qry-ref' ) );
+		$this->assertSame( 'application/json', $json['type'] );
+		$decoded = json_decode( $json['body'], true );
+		$this->assertSame( array( 'site', 'exported_at', 'days', 'count', 'currency', 'legend', 'journeys' ), array_keys( $decoded ) );
+		$this->assertSame( 2, $decoded['count'] );
+		$this->assertSame( Journeys::legend(), $decoded['legend'] );
+		$this->assertSame( self::N2, $decoded['journeys'][0]['journey_id'] );
+		$this->assertInstanceOf( WP_Error::class, $this->journeys()->download( 'xml' ) );
+		$this->assertSame( 10, has_action( 'admin_post_' . Journeys::DOWNLOAD_ACTION, array( $this->journeys(), 'handle_download' ) ) );
+		$this->assertStringContainsString( 'action=' . Journeys::DOWNLOAD_ACTION . '&_wpnonce=', Journeys::download_url() );
 	}
 
 	public function test_the_feed_carries_the_extensions_context_and_the_routes_are_staff_only(): void {

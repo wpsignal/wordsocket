@@ -217,9 +217,10 @@ class Admin_Page {
 					'developerMode' => $this->config->developer_mode(),
 					// The Moments tab's replay registers its history provider from this before the app mounts.
 					'history'       => array(
-						'enabled'  => $this->config->history_enabled(),
-						'currency' => WPS::journeys()->currency(),
-						'outcomes' => WPS::journeys()->outcomes(),
+						'enabled'     => $this->config->history_enabled(),
+						'currency'    => WPS::journeys()->currency(),
+						'outcomes'    => WPS::journeys()->outcomes(),
+						'downloadUrl' => Journeys::download_url(),
 					),
 				),
 				JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
