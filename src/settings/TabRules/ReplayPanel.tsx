@@ -257,9 +257,8 @@ export function ReplayPanel({ rule }: { rule: Rule }) {
                 {__("The journeys could not be loaded.", "wordsocket")}
               </Text>
             )}
-            <Text variant="heading-xl">{__("Projections:", "wordsocket")}</Text>
             {result && (
-              <Block label={__("Would reach", "wordsocket")}>
+              <Block label={__("Projections:", "wordsocket")}>
                 <Stack
                   direction="row"
                   gap="sm"
@@ -334,9 +333,8 @@ export function ReplayPanel({ rule }: { rule: Rule }) {
                 <KindRows rows={wouldFireOn} kinds={kinds} />
               </Block>
             )}
-            <Text variant="heading-xl">{__("Conversions:", "wordsocket")}</Text>
             {fired && shown > 0 && (
-              <Block label={__("So far", "wordsocket")}>
+              <Block label={__("Conversions:", "wordsocket")}>
                 <div className="wpsignal-replay__tiles">
                   <div className="wpsignal-replay__tile">
                     <Text variant="heading-lg">{shown.toLocaleString()}</Text>
