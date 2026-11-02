@@ -156,6 +156,7 @@ class Client {
 			'isDebug'          => ( defined( 'WP_ENVIRONMENT_TYPE' ) && WP_ENVIRONMENT_TYPE !== 'production' ),
 			'presence'         => $this->presence->config(),
 			'siteName'         => get_bloginfo( 'name' ),
+			'version'          => VERSION,
 		);
 		if ( $this->rules ) {
 			$localize['rules'] = $this->rules->config();

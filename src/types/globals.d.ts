@@ -42,8 +42,27 @@ interface WpSignalConfig {
   presence?: WpSignalPresenceConfig;
   /** The site's name, for the `{site.name}` placeholder in prompts (0.31). */
   siteName?: string;
+  /** The plugin version that printed this config (0.31); absent on an older cached page. */
+  version?: string;
   /** The enabled rules and the recovery settings (0.31); absent on an older cached page. */
   rules?: WpSignalRulesConfig;
+}
+
+/**
+ * The public, read-only view of the site and page for extensions (`WPS.config`), built on purpose
+ * rather than exposing the printed config, which carries the token and the key.
+ *
+ * @since 0.31.0
+ */
+interface WPSConfig {
+  /** The WordSocket version, "" on a page cached before it was printed. */
+  readonly version: string;
+  /** Whether debug mode is on: `WP_ENVIRONMENT_TYPE` other than production. */
+  readonly isDebug: boolean;
+  /** The site's name. */
+  readonly siteName: string;
+  /** This page's journey step: the kind and the post or term id, 0 when the kind has none. */
+  readonly page: { readonly kind: string; readonly id: number };
 }
 
 /** Printed by class-wpsignal-client.php from `Rules::config()`, and the shape of a `rules.updated` frame. */
@@ -521,6 +540,19 @@ interface WPSApi {
   onChannel(channel: string, expected: string): boolean;
   /** Visitor tracking over presence: `WPS.presence.track( channel, options )`. */
   readonly presence: WPSPresenceApi;
+  /**
+   * What an extension may read about this page and site, frozen at start.
+   *
+   * @since 0.31.0
+   */
+  readonly config: WPSConfig;
+  /**
+   * Log to the console while debug mode is on (`WP_ENVIRONMENT_TYPE` other than production); a
+   * no-op otherwise.
+   *
+   * @since 0.31.0
+   */
+  debug(...args: unknown[]): void;
   /** Where the visitor's attention is (0.31). */
   readonly attention: WPSAttentionApi;
   /** The surfaces a prompt reaches the visitor through (0.31). */

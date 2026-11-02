@@ -73,7 +73,10 @@ const STALE_CONNECTION_TIMEOUT_MS = 45000;
 const STALE_CHECK_INTERVAL_MS = 10000;
 
 export class WPSignalClient implements WPSApi {
-  private readonly config: WpSignalConfig;
+  /** The config PHP printed as `wpSignalConfig`: the token, the key, the endpoints. Never public. */
+  private readonly printed: WpSignalConfig;
+  /** The read-only view extensions may use. */
+  readonly config: WPSConfig;
   /** Relay endpoints from PHP; the transports append the token. */
   private readonly endpoints: WpSignalEndpoints;
 
@@ -142,8 +145,8 @@ export class WPSignalClient implements WPSApi {
       this.trackers += 1;
       return createTracker(
         this,
-        this.config.presence,
-        this.config.nonce,
+        this.printed.presence,
+        this.printed.nonce,
         channel,
         options,
       );
@@ -155,7 +158,7 @@ export class WPSignalClient implements WPSApi {
    * reporter of the site's own unless an extension's tracker already reports.
    */
   private startReporter(): void {
-    const presence = this.config.presence;
+    const presence = this.printed.presence;
     if (!presence?.report || presence.kind === "admin") return;
     const begin = () => {
       if (this.trackers === 0) this.presence.track(null, { report: true });
@@ -177,7 +180,16 @@ export class WPSignalClient implements WPSApi {
   readonly rules: WPSRulesApi;
 
   constructor(config: WpSignalConfig) {
-    this.config = config;
+    this.printed = config;
+    this.config = Object.freeze({
+      version: config.version ?? "",
+      isDebug: !!config.isDebug,
+      siteName: config.siteName ?? "",
+      page: Object.freeze({
+        kind: config.presence?.kind ?? "other",
+        id: config.presence?.id ?? 0,
+      }),
+    });
     this.endpoints = relayEndpoints(config);
     this.rules = createRulesApi(this, config, this.attention, this.recovery);
   }
@@ -330,6 +342,15 @@ export class WPSignalClient implements WPSApi {
     return onChannel(channel, expected);
   }
 
+  /**
+   * Log to the console while debug mode is on; a no-op otherwise.
+   *
+   * @since 0.31.0
+   */
+  debug(...args: unknown[]): void {
+    if (this.config.isDebug) console.log("[WordSocket]", ...args);
+  }
+
   /** Current connection state as seen by `onStateChange` handlers. */
   get state(): WPSConnectionState {
     return {
@@ -369,7 +390,7 @@ export class WPSignalClient implements WPSApi {
    * @since 0.31.0 Returns before connecting for a crawler.
    */
   start(): void {
-    if (this.config.isDebug) {
+    if (this.printed.isDebug) {
       new WPSClientDebug({
         status: () => ({
           connected: this._connected,
@@ -530,24 +551,24 @@ export class WPSignalClient implements WPSApi {
 
     const now = Math.floor(Date.now() / 1000);
     const printed: TokenData | null =
-      this.config.token && this.config.channels && this.config.exp
+      this.printed.token && this.printed.channels && this.printed.exp
         ? {
-            token: this.config.token,
-            channels: this.config.channels,
-            exp: this.config.exp,
+            token: this.printed.token,
+            channels: this.printed.channels,
+            exp: this.printed.exp,
           }
         : null;
-    delete this.config.token;
-    delete this.config.channels;
-    delete this.config.exp;
+    delete this.printed.token;
+    delete this.printed.channels;
+    delete this.printed.exp;
     /*
      * A logged-in page prints a fresh token. A guest page may come from a page cache with the token
      * minted when it was cached, so the token this tab fetched earlier comes first, then a printed
      * one that has not expired, then the route.
      */
-    const remembered = this.config.nonce ? null : tokenStore.read();
+    const remembered = this.printed.nonce ? null : tokenStore.read();
     let tokenPromise: Promise<TokenData>;
-    if (this.config.nonce && printed) {
+    if (this.printed.nonce && printed) {
       tokenPromise = Promise.resolve(printed);
     } else if (remembered && remembered.exp - now > TOKEN_REUSE_MARGIN_S) {
       tokenPromise = Promise.resolve(remembered);
@@ -706,7 +727,7 @@ export class WPSignalClient implements WPSApi {
 
   /** Whether WebSocket is worth trying on this page at all. */
   private webSocketPossible(): boolean {
-    return typeof WebSocket !== "undefined" && !this.config.forceSSE;
+    return typeof WebSocket !== "undefined" && !this.printed.forceSSE;
   }
 
   /**
@@ -849,12 +870,12 @@ export class WPSignalClient implements WPSApi {
    * nonce is only printed for logged-in visitors.
    */
   private async fetchToken(): Promise<TokenData> {
-    const res = await fetch(this.config.restUrl, {
+    const res = await fetch(this.printed.restUrl, {
       method: "POST",
       credentials: "same-origin",
       headers: {
         "Content-Type": "application/json",
-        ...(this.config.nonce ? { "X-WP-Nonce": this.config.nonce } : {}),
+        ...(this.printed.nonce ? { "X-WP-Nonce": this.printed.nonce } : {}),
       },
     });
     if (!res.ok) {
@@ -867,7 +888,7 @@ export class WPSignalClient implements WPSApi {
 
   /** Keep a guest token for this tab's next page; a logged-in page prints its own. */
   private rememberToken(data: TokenData): void {
-    if (!this.config.nonce) tokenStore.write(data);
+    if (!this.printed.nonce) tokenStore.write(data);
   }
 
   /**
@@ -989,7 +1010,7 @@ export class WPSignalClient implements WPSApi {
    */
   private getDecryptor(): Promise<Decryptor | null> {
     if (!this.decryptorPromise) {
-      const b64 = this.config.encryptionKey;
+      const b64 = this.printed.encryptionKey;
       this.decryptorPromise = b64
         ? createDecryptor(
             Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)),
