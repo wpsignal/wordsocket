@@ -224,8 +224,16 @@ final class PresenceTest extends WordSocketTestCase {
 		);
 
 		$config = $presence->config();
-		$this->assertSame( array( 'kind', 'id', 'visitUrl', 'leaveUrl', 'report' ), array_keys( $config ) );
+		$this->assertSame( array( 'kind', 'id', 'visitUrl', 'leaveUrl', 'report', 'writeKinds' ), array_keys( $config ) );
 		$this->assertFalse( $config['report'], 'history off: extensions decide who reports' );
+		$this->assertSame( array(), $config['writeKinds'], 'WordSocket names no kind that always writes' );
+		$kinds = static fn(): array => array( 'cart', 'Checkout ', 'cart', '' );
+		add_filter( 'wpsignal_journey_write_kinds', $kinds );
+		try {
+			$this->assertSame( array( 'cart', 'checkout' ), $presence->config()['writeKinds'], 'keys, deduplicated, empties dropped' );
+		} finally {
+			remove_filter( 'wpsignal_journey_write_kinds', $kinds );
+		}
 		$this->assertStringEndsWith( '/wpsignal/v1/visit', $config['visitUrl'] );
 		$this->assertStringEndsWith( '/wpsignal/v1/leave', $config['leaveUrl'] );
 		$this->assertSame( 3, Presence::steps( 'a:1:1>b:2:2>away:0:3' ) );

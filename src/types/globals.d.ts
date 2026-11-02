@@ -218,6 +218,8 @@ interface WpSignalPresenceConfig {
   leaveUrl: string;
   /** Whether every visitor reports, since the site keeps journeys (0.31); an extension's `report` option cannot hold them then. */
   report?: boolean;
+  /** The step kinds whose pages always write the visit on arrival (0.31), from `wpsignal_journey_write_kinds`. */
+  writeKinds?: string[];
 }
 
 /** Localized by class-wpsignal-admin-page.php (Settings React app) */

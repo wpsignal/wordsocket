@@ -5,6 +5,9 @@
  *
  * - The outbox (`outbox.ts`) holds the journey's last known state while reporting, and the page's
  *   first tracker sends the leaves for held journeys that can no longer continue.
+ * - A visit is written on a change of state, not on every page: a journey's first step, a page of a
+ *   kind in `config.writeKinds`, the tab going hidden, an explicit `report()`, and otherwise once
+ *   WRITE_INTERVAL_MS after the last write while the page is visible.
  */
 
 import {
@@ -16,6 +19,28 @@ import {
 import { pageJourney } from "./page-journey";
 import { sendReport, type ReportAnswer } from "./report";
 import { isCrawler, visitorId } from "../utils/identity";
+import { stored } from "../utils/storage";
+
+/** The least time between writes a page view that changes nothing waits for. */
+export const WRITE_INTERVAL_MS = 60_000;
+const WRITTEN_KEY = "wordsocket-written";
+
+/** The last visit written from this tab: the journey id and when. */
+interface Written {
+  n: string;
+  at: number;
+}
+
+const written = stored<Written>(
+  "session",
+  WRITTEN_KEY,
+  () => ({ n: "", at: 0 }),
+  (value): value is Written =>
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as Written).n === "string" &&
+    typeof (value as Written).at === "number",
+);
 
 /** The client the tracker drives: presence only, so a test can stand one in. */
 export interface PresenceClient {
@@ -59,7 +84,8 @@ export interface PresenceTracker {
    * Called with what WordPress answered each visit report (`ok` plus the fields of the
    * `wpsignal_visitor_visit_response` filter), so a plugin reads its own state without a request
    * of its own; the latest answer is replayed to a late subscriber, and null means none is coming
-   * (the tracker does not report, or the report failed). Returns the unsubscribe.
+   * (the tracker does not report, the report failed, or this page changed nothing worth writing).
+   * Returns the unsubscribe.
    */
   onVisit(handler: (answer: ReportAnswer | null) => void): () => void;
   /** Leave presence and stop listening. The journey in storage is kept. */
@@ -74,8 +100,9 @@ export interface PresenceTracker {
  *               the visit again (coalesced, a failure not handed on), a journey WordPress answers as ended starts a new one, a same-site
  *               navigation sends no leave, a null channel enters no presence, a site that keeps
  *               journeys reports every visitor, a new journey is announced and reported from the
- *               visitor's first interaction, and an outbox in `localStorage` reports the end of a
- *               journey the browser never got to.
+ *               visitor's first interaction, an outbox in `localStorage` reports the end of a
+ *               journey the browser never got to, and a visit is written on a change of state
+ *               rather than on every page.
  */
 export function createTracker(
   client: PresenceClient,
@@ -97,6 +124,7 @@ export function createTracker(
         : options.report !== false));
   let state = options.state ?? {};
   let stopped = false;
+  const writeKinds = new Set(config?.writeKinds ?? []);
   const outbox = createOutbox();
   /* The journey as it stands, held for the flush of a later page. */
   const hold = (j: string = journey.current()) => {
@@ -152,13 +180,21 @@ export function createTracker(
   /* A `report()` while one is in flight queues exactly one more. */
   let inFlight = false;
   let queued = false;
+  /* The write a page view that changed nothing waits for, while the page is visible. */
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const disarm = () => {
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
+  };
   const visit = (requested = false) => {
     if (requested && inFlight) {
       queued = true;
       return;
     }
+    disarm();
     inFlight = true;
     const n = journey.id();
+    if (reporting()) written.write({ n, at: Date.now() });
     void send(config?.visitUrl, n, journey.current(), false).then((answer) => {
       inFlight = false;
       if (stopped) return;
@@ -186,10 +222,42 @@ export function createTracker(
     });
   };
 
-  /* A journey under way is announced and reported now; a new one on its first `step`. */
+  /*
+   * Whether this step is worth a write now: the journey's first, a kind that always writes, or the
+   * interval since the last write up.
+   */
+  const due = (): boolean => {
+    const last = written.read();
+    return (
+      last.n !== journey.id() ||
+      writeKinds.has(page.kind) ||
+      Date.now() - last.at >= WRITE_INTERVAL_MS
+    );
+  };
+  /* A step: written now when due, otherwise once the interval is up, and subscribers hear that no answer follows the arrival. */
+  const settle = () => {
+    if (due()) {
+      visit();
+      return;
+    }
+    disarm();
+    if (!document.hidden) {
+      timer = setTimeout(
+        () => {
+          timer = null;
+          if (!stopped && !document.hidden) visit();
+        },
+        Math.max(0, WRITE_INTERVAL_MS - (Date.now() - written.read().at)),
+      );
+    }
+    lastVisit = null;
+    visitHandlers.forEach((fn) => fn(null));
+  };
+
+  /* A journey under way is announced and settled now; a new one on its first `step`. */
   if (page.started()) {
     announce();
-    visit();
+    settle();
     beat();
   }
   const off = page.onChange((event) => {
@@ -197,11 +265,12 @@ export function createTracker(
     switch (event.type) {
       case "step":
         announce();
-        visit();
+        settle();
         beat();
         break;
       case "away":
         announce();
+        visit();
         hold();
         break;
       case "back":
@@ -288,6 +357,7 @@ export function createTracker(
     stop() {
       if (stopped) return;
       stopped = true;
+      disarm();
       if (heartbeat !== null) clearInterval(heartbeat);
       off();
       handlers.clear();

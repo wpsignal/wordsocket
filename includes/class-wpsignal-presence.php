@@ -148,22 +148,44 @@ class Presence {
 	}
 
 	/**
-	 * What the client needs for `track()`: this page's step, the two routes, and whether every
-	 * visitor reports (History on).
+	 * What the client needs for `track()`: this page's step, the two routes, whether every visitor
+	 * reports (History on), and the kinds whose pages always write.
 	 *
-	 * @since 0.31.0 Adds `report`.
+	 * @since 0.31.0 Adds `report` and `writeKinds`.
 	 *
-	 * @return array{kind: string, id: int, visitUrl: string, leaveUrl: string, report: bool}
+	 * @return array{kind: string, id: int, visitUrl: string, leaveUrl: string, report: bool, writeKinds: string[]}
 	 */
 	public function config(): array {
 		$step = $this->page_step();
 		return array(
-			'kind'     => $step['kind'],
-			'id'       => $step['id'],
-			'visitUrl' => rest_url( 'wpsignal/v1/visit' ),
-			'leaveUrl' => rest_url( 'wpsignal/v1/leave' ),
-			'report'   => WPS::journeys()->enabled(),
+			'kind'       => $step['kind'],
+			'id'         => $step['id'],
+			'visitUrl'   => rest_url( 'wpsignal/v1/visit' ),
+			'leaveUrl'   => rest_url( 'wpsignal/v1/leave' ),
+			'report'     => WPS::journeys()->enabled(),
+			'writeKinds' => $this->write_kinds(),
 		);
+	}
+
+	/**
+	 * The step kinds whose pages write the visit on arrival whatever the write schedule says: none
+	 * of WordSocket's own, an extension's through `wpsignal_journey_write_kinds`.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return string[]
+	 */
+	public function write_kinds(): array {
+		/**
+		 * Filters the step kinds whose pages always write the visit (ShopSocket: `cart`, `checkout`).
+		 *
+		 * @since 0.31.0
+		 *
+		 * @param string[] $kinds Empty to begin with.
+		 */
+		$kinds = (array) apply_filters( 'wpsignal_journey_write_kinds', array() );
+		$kinds = array_map( static fn( $kind ): string => sanitize_key( (string) $kind ), $kinds );
+		return array_values( array_unique( array_filter( $kinds ) ) );
 	}
 
 	/**

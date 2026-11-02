@@ -10,6 +10,7 @@ import { waitForState } from "./helpers";
  * Journeys tab draws the last 28 days, and the Moments tab's replay has a provider. With History off
  * nothing new is written, but what was kept stays on the tab under a notice and in the replay. A
  * journey the browser never got to report (a crash) is sent from the outbox when the visitor is back.
+ * A visit is written on a change of state (the first step, the tab hidden), not on every page.
  */
 
 const TAB = "page=wordsocket&tab=journeys";
@@ -24,6 +25,15 @@ async function arrive(page: Page, path: string): Promise<void> {
 async function engage(page: Page): Promise<void> {
   await page.mouse.move(12, 12);
   await page.mouse.move(48, 48);
+}
+
+/** Hide or show the tab, as a visibility change the page believes. */
+async function setHidden(page: Page, hidden: boolean): Promise<void> {
+  await page.evaluate((isHidden) => {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => isHidden });
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => (isHidden ? "hidden" : "visible") });
+    document.dispatchEvent(new Event("visibilitychange"));
+  }, hidden);
 }
 
 test.describe("Journeys", () => {
@@ -50,9 +60,13 @@ test.describe("Journeys", () => {
   });
 
   test("a visitor's pages are kept as a journey, drawn on the tab, and offered to the replay", async ({ admin, page, browser, baseURL }) => {
-    // A guest browses the front page and a second page: one journey, two steps.
+    // A guest browses the front page and a second page: one journey, two steps, one visit request.
     const visitor = await browser.newContext({ baseURL, ignoreHTTPSErrors: true });
     const shop = await visitor.newPage();
+    const visits: string[] = [];
+    shop.on("request", (request) => {
+      if (request.url().includes("/wpsignal/v1/visit")) visits.push(request.url());
+    });
     await arrive(shop, "/");
     await shop.waitForTimeout(1500);
     const link = shop.locator("article a[href], .entry-title a, h2 a").first();
@@ -65,13 +79,18 @@ test.describe("Journeys", () => {
       return raw ? (JSON.parse(raw) as { n: string }).n : "";
     });
     expect(journeyId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(visits, "the first step wrote; the hop changed nothing worth a request").toHaveLength(1);
+    // The tab goes hidden: a change of state, written at once with both pages.
+    await setHidden(shop, true);
+    await expect.poll(() => visits.length).toBe(2);
+    await shop.waitForTimeout(500);
     await visitor.close();
 
-    // The row: two steps, under the visitor's journey id.
+    // The row: the two pages and the away, under the visitor's journey id.
     const table = `${wp("db", "prefix")}wpsignal_journeys`;
     await expect
       .poll(() => Number(wp("db", "query", `SELECT steps FROM ${table} WHERE journey_id = UNHEX('${journeyId.replace(/-/g, "")}')`, "--skip-column-names")), { timeout: 15_000 })
-      .toBeGreaterThanOrEqual(2);
+      .toBeGreaterThanOrEqual(3);
 
     // The tab draws it.
     await admin.visitAdminPage("admin.php", TAB);
