@@ -23,6 +23,7 @@ class Rules {
 	const MAX_CONDITIONS = 20;
 	const MAX_ACTIONS    = 10;
 	const MAX_TEXT       = 500;
+	const MAX_TITLE      = 80;
 	/** The longest an action may wait, in seconds. */
 	const MAX_AFTER = 3600;
 	/** The most a value kept for a condition or action nobody registered right now may weigh, as JSON. */
@@ -463,7 +464,7 @@ class Rules {
 	/**
 	 * The page kinds a journey step may carry, as `key => label`.
 	 *
-	 * @since 0.31.0 Adds the post type archives.
+	 * @since 0.31.0 Adds the post type archives; taxonomies are keyed by the kind their steps record.
 	 *
 	 * @return array<string, string>
 	 */
@@ -477,8 +478,8 @@ class Rules {
 		foreach ( get_post_types( array( 'public' => true ), 'objects' ) as $type ) {
 			$kinds[ sanitize_key( $type->name ) ] = (string) $type->labels->singular_name;
 		}
-		foreach ( get_taxonomies( array( 'public' => true ), 'objects' ) as $taxonomy ) {
-			$kinds[ sanitize_key( $taxonomy->name ) ] = (string) $taxonomy->labels->singular_name;
+		foreach ( $this->taxonomy_kinds() as $key => $label ) {
+			$kinds[ $key ] = $label;
 		}
 		foreach ( $this->archive_kinds() as $key => $label ) {
 			/* translators: %s: a post type's plural name */
@@ -557,7 +558,7 @@ class Rules {
 	public function taxonomy_kinds(): array {
 		$taxonomies = array();
 		foreach ( get_taxonomies( array( 'public' => true ), 'objects' ) as $taxonomy ) {
-			$taxonomies[ sanitize_key( $taxonomy->name ) ] = (string) $taxonomy->labels->singular_name;
+			$taxonomies[ Journeys::taxonomy_kind( (string) $taxonomy->name ) ] = (string) $taxonomy->labels->singular_name;
 		}
 		/**
 		 * Filters the kinds that count as a taxonomy archive (ShopSocket adds `category`, its product category pages).
@@ -847,7 +848,7 @@ class Rules {
 			$attention          = (array) ( $rule['attention'] ?? array() );
 			$entry['attention'] = array(
 				'enabled' => (bool) ( $attention['enabled'] ?? false ),
-				'title'   => mb_substr( sanitize_text_field( (string) ( $attention['title'] ?? '' ) ), 0, 80 ),
+				'title'   => mb_substr( sanitize_text_field( (string) ( $attention['title'] ?? '' ) ), 0, self::MAX_TITLE ),
 			);
 			if ( ! empty( $rule['source'] ) ) {
 				$entry['source'] = sanitize_key( (string) $rule['source'] );

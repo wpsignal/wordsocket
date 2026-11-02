@@ -124,6 +124,16 @@ final class RulesTest extends WordSocketTestCase {
 		$this->assertArrayHasKey( 'post', $kinds );
 		$this->assertArrayHasKey( 'home', $kinds );
 		$this->assertArrayHasKey( 'category', $kinds );
+		$this->assertArrayHasKey( 'tag', $kinds, 'a taxonomy is listed under the kind its steps record' );
+		$this->assertArrayNotHasKey( 'post_tag', $kinds, 'never under a name no step carries' );
+		$this->assertArrayHasKey( 'tag', $this->rules()->taxonomy_kinds() );
+		add_filter( 'wpsignal_taxonomy_kind', static fn( string $kind, string $taxonomy ): string => 'category' === $taxonomy ? 'topic' : $kind, 10, 2 );
+		try {
+			$this->assertArrayHasKey( 'topic', $this->rules()->kinds(), 'a renamed taxonomy follows its new kind' );
+			$this->assertArrayNotHasKey( 'category', $this->rules()->taxonomy_kinds() );
+		} finally {
+			remove_all_filters( 'wpsignal_taxonomy_kind' );
+		}
 		foreach ( array_keys( $this->rules()->archive_kinds() ) as $kind ) {
 			$this->assertStringEndsWith( '_archive', $kind );
 			$this->assertArrayHasKey( $kind, $kinds, 'a post type archive is a kind a journey step may carry' );
