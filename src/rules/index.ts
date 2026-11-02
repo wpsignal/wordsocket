@@ -199,6 +199,7 @@ export function createRulesApi(
     },
     action(key, run) {
       registry.actions.set(key, run);
+      engine.evaluate("registered");
     },
     history(provider) {
       registry.history = provider;

@@ -172,7 +172,8 @@ export interface Engine {
 /**
  * The engine over the registry, the recovery surfaces and the page journey.
  *
- * @since 0.31.0 Reports what the visitor did with a prompt.
+ * @since 0.31.0 Reports what the visitor did with a prompt, and skips a rule naming an action nobody
+ *               registered until it is.
  */
 export function createEngine(deps: EngineDeps): Engine {
   const { registry, recovery, attention, page } = deps;
@@ -220,11 +221,15 @@ export function createEngine(deps: EngineDeps): Engine {
   };
   /* Per rule, until the set or the registry changes, rather than a walk and a Set per rule per tick. */
   const missingByKey = new Map<string, Set<string>>();
+  /* The conditions and actions a rule names that nobody has registered. */
   const missingOf = (rule: Rule): Set<string> => {
     const key = `${rule.id}:${rule.rev}`;
     let keys = missingByKey.get(key);
     if (!keys) {
       keys = missing(rule.conditions, new Set());
+      rule.actions.forEach((action) => {
+        if (!registry.actions.has(action.action)) keys?.add(action.action);
+      });
       missingByKey.set(key, keys);
     }
     return keys;
@@ -522,7 +527,7 @@ export function createEngine(deps: EngineDeps): Engine {
       evaluate();
     },
     evaluate(reason) {
-      /* A condition registered after the set arrived may answer a rule that was unanswerable. */
+      /* A condition or action registered after the set arrived may complete a rule that was skipped. */
       if (reason === "registered") missingByKey.clear();
       evaluate();
     },
