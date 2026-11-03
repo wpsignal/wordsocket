@@ -55,13 +55,13 @@ export function TabExtensions({ title }: { title: string }) {
 
   return (
     <Stack direction="column" gap="lg" className="wpsignal-extensions-tab">
-      <TabHeading title={title} />
-      <Text render={<p />}>
-        {__(
+      <TabHeading
+        title={title}
+        help={__(
           "Extensions are WordPress plugins built on WordSocket.",
           "wordsocket",
         )}
-      </Text>
+      />
 
       <Text variant="heading-sm" render={<h4 />}>
         {__("Installed extensions", "wordsocket")}

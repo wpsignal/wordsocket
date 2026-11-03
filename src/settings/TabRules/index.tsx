@@ -277,10 +277,13 @@ export function TabRules({ title }: { title: string }) {
 
   return (
     <Stack direction="column" gap="lg" className="wpsignal-rules-tab">
-      <TabHeading title={title} help={__(
-        "A moment watches each visitor in their own browser and steps in when its conditions come true: a prompt, and the tab title while they are away. Nothing fires until a moment is on.",
-        "wordsocket",
-      )} />
+      <TabHeading
+        title={title}
+        help={__(
+          "A moment watches each visitor in their own browser and steps in when its conditions come true: a prompt, and the tab title while they are away. Nothing fires until a moment is on.",
+          "wordsocket",
+        )}
+      />
       {rules.length === 0 ? (
         <Text className="wpsignal-rules-empty wpsignal-muted" render={<p />}>
           {__("No moments yet.", "wordsocket")}
@@ -420,7 +423,11 @@ export function TabRules({ title }: { title: string }) {
                             / {history.journeys.length}
                             <br />
                           </Text>
-                          <Text variant="body-md" className="wpsignal-muted" style={{ flexGrow: 1 }}>
+                          <Text
+                            variant="body-md"
+                            className="wpsignal-muted"
+                            style={{ flexGrow: 1 }}
+                          >
                             {_n(
                               "match",
                               "matches",

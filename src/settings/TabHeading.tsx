@@ -6,8 +6,8 @@
 /**
  * WordPress dependencies.
  */
-import { Icon, Tooltip } from "@wordpress/components";
-import { Stack, Text } from "@wordpress/ui";
+import { Icon } from "@wordpress/components";
+import { Stack, Text, Tooltip } from "@wordpress/ui";
 
 export function TabHeading({
   title,
@@ -25,14 +25,13 @@ export function TabHeading({
       {beforeTitle}
       <Text variant="heading-xl" render={<h2 />}>
         {help && (
-          <>
-            <Tooltip text={help}>
-              <span>
-                <Icon size={16} icon="editor-help" />
-              </span>
-            </Tooltip>{" "}
-          </>
-        )}
+          <Tooltip.Root>
+            <Tooltip.Trigger render={<span />}>
+              <Icon size={16} icon="editor-help" />
+            </Tooltip.Trigger>
+            <Tooltip.Popup>{help}</Tooltip.Popup>
+          </Tooltip.Root>
+        )}{" "}
         {breadcrumbs ? (
           <Stack direction="row" gap="sm" align="center">
             {[title, ...breadcrumbs].join(" > ")}

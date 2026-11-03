@@ -627,7 +627,8 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--wpds-border-width-xs);
-  border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
+  border: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral-weak);
   border-radius: var(--wpds-border-radius-md);
   background: var(--wpds-color-stroke-surface-neutral-weak);
   overflow: hidden;
@@ -641,7 +642,7 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
     font-variant-numeric: tabular-nums;
     min-width: 0;
     text-align: center;
-    
+
     > * {
       overflow: hidden;
       text-overflow: ellipsis;
@@ -682,7 +683,8 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
   gap: var(--wpds-dimension-gap-lg);
   align-items: start;
   padding-block: var(--wpds-dimension-padding-md);
-  border-bottom: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
+  border-bottom: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral-weak);
 
   &:last-child {
     border-bottom: 0;
@@ -733,7 +735,11 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
     background: var(--c);
 
     &.is-away {
-      background: repeating-linear-gradient(135deg, var(--c) 0 2px, transparent 2px 5px);
+      background: repeating-linear-gradient(
+        135deg,
+        var(--c) 0 2px,
+        transparent 2px 5px
+      );
     }
 
     &.is-hit::before,
@@ -1187,4 +1193,23 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
 /* Dialogs: the popup that sits above the content, the modal that covers it. */
 .wpsignal-replay-dialog {
   z-index: 1;
+}
+
+/* Collapsible cards grid */
+.wpsignal-collapsible-cards {
+  flex-direction: row;
+
+  & > * {
+    flex: 1;
+  }
+
+  @media (max-width: 782px) {
+    flex-direction: column;
+
+    & > * {
+      flex: none;
+      flex-wrap: wrap;
+      width: 100%;
+    }
+  }
 }
