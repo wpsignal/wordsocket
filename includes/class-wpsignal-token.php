@@ -152,8 +152,8 @@ class Token {
 						),
 						'journeys_retention_months' => array(
 							'type'    => 'integer',
-							'minimum' => 1,
-							'maximum' => 36,
+							'minimum' => Journeys::RETENTION_MIN_MONTHS,
+							'maximum' => Journeys::RETENTION_MAX_MONTHS,
 						),
 					),
 					'permission_callback' => $permission_callback,
@@ -565,7 +565,9 @@ class Token {
 			return new WP_Error( 'wpsignal_no_settings', __( 'No settings to save.', 'wordsocket' ), array( 'status' => 400 ) );
 		}
 		foreach ( $fields as $name => $value ) {
-			$clean = 'journeys_retention_months' === $name ? min( 36, max( 1, (int) $value ) ) : rest_sanitize_boolean( $value );
+			$clean = 'journeys_retention_months' === $name
+				? min( Journeys::RETENTION_MAX_MONTHS, max( Journeys::RETENTION_MIN_MONTHS, (int) $value ) )
+				: rest_sanitize_boolean( $value );
 			update_option( 'wpsignal_' . $name, $clean );
 		}
 

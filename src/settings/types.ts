@@ -32,7 +32,7 @@ export interface Settings {
   developer_mode: boolean;
   /** Journeys are kept on the site (the Journeys tab's switch). */
   history_enabled: boolean;
-  /** How many months a journey is kept, 1 to 36. */
+  /** How many months a journey is kept, 1 to 12. */
   journeys_retention_months: number;
   credential_source: "constant" | "database";
   /** Last publish failure recorded by the plugin, if events are not being delivered. */
@@ -93,6 +93,8 @@ export interface JourneyVisuals {
   total: number;
   /** The months that hold journeys, newest first, `YYYY-MM` on the site's clock. */
   months: Array<{ month: string; count: number }>;
+  /** What the table takes: bytes on disk as a host counts them (rows, indexes, freed pages) and the journeys within the retention. */
+  storage: { bytes: number; rows: number };
   /** The registered outcomes, the built-in ones first. */
   outcomes: Record<string, { label: string; color: string; series: string }>;
   /** What a journey's ref is, when an extension said. */

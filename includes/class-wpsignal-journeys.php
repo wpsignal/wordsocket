@@ -194,19 +194,29 @@ class Journeys {
 	 *
 	 * @since 0.31.0
 	 */
-	const QUERY_COLUMNS = 'HEX(journey_id) AS journey_id, HEX(visitor) AS visitor, user_id, ref, journey, steps, outcome, value, started_at, last_seen, firings, data';
+	const QUERY_COLUMNS = 'id, HEX(journey_id) AS journey_id, HEX(visitor) AS visitor, user_id, ref, journey, steps, outcome, value, started_at, last_seen, firings, data';
 
 	/**
-	 * What `query()` reads by default and at most: the days back and the rows.
+	 * What `query()` reads by default and at most: the days back and the rows; and the rows `query_all()` reads a page.
 	 *
 	 * @since 0.31.0
 	 */
 	const QUERY_DAYS      = 28;
 	const QUERY_MAX_DAYS  = 365;
 	const QUERY_MAX_LIMIT = 10000;
+	const QUERY_PAGE      = 1000;
 
 	/**
-	 * The journeys download: the `admin-post.php` action, its nonce and the rows it holds at most.
+	 * How many months a journey is kept: the least, the most and the default.
+	 *
+	 * @since 0.31.0
+	 */
+	const RETENTION_MIN_MONTHS     = 1;
+	const RETENTION_MAX_MONTHS     = 12;
+	const RETENTION_DEFAULT_MONTHS = 3;
+
+	/**
+	 * The journeys download: the `admin-post.php` action, its nonce and the rows its JSON holds at most.
 	 *
 	 * @since 0.31.0
 	 */
@@ -355,7 +365,7 @@ class Journeys {
 		return array_values(
 			(array) $wpdb->get_results(
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Table name from table(); the clause is prepared by query_where().
-				$wpdb->prepare( 'SELECT ' . self::QUERY_COLUMNS . ' FROM ' . self::table() . ' WHERE ' . $where . ' ORDER BY started_at DESC LIMIT %d', $limit ),
+				$wpdb->prepare( 'SELECT ' . self::QUERY_COLUMNS . ' FROM ' . self::table() . ' WHERE ' . $where . ' ORDER BY started_at DESC, id DESC LIMIT %d', $limit ),
 				ARRAY_A
 			)
 		);
@@ -379,6 +389,54 @@ class Journeys {
 			$rows[ $i ] = self::record( $row, $journeys[ $i ] );
 		}
 		return array_values( $rows );
+	}
+
+	/**
+	 * Stored journeys as records, newest first, every one the arguments of `query_where()` match, read a page
+	 * at a time through a `(started_at, id)` cursor so memory holds one page whatever the total.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param array $args The arguments.
+	 * @param int   $page Rows a page, QUERY_PAGE by default.
+	 * @return \Generator<int, array<string, mixed>>|WP_Error
+	 */
+	public static function query_all( array $args, int $page = self::QUERY_PAGE ) {
+		$where = self::query_where( $args );
+		if ( is_wp_error( $where ) ) {
+			return $where;
+		}
+		return self::pages( $where, max( 1, $page ) );
+	}
+
+	/**
+	 * The records behind a prepared clause, a page at a time.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string $where The clause from `query_where()`.
+	 * @param int    $page  Rows a page.
+	 * @return \Generator<int, array<string, mixed>>
+	 */
+	private static function pages( string $where, int $page ): \Generator {
+		global $wpdb;
+		$after = null;
+		do {
+			$cursor = null === $after ? '' : $wpdb->prepare( ' AND (started_at < %s OR (started_at = %s AND id < %d))', $after[0], $after[0], $after[1] );
+			$rows   = array_values(
+				(array) $wpdb->get_results(
+					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Table name from table(); the clauses are prepared by query_where() and above.
+					$wpdb->prepare( 'SELECT ' . self::QUERY_COLUMNS . ' FROM ' . self::table() . ' WHERE ' . $where . $cursor . ' ORDER BY started_at DESC, id DESC LIMIT %d', $page ),
+					ARRAY_A
+				)
+			);
+			$found    = count( $rows );
+			$journeys = self::unpack_journeys( array_column( $rows, 'journey' ) );
+			foreach ( $rows as $i => $row ) {
+				$after = array( (string) $row['started_at'], (int) $row['id'] );
+				yield self::record( $row, $journeys[ $i ] );
+			}
+		} while ( $found === $page );
 	}
 
 	/**
@@ -437,59 +495,59 @@ class Journeys {
 	}
 
 	/**
-	 * The journeys of the last `days` as a file, `csv` or `json`, newest first, DOWNLOAD_LIMIT rows at most:
-	 * `{ filename, type, body }`.
+	 * The journeys of the last `days` as a file, `csv` or `json`, newest first: `{ filename, type, write }`, where
+	 * `write( $stream )` writes the file. The CSV streams every row a page at a time; the JSON is one document of
+	 * DOWNLOAD_LIMIT rows at most.
 	 *
 	 * @since 0.31.0
 	 *
 	 * @param string $format `csv` or `json`.
-	 * @param array  $args   The arguments of `query()`.
-	 * @return array{filename: string, type: string, body: string}|WP_Error
+	 * @param array  $args   The arguments of `query_where()`.
+	 * @return array{filename: string, type: string, write: callable}|WP_Error
 	 */
 	public function download( string $format, array $args = array() ) {
 		if ( ! in_array( $format, array( 'csv', 'json' ), true ) ) {
 			return new WP_Error( 'wpsignal_invalid_query', 'format must be csv or json.', array( 'status' => 400 ) );
 		}
-		$args['limit'] = min( self::DOWNLOAD_LIMIT, (int) ( $args['limit'] ?? self::DOWNLOAD_LIMIT ) );
-		$records       = self::query( $args );
-		if ( is_wp_error( $records ) ) {
-			return $records;
+		$where = self::query_where( $args );
+		if ( is_wp_error( $where ) ) {
+			return $where;
 		}
 		$name = sanitize_file_name( 'journeys-' . wp_parse_url( home_url(), PHP_URL_HOST ) . '-' . gmdate( 'Y-m-d' ) . '.' . $format );
 		if ( 'json' === $format ) {
-			$body = (string) wp_json_encode(
-				array(
-					'site'        => home_url(),
-					'exported_at' => gmdate( DATE_RFC3339 ),
-					'days'        => (int) ( $args['days'] ?? self::QUERY_DAYS ),
-					'count'       => count( $records ),
-					'currency'    => $this->currency(),
-					'legend'      => self::legend(),
-					'journeys'    => $records,
-				),
-				JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+			$records = self::query( array( 'limit' => self::DOWNLOAD_LIMIT ) + $args );
+			if ( is_wp_error( $records ) ) {
+				return $records;
+			}
+			$document = array(
+				'site'        => home_url(),
+				'exported_at' => gmdate( DATE_RFC3339 ),
+				'days'        => (int) ( $args['days'] ?? self::QUERY_DAYS ),
+				'count'       => count( $records ),
+				'currency'    => $this->currency(),
+				'legend'      => self::legend(),
+				'journeys'    => $records,
 			);
 			return array(
 				'filename' => $name,
 				'type'     => 'application/json',
-				'body'     => $body,
+				'write'    => static function ( $out ) use ( $document ): void {
+					fwrite( $out, (string) wp_json_encode( $document, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- The caller's stream.
+				},
 			);
 		}
-		$out = fopen( 'php://temp', 'r+' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- An in-memory stream for fputcsv().
-		fputcsv( $out, array_keys( self::legend() ), ',', '"', '' );
-		foreach ( $records as $record ) {
-			$record['firings'] = (string) wp_json_encode( $record['firings'] );
-			$record['data']    = null === $record['data'] ? '' : (string) wp_json_encode( $record['data'] );
-			$record['value']   = null === $record['value'] ? '' : $record['value'];
-			fputcsv( $out, array_values( $record ), ',', '"', '' );
-		}
-		rewind( $out );
-		$body = (string) stream_get_contents( $out );
-		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- The in-memory stream above.
 		return array(
 			'filename' => $name,
 			'type'     => 'text/csv',
-			'body'     => $body,
+			'write'    => static function ( $out ) use ( $args ): void {
+				fputcsv( $out, array_keys( self::legend() ), ',', '"', '' );
+				foreach ( self::query_all( $args ) as $record ) {
+					$record['firings'] = (string) wp_json_encode( $record['firings'] );
+					$record['data']    = null === $record['data'] ? '' : (string) wp_json_encode( $record['data'] );
+					$record['value']   = null === $record['value'] ? '' : $record['value'];
+					fputcsv( $out, array_values( $record ), ',', '"', '' );
+				}
+			},
 		);
 	}
 
@@ -531,8 +589,12 @@ class Journeys {
 		nocache_headers();
 		header( 'Content-Type: ' . $file['type'] . '; charset=utf-8' );
 		header( 'Content-Disposition: attachment; filename="' . $file['filename'] . '"' );
-		header( 'Content-Length: ' . strlen( $file['body'] ) );
-		echo $file['body']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- A file the browser saves, not markup.
+		while ( ob_get_level() > 0 && ob_end_flush() ) {
+			continue;
+		}
+		$out = fopen( 'php://output', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- The response body.
+		$file['write']( $out );
+		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- The response body.
 		exit;
 	}
 
@@ -1651,7 +1713,7 @@ class Journeys {
 
 	/**
 	 * Delete the journeys started between two days on the site's clock, every journey with neither,
-	 * in batches until none is left. Returns how many went.
+	 * in batches until none is left, and rebuild the table when any went. Returns how many went.
 	 *
 	 * @since 0.31.0
 	 *
@@ -1667,8 +1729,46 @@ class Journeys {
 			$batch    = (int) $wpdb->query( 'DELETE FROM ' . self::table() . " WHERE {$where} LIMIT " . self::PRUNE_BATCH );
 			$deleted += $batch;
 		} while ( $batch >= self::PRUNE_BATCH );
+		if ( $deleted > 0 ) {
+			self::optimize();
+		}
 		delete_transient( self::VISUALS_TRANSIENT );
 		return $deleted;
+	}
+
+	/**
+	 * Rebuild the table so the pages its deleted rows held go back to the host; best effort.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return void
+	 */
+	private static function optimize(): void {
+		global $wpdb;
+		$suppress = $wpdb->suppress_errors();
+		$wpdb->query( 'OPTIMIZE TABLE ' . self::table() );
+		$wpdb->suppress_errors( $suppress );
+	}
+
+	/**
+	 * How many bytes the table takes on disk (rows, indexes and freed pages, as a host counts it),
+	 * read fresh rather than from MySQL 8's statistics cache.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return int
+	 */
+	public static function storage_bytes(): int {
+		global $wpdb;
+		$suppress = $wpdb->suppress_errors();
+		$wpdb->query( 'SET SESSION information_schema_stats_expiry = 0' );
+		$wpdb->suppress_errors( $suppress );
+		return (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT data_length + index_length + data_free FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s',
+				self::table()
+			)
+		);
 	}
 
 	/**
@@ -1740,7 +1840,7 @@ class Journeys {
 
 	/**
 	 * The Journeys tab's figures over the last VISUALS_DAYS days on the site's clock, with the months
-	 * that hold journeys, History on or off; a computed answer is kept CACHE_TTL seconds.
+	 * that hold journeys and the table's size, History on or off; a computed answer is kept CACHE_TTL seconds.
 	 *
 	 * @since 0.31.0
 	 *
@@ -1783,6 +1883,7 @@ class Journeys {
 			unset( $cell );
 		}
 		unset( $row );
+		$months  = $this->months( $tz );
 		$visuals = array(
 			'since'      => self::rfc3339( $since ),
 			'timezone'   => wp_timezone_string(),
@@ -1791,7 +1892,11 @@ class Journeys {
 			'hours'      => $hours,
 			'listed'     => count( $list ),
 			'total'      => $total,
-			'months'     => $this->months( $tz ),
+			'months'     => $months,
+			'storage'    => array(
+				'bytes' => self::storage_bytes(),
+				'rows'  => array_sum( array_column( $months, 'count' ) ),
+			),
 			'outcomes'   => $this->outcomes(),
 			'ref'        => $this->ref,
 			'kinds'      => WPS::rules()->kinds(),

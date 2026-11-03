@@ -1,6 +1,6 @@
 /*
- * The Journeys tab's figures, fetched once per mount from the visuals route, and the network's pages of
- * a month's journeys, each fetched once.
+ * The Journeys tab's figures, fetched from the visuals route once per mount and again on each `version`, and
+ * the network's pages of a month's journeys, each fetched once.
  */
 
 /**
@@ -14,18 +14,23 @@ import { useEffect, useRef, useState } from "@wordpress/element";
 import { getJourneyPage, getJourneyVisuals } from "../api";
 import type { JourneyRow, JourneyVisuals } from "../types";
 
-interface VisualsState {
+/**
+ * The visuals route's answer as the tab holds it.
+ *
+ * @since 0.31.0
+ */
+export interface VisualsState {
   data: JourneyVisuals | null;
   loading: boolean;
   error: boolean;
 }
 
 /**
- * The visuals route's answer; `data` stays null until it arrives, and with History off.
+ * The visuals route's answer, fetched again when `version` changes; `data` stays null until it arrives.
  *
  * @since 0.31.0
  */
-export function useVisuals(enabled: boolean): VisualsState {
+export function useVisuals(enabled: boolean, version = 0): VisualsState {
   const [state, setState] = useState<VisualsState>({
     data: null,
     loading: enabled,
@@ -49,7 +54,7 @@ export function useVisuals(enabled: boolean): VisualsState {
     return () => {
       alive = false;
     };
-  }, [enabled]);
+  }, [enabled, version]);
   return state;
 }
 

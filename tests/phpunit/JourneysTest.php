@@ -462,14 +462,14 @@ final class JourneysTest extends WordSocketTestCase {
 		$csv = $this->journeys()->download( 'csv', array( 'ref' => 'qry-ref' ) );
 		$this->assertStringEndsWith( '.csv', $csv['filename'] );
 		$this->assertSame( 'text/csv', $csv['type'] );
-		$lines = array_values( array_filter( explode( "\n", $csv['body'] ) ) );
+		$lines = array_values( array_filter( explode( "\n", $this->written( $csv ) ) ) );
 		$this->assertCount( 3, $lines, 'a header and two rows' );
 		$this->assertSame( array_keys( Journeys::legend() ), str_getcsv( $lines[0], ',', '"', '' ) );
 		$this->assertSame( self::N2, str_getcsv( $lines[1], ',', '"', '' )[0] );
 		$this->assertSame( '', str_getcsv( $lines[1], ',', '"', '' )[5], 'no value reads as empty' );
 		$json = $this->journeys()->download( 'json', array( 'ref' => 'qry-ref' ) );
 		$this->assertSame( 'application/json', $json['type'] );
-		$decoded = json_decode( $json['body'], true );
+		$decoded = json_decode( $this->written( $json ), true );
 		$this->assertSame( array( 'site', 'exported_at', 'days', 'count', 'currency', 'legend', 'journeys' ), array_keys( $decoded ) );
 		$this->assertSame( 2, $decoded['count'] );
 		$this->assertSame( Journeys::legend(), $decoded['legend'] );
@@ -477,6 +477,41 @@ final class JourneysTest extends WordSocketTestCase {
 		$this->assertInstanceOf( WP_Error::class, $this->journeys()->download( 'xml' ) );
 		$this->assertSame( 10, has_action( 'admin_post_' . Journeys::DOWNLOAD_ACTION, array( $this->journeys(), 'handle_download' ) ) );
 		$this->assertStringContainsString( 'action=' . Journeys::DOWNLOAD_ACTION . '&_wpnonce=', Journeys::download_url() );
+	}
+
+	public function test_the_csv_streams_every_row_a_page_at_a_time(): void {
+		$now = gmdate( 'Y-m-d H:i:s' );
+		foreach ( array( self::N, self::N2, self::N3 ) as $i => $id ) {
+			$this->insert(
+				array(
+					'journey_id' => $id,
+					'visitor'    => self::V,
+					'journey'    => 'home:1:' . ( $i + 1 ),
+					'outcome'    => 'left',
+					'ref'        => 'page-ref',
+					'started_at' => $now,
+					'last_seen'  => $now,
+				)
+			);
+		}
+		$ids = array_column( iterator_to_array( Journeys::query_all( array( 'ref' => 'page-ref' ), 2 ), false ), 'journey_id' );
+		$this->assertSame( array( self::N3, self::N2, self::N ), $ids, 'three rows in one second cross a page of two through the id cursor, newest first' );
+		$this->assertSame( $ids, array_column( Journeys::query( array( 'ref' => 'page-ref' ) ), 'journey_id' ), 'the same order as one page' );
+		$this->assertInstanceOf( WP_Error::class, Journeys::query_all( array( 'days' => 0 ) ) );
+		$this->assertInstanceOf( WP_Error::class, $this->journeys()->download( 'csv', array( 'days' => 0 ) ) );
+		$lines = array_values( array_filter( explode( "\n", $this->written( $this->journeys()->download( 'csv', array( 'ref' => 'page-ref' ) ) ) ) ) );
+		$this->assertCount( 4, $lines, 'a header and every row' );
+		$this->assertStringStartsWith( self::N3, $lines[1] );
+	}
+
+	/** What a download writes, as a string. */
+	private function written( array $file ): string {
+		$out = fopen( 'php://memory', 'r+' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+		$file['write']( $out );
+		rewind( $out );
+		$body = (string) stream_get_contents( $out );
+		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+		return $body;
 	}
 
 	public function test_the_feed_carries_the_extensions_context_and_the_routes_are_staff_only(): void {
@@ -595,6 +630,8 @@ final class JourneysTest extends WordSocketTestCase {
 			$this->assertSame( array( 'converted' => 1 ), $visuals['hours'][ $w ][11]['outcomes'] );
 			$this->assertSame( 0, $visuals['hours'][ $w ][11]['minutes'], 'a twenty-second checkout rounds to no minutes' );
 			$this->assertSame( 2, $visuals['listed'], 'the minutes came from the two journeys in the window' );
+			$this->assertGreaterThan( 0, $visuals['storage']['bytes'], 'the table takes room on disk' );
+			$this->assertSame( 3, $visuals['storage']['rows'], 'every journey within the retention, in the window or not' );
 			$this->assertSame(
 				array(
 					'month' => $ten->format( 'Y-m' ),
@@ -708,6 +745,7 @@ final class JourneysTest extends WordSocketTestCase {
 			);
 			$this->assertSame( 200, $status );
 			$this->assertSame( 1, $data['deleted'] );
+			$this->assertGreaterThan( 0, Journeys::storage_bytes(), 'the table is rebuilt after a purge and still reads' );
 			$this->assertNotNull( $this->row( self::N ), 'the 14th in New York stays' );
 			$this->assertNull( $this->row( self::N2 ) );
 			$this->assertNotNull( $this->row( self::N3 ) );
@@ -758,22 +796,26 @@ final class JourneysTest extends WordSocketTestCase {
 			)
 		);
 		$this->as_admin();
-		list( $status ) = $this->rest( 'POST', 'settings', array( 'journeys_retention_months' => 99 ) );
-		$this->assertSame( 400, $status, 'the schema keeps the months between 1 and 36' );
+		list( $status ) = $this->rest( 'POST', 'settings', array( 'journeys_retention_months' => 13 ) );
+		$this->assertSame( 400, $status, 'the schema keeps the months between 1 and 12' );
+		list( $status ) = $this->rest( 'POST', 'settings', array( 'journeys_retention_months' => 0 ) );
+		$this->assertSame( 400, $status );
 		list( $status, $data ) = $this->rest(
 			'POST',
 			'settings',
 			array(
 				'history_enabled'           => false,
-				'journeys_retention_months' => 24,
+				'journeys_retention_months' => 12,
 			)
 		);
 		$this->assertSame( 200, $status );
 		$this->assertFalse( $data['history_enabled'] );
-		$this->assertSame( 24, $data['journeys_retention_months'] );
+		$this->assertSame( 12, $data['journeys_retention_months'] );
 		list( , $data ) = $this->rest( 'GET', 'settings' );
 		$this->assertFalse( $data['history_enabled'] );
-		$this->assertSame( 24, $data['journeys_retention_months'] );
+		$this->assertSame( 12, $data['journeys_retention_months'] );
+		update_option( 'wpsignal_journeys_retention_months', 36 );
+		$this->assertSame( 12, WPS::instance()->config()->journeys_retention_months(), 'a saved value above the cap reads as the cap' );
 		$this->assertArrayNotHasKey( 'firedUrl', WPS::rules()->config(), 'nothing listens and history is off' );
 		update_option( 'wpsignal_history_enabled', true );
 		$this->assertArrayHasKey( 'firedUrl', WPS::rules()->config(), 'history on: firings are stored' );

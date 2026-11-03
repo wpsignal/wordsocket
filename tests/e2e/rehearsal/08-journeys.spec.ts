@@ -175,4 +175,31 @@ test.describe("Journeys", () => {
       wp("option", "update", "wpsignal_history_enabled", "1");
     }
   });
+
+  test("the retention slider saves once it rests, and the card says what the table takes", async ({ admin, page }) => {
+    let months = "";
+    try {
+      months = wp("option", "get", "wpsignal_journeys_retention_months");
+    } catch {
+      months = "";
+    }
+    wp("option", "update", "wpsignal_journeys_retention_months", "3");
+    try {
+      await admin.visitAdminPage("admin.php", TAB);
+      // With History on the card opens collapsed.
+      await page.locator(".wpsignal-collapsible-card", { hasText: "Settings" }).getByRole("button").first().click();
+      await expect(page.getByText(/in your database, holding/)).toBeVisible({ timeout: 20_000 });
+      const slider = page.locator('input[type="range"]');
+      await expect(slider).toHaveAttribute("max", "12");
+      await expect(slider).toHaveValue("3");
+      await slider.focus();
+      await page.keyboard.press("End");
+      await expect(slider).toHaveValue("12");
+      await expect(page.locator(".components-snackbar")).toContainText("Settings saved.");
+      expect(wp("option", "get", "wpsignal_journeys_retention_months")).toBe("12");
+    } finally {
+      if (months) wp("option", "update", "wpsignal_journeys_retention_months", months);
+      else wp("option", "delete", "wpsignal_journeys_retention_months");
+    }
+  });
 });

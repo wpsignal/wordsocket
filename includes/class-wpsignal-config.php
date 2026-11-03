@@ -253,14 +253,17 @@ class Config {
 	}
 
 	/**
-	 * How many months a journey is kept, 1 to 36; 3 by default.
+	 * How many months a journey is kept, within `Journeys::RETENTION_MIN_MONTHS` and `RETENTION_MAX_MONTHS`.
 	 *
 	 * @since 0.31.0
 	 *
 	 * @return int
 	 */
 	public function journeys_retention_months(): int {
-		return min( 36, max( 1, (int) get_option( 'wpsignal_journeys_retention_months', 3 ) ) );
+		return min(
+			Journeys::RETENTION_MAX_MONTHS,
+			max( Journeys::RETENTION_MIN_MONTHS, (int) get_option( 'wpsignal_journeys_retention_months', Journeys::RETENTION_DEFAULT_MONTHS ) )
+		);
 	}
 
 	/**
