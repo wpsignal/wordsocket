@@ -79,9 +79,10 @@ final class AdminPageTest extends WordSocketTestCase {
 	 * Nothing in the config is HTML-escaped: it is JSON, read by scripts, never printed as markup.
 	 */
 	public function test_no_settings_value_carries_html_entities(): void {
-		$flat = array();
+		$flat   = array();
+		$config = $this->settings_config();
 		array_walk_recursive(
-			$this->settings_config(),
+			$config,
 			static function ( $value ) use ( &$flat ): void {
 				if ( is_string( $value ) ) {
 					$flat[] = $value;
