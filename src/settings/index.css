@@ -1195,10 +1195,9 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
   z-index: 1;
 }
 
-/* Collapsible cards grid */
+/* Cards side by side, each an equal share; one under another on a narrow screen. */
 .wpsignal-collapsible-cards {
   flex-direction: row;
-
   & > * {
     flex: 1;
   }
@@ -1208,7 +1207,6 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
 
     & > * {
       flex: none;
-      flex-wrap: wrap;
       width: 100%;
     }
   }

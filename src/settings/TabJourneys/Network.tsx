@@ -502,19 +502,18 @@ export function Network({
   return (
     <Stack
       direction="column"
-      gap="sm"
+      gap="lg"
       className={pager.loading ? "is-loading" : undefined}
     >
       <Collapsible.Root>
         <Collapsible.Trigger
-          nativeButton={false}
           style={{ display: 'flex', gap: 'sm' }}
-          render={<Button variant="minimal" size="small" tone="neutral" />}
+          render={<Button variant="outline" size="small" tone="neutral" />}
         >
           <Icon icon={settings} />
           {__("Filters", "wordsocket")}
         </Collapsible.Trigger>
-        <Collapsible.Panel style={{ padding: '1rem', backgroundColor: 'var(--wpds-color-background-surface-neutral-weak)' }}>
+        <Collapsible.Panel>
           <Stack
             direction="row"
             gap="sm"

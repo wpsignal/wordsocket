@@ -8,12 +8,13 @@
  */
 import { __ } from "@wordpress/i18n";
 import { ToggleControl } from "@wordpress/components";
-import { CollapsibleCard, Card, Stack } from "@wordpress/ui";
+import { Stack } from "@wordpress/ui";
 
 /**
  * Internal dependencies.
  */
 import { useSettingSwitch } from "./useSettingSwitch";
+import CollapsibleCard from "../CollapsibleCard";
 
 export function DeveloperToolsCard() {
   const developerMode = useSettingSwitch("developerMode", {
@@ -21,24 +22,23 @@ export function DeveloperToolsCard() {
     error: __("Failed to save settings.", "wordsocket"),
   });
   return (
-    <CollapsibleCard.Root className="wpsignal-settings-card">
-      <CollapsibleCard.Header>
-        <Card.Title>{__("Developer tools", "wordsocket")}</Card.Title>
-      </CollapsibleCard.Header>
-      <CollapsibleCard.Content>
-        <Stack direction="column" gap="md">
-          <ToggleControl
-            label={__("Show the Triggers and Explorer tabs", "wordsocket")}
-            help={__(
-              "For developers wiring WordPress hooks to events and watching them arrive.",
-              "wordsocket",
-            )}
-            checked={developerMode.checked}
-            disabled={developerMode.isPending}
-            onChange={developerMode.change}
-          />
-        </Stack>
-      </CollapsibleCard.Content>
-    </CollapsibleCard.Root>
+    <CollapsibleCard
+      title={__("Developer tools", "wordsocket")}
+      className="wpsignal-settings-card"
+      defaultOpen={false}
+    >
+      <Stack direction="column" gap="md">
+        <ToggleControl
+          label={__("Show the Triggers and Explorer tabs", "wordsocket")}
+          help={__(
+            "For developers wiring WordPress hooks to events and watching them arrive.",
+            "wordsocket",
+          )}
+          checked={developerMode.checked}
+          disabled={developerMode.isPending}
+          onChange={developerMode.change}
+        />
+      </Stack>
+    </CollapsibleCard>
   );
 }
