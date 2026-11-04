@@ -10,9 +10,12 @@ export type JourneyEventType = "step" | "away" | "back" | "close";
 
 export interface JourneyEvent {
   type: JourneyEventType;
-  /** On `step`: whether the gap had passed and this step began a new journey. */
-  renewed?: boolean;
-  /** On `back` after the gap: the journey that ended, to report once more. */
+  /**
+   * On `back` after the gap, or on a `step` onto another page off a journey an extension ended:
+   * the journey that ended, to report once more.
+   *
+   * @since 0.31.0 Set on a `step` as well.
+   */
   ended?: EndedJourney;
   /** On `close`: the journey with its last step closed. */
   closed?: string;
@@ -100,7 +103,8 @@ let instance: PageJourney | null = null;
  *
  * @since 0.30.0
  * @since 0.31.0 A `close` says whether a same-site navigation caused it, a new journey begins on
- *               the visitor's first interaction rather than at load, and the visibility change an
+ *               the visitor's first interaction rather than at load, a `step` onto another page off
+ *               a journey an extension ended carries it as `ended`, and the visibility change an
  *               unloading document fires is not an `away`.
  */
 export function pageJourney(): PageJourney {
@@ -113,12 +117,12 @@ export function pageJourney(): PageJourney {
   const emit = (event: JourneyEvent) => handlers.forEach((fn) => fn(event));
 
   /* A journey under way continues at load; a new one waits for the visitor's first interaction. */
-  let started = journey.continuing();
+  let started = journey.continuing(kind, id);
   /* When the page was last shown, which a held first step's clock starts from; 0 while hidden. */
   let shownAt = document.hidden ? 0 : Date.now();
   const begin = (since?: number) => {
     started = true;
-    emit({ type: "step", renewed: journey.step(kind, id, since) });
+    emit({ type: "step", ended: journey.step(kind, id, since) ?? undefined });
   };
   if (started) begin();
   else watchEngagement(() => begin(shownAt || Date.now()));

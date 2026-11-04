@@ -28,11 +28,12 @@ interface OpenStep {
   since: number;
 }
 
-/** What `sessionStorage` holds: the journey id, its closed steps, the last arrival. */
+/** What `sessionStorage` holds: the journey id, its closed steps, the last arrival, and `e`, the page (`kind:id`) an extension's end was heard on. */
 interface Stored {
   n: string;
   j: string;
   at: number;
+  e?: string;
 }
 
 /** A finished journey, handed back when a new one replaces it. */
@@ -50,11 +51,19 @@ export interface Journey {
   close(): string;
   /**
    * Close whatever is open and open a step for this page, its clock starting at `since` (now when
-   * omitted); true when the gap had passed and a new journey begins.
+   * omitted); a new journey begins when the gap had passed or an extension ended the journey and
+   * this is another page, and the journey left that way is returned.
+   *
+   * @since 0.31.0 Returns the ended journey this step left, null otherwise.
    */
-  step(kind: string, id: number, since?: number): boolean;
-  /** Whether a journey with steps is under way and the gap has not passed. */
-  continuing(): boolean;
+  step(kind: string, id: number, since?: number): EndedJourney | null;
+  /**
+   * Whether a journey with steps is under way on this page: not left for another page after an
+   * extension ended it, and the gap not passed.
+   *
+   * @since 0.31.0 Takes the page, since an ended journey goes on only on its own page.
+   */
+  continuing(kind: string, id: number): boolean;
   /** The tab was hidden: close the page step, open `away`. */
   away(): void;
   /**
@@ -62,8 +71,13 @@ export interface Journey {
    * the away outlasted the gap.
    */
   back(): EndedJourney | null;
-  /** Begin a new journey on this page: a new id, the page its first step, opened now. */
-  restart(): void;
+  /**
+   * An extension ended this journey: it goes on while the visitor stays on this page, and the next
+   * other page begins a new one.
+   *
+   * @since 0.31.0
+   */
+  end(): void;
 }
 
 function storage(): Storage | null {
@@ -85,7 +99,12 @@ function load(store: Storage | null): Stored | null {
       typeof parsed.at !== "number"
     )
       return null;
-    return { n: parsed.n, j: parsed.j, at: parsed.at };
+    return {
+      n: parsed.n,
+      j: parsed.j,
+      at: parsed.at,
+      ...(typeof parsed.e === "string" ? { e: parsed.e } : {}),
+    };
   } catch {
     return null;
   }
@@ -116,6 +135,8 @@ export function createJourney(
   let at = stored?.at ?? now();
   let open: OpenStep | null = null;
   let page: { kind: string; id: number } | null = null;
+  /* The page an extension's end was heard on, `kind:id`; null while the journey is live. */
+  let endedOn: string | null = stored?.e ?? null;
 
   /*
    * The stored record is the one source for the last arrival.
@@ -130,6 +151,7 @@ export function createJourney(
           n,
           j: closed.join(SEPARATOR),
           at: arrival,
+          ...(endedOn !== null ? { e: endedOn } : {}),
         } satisfies Stored),
       );
     } catch {
@@ -148,12 +170,16 @@ export function createJourney(
   };
 
   const gapPassed = () => now() - lastArrival() > JOURNEY_GAP_MS;
+  /* Whether this page is another than the one an extension's end was heard on. */
+  const leaves = (kind: string, id: number) =>
+    endedOn !== null && endedOn !== `${kind}:${id}`;
 
   // A new visit: new id, no steps. The caller has dealt with the old one.
   const renew = () => {
     n = uuid();
     closed = [];
     open = null;
+    endedOn = null;
   };
 
   const arrive = (kind: string, id: number, since?: number) => {
@@ -163,16 +189,18 @@ export function createJourney(
     commit(at);
   };
 
+  const current = () => {
+    const steps = open
+      ? [...closed, format(open.kind, open.id, now() - open.since)]
+      : closed;
+    return steps.join(SEPARATOR);
+  };
+
   return {
     id() {
       return n;
     },
-    current() {
-      const steps = open
-        ? [...closed, format(open.kind, open.id, now() - open.since)]
-        : closed;
-      return steps.join(SEPARATOR);
-    },
+    current,
     close() {
       if (open?.kind === AWAY && now() - open.since < UNLOAD_AWAY_MS) {
         open = null;
@@ -182,16 +210,19 @@ export function createJourney(
     },
     step(kind, id, since) {
       /*
-       * A page opened after the gap is a new visit.
+       * A page opened after the gap, or another page after an extension ended the journey, is a
+       * new visit.
        */
-      const renewed = gapPassed();
-      if (renewed) renew();
+      const stale = gapPassed();
+      const left = leaves(kind, id);
+      const before = left && !stale ? { n, journey: current() } : null;
+      if (left || stale) renew();
       else finish();
       arrive(kind, id, since);
-      return renewed;
+      return before;
     },
-    continuing() {
-      return closed.length > 0 && !gapPassed();
+    continuing(kind, id) {
+      return closed.length > 0 && !leaves(kind, id) && !gapPassed();
     },
     away() {
       if (!open || open.kind === AWAY) return;
@@ -216,9 +247,10 @@ export function createJourney(
       arrive(page.kind, page.id);
       return ended;
     },
-    restart() {
-      renew();
-      if (page) arrive(page.kind, page.id);
+    end() {
+      if (endedOn !== null || !page) return;
+      endedOn = `${page.kind}:${page.id}`;
+      commit();
     },
   };
 }

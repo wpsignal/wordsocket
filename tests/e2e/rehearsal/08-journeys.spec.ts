@@ -95,7 +95,7 @@ test.describe("Journeys", () => {
     // The tab draws it.
     await admin.visitAdminPage("admin.php", TAB);
     await expect(page.getByRole("tab", { name: "Journeys" })).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByLabel("Keep a history of journeys")).toBeChecked();
+    await expect(page.getByLabel("Keep a history of Journeys")).toBeChecked();
 
     // The download: a CSV of the last 28 days whose header is the legend's columns, served to this admin.
     const downloadHref = (await page.locator("a[href*='wpsignal_journeys_download']").first().getAttribute("href")) ?? "";
@@ -107,13 +107,16 @@ test.describe("Journeys", () => {
 
     await expect(page.locator(".wpsignal-net")).toBeVisible({ timeout: 20_000 });
     expect(await page.locator(".wpsignal-net__journey").count()).toBeGreaterThan(0);
+    // The weeks and hours cards open closed.
+    const trends = page.locator(".wpsignal-visual").nth(1);
+    const hours = page.locator(".wpsignal-visual").nth(2);
+    await trends.getByRole("button").first().click();
+    await hours.getByRole("button").first().click();
     await expect(page.locator(".wpsignal-trend__raw").first()).toBeVisible();
     // A three-second visit rounds to no minutes: count the visit itself.
-    const hours = page.locator(".wpsignal-visual").nth(2);
     await hours.locator("[role=combobox]").first().click();
     await page.getByRole("option", { name: "Visits", exact: true }).click();
     await expect.poll(() => page.locator(".wpsignal-hours__cell:not(.is-empty)").count()).toBeGreaterThan(0);
-    const trends = page.locator(".wpsignal-visual").nth(1);
     await trends.getByRole("tab", { name: "Table" }).click();
     await expect(trends.locator(".wpsignal-chart__table tbody tr")).toHaveCount(28);
     await trends.getByRole("tab", { name: "Chart" }).click();
@@ -154,11 +157,68 @@ test.describe("Journeys", () => {
     }
   });
 
+  test("a journey an extension ended keeps its page, its hidden spell and a reload, and the next other page begins a new one", async ({ browser, baseURL }) => {
+    const visitor = await browser.newContext({ baseURL, ignoreHTTPSErrors: true });
+    const shop = await visitor.newPage();
+    const table = `${wp("db", "prefix")}wpsignal_journeys`;
+    const hex = (n: string) => n.replace(/-/g, "");
+    const row = (n: string, column: string) => wp("db", "query", `SELECT ${column} FROM ${table} WHERE journey_id = UNHEX('${hex(n)}')`, "--skip-column-names").trim();
+    const reports: { kind: string; n: string }[] = [];
+    shop.on("request", (request) => {
+      const url = request.url();
+      if (!url.includes("/wpsignal/v1/visit") && !url.includes("/wpsignal/v1/leave")) return;
+      reports.push({ kind: url.includes("/visit") ? "visit" : "leave", n: (JSON.parse(request.postData() ?? "{}") as { n: string }).n });
+    });
+    const held = () => shop.evaluate(() => JSON.parse(window.sessionStorage.getItem("wordsocket-journey") ?? "{}") as { n?: string; e?: string });
+
+    // The first step writes its row; an extension then ends the journey (an order placed).
+    await arrive(shop, "/");
+    await expect.poll(() => reports.length).toBe(1);
+    const first = reports[0].n;
+    await expect.poll(() => row(first, "outcome"), { timeout: 15_000 }).toBe("open");
+    wp("db", "query", `UPDATE ${table} SET outcome = 'converted' WHERE journey_id = UNHEX('${hex(first)}')`);
+
+    // The tab goes hidden and comes back: the visit's answer says the journey ended, and it goes on under the same id.
+    await setHidden(shop, true);
+    await expect.poll(() => reports.length).toBe(2);
+    await expect.poll(async () => (await held()).e).toBe("home:0");
+    await shop.waitForTimeout(500);
+    await setHidden(shop, false);
+    await shop.waitForTimeout(500);
+    expect((await held()).n).toBe(first);
+    expect(reports, "a return within the gap writes nothing and starts nothing").toHaveLength(2);
+
+    // A reload of the same page stays on the ended journey.
+    await shop.reload();
+    await waitForState(shop, { connected: true, transport: "ws" });
+    await engage(shop);
+    await shop.waitForTimeout(500);
+    expect((await held()).n).toBe(first);
+    expect(reports.filter((r) => r.kind === "visit")).toHaveLength(2);
+    const leavesBefore = reports.filter((r) => r.kind === "leave" && r.n === first).length;
+
+    // A link to another page: a new journey begins there, and the ended one gets its leave.
+    await shop.locator("article a[href], .entry-title a, h2 a").first().click();
+    await waitForState(shop, { connected: true, transport: "ws" });
+    await engage(shop);
+    await expect.poll(() => reports.filter((r) => r.kind === "leave" && r.n === first).length).toBe(leavesBefore + 1);
+    await expect.poll(() => reports.filter((r) => r.kind === "visit" && r.n !== first).length).toBe(1);
+    const second = reports.find((r) => r.kind === "visit" && r.n !== first)?.n ?? "";
+    expect(second).toMatch(/^[0-9a-f-]{36}$/);
+    expect((await held()).n).toBe(second);
+    await visitor.close();
+
+    // The rows: the ended journey keeps its outcome with the hidden spell and the reload on it; the new one holds the post alone.
+    await expect.poll(() => row(first, "journey"), { timeout: 15_000 }).toMatch(/^h:0:\d+>w:0:\d+>h:0:\d+>h:0:\d+$/);
+    expect(row(first, "outcome")).toBe("converted");
+    await expect.poll(() => row(second, "journey"), { timeout: 15_000 }).toMatch(/^p:\d+:\d+$/);
+  });
+
   test("with History off the tab still draws what was kept under a notice, and the replay keeps its provider", async ({ admin, page }) => {
     wp("option", "update", "wpsignal_history_enabled", "0");
     try {
       await admin.visitAdminPage("admin.php", TAB);
-      await expect(page.getByLabel("Keep a history of journeys")).not.toBeChecked();
+      await expect(page.getByLabel("Keep a history of Journeys")).not.toBeChecked();
       await expect(page.getByText("History is off")).toBeVisible();
       await expect(page.locator(".wpsignal-visual")).toHaveCount(3, { timeout: 20_000 });
       await admin.visitAdminPage("admin.php", "page=wordsocket&tab=moments&moment=new");
@@ -166,7 +226,7 @@ test.describe("Journeys", () => {
       await expect(page.locator(".wpsignal-rule-replay")).toBeVisible({ timeout: 20_000 });
       // The switch turns it on: the notice goes without a reload.
       await admin.visitAdminPage("admin.php", TAB);
-      await page.getByLabel("Keep a history of journeys").check();
+      await page.getByLabel("Keep a history of Journeys").check();
       await expect(page.locator(".components-snackbar")).toContainText("Settings saved.");
       await expect(page.getByText("History is off")).toHaveCount(0);
       await expect(page.locator(".wpsignal-visual")).toHaveCount(3);
@@ -188,7 +248,7 @@ test.describe("Journeys", () => {
       await admin.visitAdminPage("admin.php", TAB);
       // With History on the card opens collapsed.
       await page.locator(".wpsignal-collapsible-card", { hasText: "Settings" }).getByRole("button").first().click();
-      await expect(page.getByText(/in your database, holding/)).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByText(/Database size:/)).toBeVisible({ timeout: 20_000 });
       const slider = page.locator('input[type="range"]');
       await expect(slider).toHaveAttribute("max", "12");
       await expect(slider).toHaveValue("3");

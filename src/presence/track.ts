@@ -8,6 +8,8 @@
  * - A visit is written on a change of state, not on every page: a journey's first step, a page of a
  *   kind in `config.writeKinds`, the tab going hidden, an explicit `report()`, and otherwise once
  *   WRITE_INTERVAL_MS after the last write while the page is visible.
+ * - A journey WordPress answers as ended goes on while the visitor stays on that page; the next
+ *   other page begins a new one and sends the leave for the old.
  */
 
 import {
@@ -16,6 +18,7 @@ import {
   claimFlush,
   createOutbox,
 } from "./outbox";
+import type { EndedJourney } from "./journey";
 import { pageJourney } from "./page-journey";
 import { sendReport, type ReportAnswer } from "./report";
 import { isCrawler, visitorId } from "../utils/identity";
@@ -97,7 +100,7 @@ export interface PresenceTracker {
  *
  * @since 0.30.0
  * @since 0.31.0 `report` may be a predicate, `onVisit()` hands out the visit answer, `report()` sends
- *               the visit again (coalesced, a failure not handed on), a journey WordPress answers as ended starts a new one, a same-site
+ *               the visit again (coalesced, a failure not handed on), a journey WordPress answers as ended is left for a new one at the next other page, a same-site
  *               navigation sends no leave, a null channel enters no presence, a site that keeps
  *               journeys reports every visitor, a new journey is announced and reported from the
  *               visitor's first interaction, an outbox in `localStorage` reports the end of a
@@ -177,6 +180,12 @@ export function createTracker(
     };
     return sendReport(url, body, nonce, keepalive);
   };
+  /* The leave for a journey that ended, dropped from the outbox once WordPress has it. */
+  const farewell = ({ n, journey: j }: EndedJourney) => {
+    void send(config?.leaveUrl, n, j, false).then((answer) => {
+      if (answer) outbox.drop(n);
+    });
+  };
   /* A `report()` while one is in flight queues exactly one more. */
   let inFlight = false;
   let queued = false;
@@ -199,17 +208,11 @@ export function createTracker(
       inFlight = false;
       if (stopped) return;
       /*
-       * WordPress says an extension ended this journey (an order placed): what the visitor does next
-       * is a new visit, reported under a new id.
+       * WordPress says an extension ended this journey (an order placed): the next other page
+       * begins a new one.
        */
       const ended = (answer?.journey as { ended?: boolean } | undefined)?.ended;
-      if (ended && n === journey.id()) {
-        outbox.drop(n);
-        journey.restart();
-        announce();
-        visit();
-        return;
-      }
+      if (ended && n === journey.id()) journey.end();
       if (queued) {
         queued = false;
         visit(true);
@@ -264,6 +267,7 @@ export function createTracker(
     if (stopped) return;
     switch (event.type) {
       case "step":
+        if (event.ended) farewell(event.ended);
         announce();
         settle();
         beat();
@@ -279,12 +283,7 @@ export function createTracker(
          * this return is the first step of a new one.
          */
         if (event.ended) {
-          const { n } = event.ended;
-          void send(config?.leaveUrl, n, event.ended.journey, false).then(
-            (answer) => {
-              if (answer) outbox.drop(n);
-            },
-          );
+          farewell(event.ended);
           visit();
         }
         announce();

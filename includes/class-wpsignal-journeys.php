@@ -1347,8 +1347,8 @@ class Journeys {
 	/**
 	 * Write a visit or leave report: the first report creates the row, a later one from the same
 	 * visitor that is at least as far along updates it, and a visit that creates a row marks the
-	 * visitor's other open journeys incomplete. A journey an extension ended keeps its outcome,
-	 * value and data; a report's `ago` dates it. Hooked at priority 5, so an extension on the
+	 * visitor's other open journeys incomplete. A journey an extension ended keeps its ref,
+	 * outcome, value and data; a report's `ago` dates it. Hooked at priority 5, so an extension on the
 	 * default priority reads the written row.
 	 *
 	 * @since 0.31.0
@@ -1380,7 +1380,7 @@ class Journeys {
 				VALUES (UNHEX(%s), UNHEX(%s), IF(%d > 0, %d, NULL), NULLIF(%s, ''), %s, %d, %s, IF(%d = 1, %f, NULL), NULLIF(%s, ''), %s, %s)
 				ON DUPLICATE KEY UPDATE
 					user_id = IF(" . $owned . ' AND VALUES(user_id) IS NOT NULL, VALUES(user_id), user_id),
-					ref = IF(' . $owned . ' AND VALUES(ref) IS NOT NULL, VALUES(ref), ref),
+					ref = IF(' . $owned . ' AND VALUES(ref) IS NOT NULL AND NOT (' . $final . '), VALUES(ref), ref),
 					value = IF(' . $owned . ' AND VALUES(value) IS NOT NULL AND NOT (' . $final . '), VALUES(value), value),
 					data = IF(' . $owned . ' AND VALUES(data) IS NOT NULL AND NOT (' . $final . '), VALUES(data), data),
 					last_seen = IF(' . $ahead . ', VALUES(last_seen), last_seen),
