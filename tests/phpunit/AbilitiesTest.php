@@ -116,6 +116,16 @@ final class AbilitiesTest extends WordSocketTestCase {
 		}
 	}
 
+	public function test_an_ability_that_needs_no_input_runs_with_none(): void {
+		$this->as_admin();
+		foreach ( array( 'describe-moments', 'list-moments', 'list-journeys' ) as $name ) {
+			$result = $this->execute( $name, null );
+			$this->assertNotInstanceOf( WP_Error::class, $result, "$name runs on a null input" );
+			$this->assertIsArray( $result );
+		}
+		$this->assertInstanceOf( WP_Error::class, $this->execute( 'save-moment', null ), 'a required input is still required' );
+	}
+
 	public function test_describe_moments_hands_an_agent_the_vocabulary_kinds_patterns_clock_and_limits(): void {
 		$this->as_admin();
 		$described = $this->execute( 'describe-moments' );

@@ -310,7 +310,7 @@ class Abilities {
 	}
 
 	/**
-	 * An object schema with the given properties and required keys.
+	 * An object schema with the given properties and required keys; with none required, no input reads as an empty object.
 	 *
 	 * @since 0.31.0
 	 *
@@ -325,6 +325,8 @@ class Abilities {
 		}
 		if ( $required ) {
 			$schema['required'] = $required;
+		} else {
+			$schema['default'] = array();
 		}
 		return $schema;
 	}
