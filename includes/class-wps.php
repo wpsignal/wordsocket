@@ -204,6 +204,7 @@ class WPS {
 		Cli::register();
 		$this->client_instance  = new Client( $this->config_instance, $this->token_instance, $this->presence_instance, $this->rules_instance );
 		$this->admin_instance   = new Admin_Page( $this->config_instance );
+		add_action( 'init', array( Admin_Page::class, 'register_meta' ) );
 		$this->connect_instance = new Connect( $this->config_instance );
 		$this->connect_instance->init();
 

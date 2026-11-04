@@ -784,6 +784,12 @@ final class JourneysTest extends WordSocketTestCase {
 		$this->assertNotNull( $this->row( self::N2 ), 'a guest journey is nobody\'s' );
 	}
 
+	public function test_the_cache_probe_answers_true_once_an_earlier_call_planted_its_marker(): void {
+		wp_cache_delete( 'cache_probe', 'wpsignal' );
+		$this->assertFalse( Journeys::cache_persists(), 'the first call finds nothing and plants the marker' );
+		$this->assertTrue( Journeys::cache_persists(), 'the next call finds it' );
+	}
+
 	public function test_the_settings_routes_carry_the_history_fields(): void {
 		$this->connect_site();
 		$this->fake_http(

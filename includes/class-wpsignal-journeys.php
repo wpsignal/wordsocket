@@ -2290,6 +2290,20 @@ class Journeys {
 	}
 
 	/**
+	 * Whether an earlier request's marker is still in the object cache, leaving a fresh one for the next request; the settings page prints the answer.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return bool
+	 */
+	public static function cache_persists(): bool {
+		$marker = substr( hash( 'sha256', 'wpsignal-cache-probe' . wp_salt( 'nonce' ) ), 0, 16 );
+		$seen   = wp_cache_get( 'cache_probe', 'wpsignal' );
+		wp_cache_set( 'cache_probe', $marker, 'wpsignal', DAY_IN_SECONDS );
+		return $seen === $marker;
+	}
+
+	/**
 	 * Register `GET /wpsignal/v1/journeys` (the replay's feed), `DELETE /wpsignal/v1/journeys` (the purge), `/journeys/visuals` and `/journeys/visuals/journeys` (the Journeys tab).
 	 *
 	 * @since 0.31.0

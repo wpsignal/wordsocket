@@ -267,6 +267,12 @@ interface WpSignalSettings {
   rtc?: { available: boolean; enabled: boolean; experimentsUrl: string };
   /** Whether the Triggers and Explorer tabs are shown (the Settings tab's "Developer tools" switch). */
   developerMode?: boolean;
+  /**
+   * The ids of the settings notices this user closed, from their user meta (0.31).
+   *
+   * @since 0.31.0
+   */
+  dismissed?: string[];
   /** Journey history: whether journeys are kept, the currency their values are in, and the registered outcomes (0.31). */
   history?: {
     enabled: boolean;
@@ -274,6 +280,13 @@ interface WpSignalSettings {
     outcomes?: Record<string, { label: string; color: string; series: string }>;
     /** The journeys download (`admin-post.php`, nonced); the tab adds `format` and `days` (0.31). */
     downloadUrl?: string;
+    /**
+     * Whether the object cache outlives a request, as the page's own request found; false on the first
+     * view after a cache flush.
+     *
+     * @since 0.31.0
+     */
+    persistentCache?: boolean;
   };
 }
 

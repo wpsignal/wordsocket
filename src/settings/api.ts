@@ -28,6 +28,19 @@ export function saveTriggers(triggers: Trigger[]): Promise<TriggersResponse> {
   });
 }
 
+/**
+ * Save the ids of the notices this user closed to their user meta.
+ *
+ * @since 0.31.0
+ */
+export function saveDismissedNotices(ids: string[]): Promise<unknown> {
+  return apiFetch({
+    path: "/wp/v2/users/me",
+    method: "POST",
+    data: { meta: { wpsignal_dismissed_notices: ids } },
+  });
+}
+
 export function getSettings(): Promise<Settings> {
   return apiFetch({ path: "/wpsignal/v1/settings" });
 }

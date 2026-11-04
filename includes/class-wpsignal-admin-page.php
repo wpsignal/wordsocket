@@ -45,6 +45,74 @@ class Admin_Page {
 	}
 
 	/**
+	 * The user meta holding the ids of the settings notices a user closed.
+	 *
+	 * @since 0.31.0
+	 */
+	const DISMISSED_META = 'wpsignal_dismissed_notices';
+
+	/**
+	 * Register the dismissed-notices user meta for the REST API, so the settings app writes it through `/wp/v2/users/me`.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return void
+	 */
+	public static function register_meta(): void {
+		register_meta(
+			'user',
+			self::DISMISSED_META,
+			array(
+				'type'              => 'array',
+				'single'            => true,
+				'default'           => array(),
+				'sanitize_callback' => array( __CLASS__, 'sanitize_dismissed' ),
+				'auth_callback'     => static fn( bool $allowed, string $key, int $user_id ): bool => get_current_user_id() === $user_id && current_user_can( 'manage_options' ),
+				'show_in_rest'      => array(
+					'schema' => array(
+						'type'     => 'array',
+						'maxItems' => 50,
+						'items'    => array(
+							'type'      => 'string',
+							'pattern'   => '^[a-z][a-z0-9_-]{0,63}$',
+							'maxLength' => 64,
+						),
+					),
+				),
+			)
+		);
+	}
+
+	/**
+	 * The ids as a deduped list of slugs, 50 at most.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param mixed $value What was given.
+	 * @return string[]
+	 */
+	public static function sanitize_dismissed( $value ): array {
+		$ids = array();
+		foreach ( is_array( $value ) ? $value : array() as $id ) {
+			if ( is_string( $id ) && 1 === preg_match( '/^[a-z][a-z0-9_-]{0,63}$/', $id ) ) {
+				$ids[ $id ] = true;
+			}
+		}
+		return array_slice( array_keys( $ids ), 0, 50 );
+	}
+
+	/**
+	 * The notices the current user has closed.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return string[]
+	 */
+	public static function dismissed_notices(): array {
+		return self::sanitize_dismissed( get_user_meta( get_current_user_id(), self::DISMISSED_META, true ) );
+	}
+
+	/**
 	 * Register the top-level WordSocket menu and subpages.
 	 *
 	 * @return void
@@ -215,12 +283,16 @@ class Admin_Page {
 					),
 					// Known before the first render, so a link to a developer tab opens it.
 					'developerMode' => $this->config->developer_mode(),
+					// The notices this user closed, so none paints before it is hidden.
+					'dismissed'     => self::dismissed_notices(),
 					// The Moments tab's replay registers its history provider from this before the app mounts.
 					'history'       => array(
-						'enabled'     => $this->config->history_enabled(),
-						'currency'    => WPS::journeys()->currency(),
-						'outcomes'    => WPS::journeys()->outcomes(),
-						'downloadUrl' => Journeys::download_url(),
+						'enabled'         => $this->config->history_enabled(),
+						'currency'        => WPS::journeys()->currency(),
+						'outcomes'        => WPS::journeys()->outcomes(),
+						'downloadUrl'     => Journeys::download_url(),
+						// A marker an earlier request planted: false on the first page view after a cache flush.
+						'persistentCache' => Journeys::cache_persists(),
 					),
 				),
 				JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT

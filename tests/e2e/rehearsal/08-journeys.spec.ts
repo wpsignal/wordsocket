@@ -236,6 +236,36 @@ test.describe("Journeys", () => {
     }
   });
 
+  test("the object cache notice stays closed once dismissed, through the user's meta", async ({ admin, page }) => {
+    const user = wp("user", "get", process.env.WP_USERNAME!, "--field=ID");
+    // wp-cli exits non-zero when there is no row to delete.
+    const forget = () => {
+      try {
+        wp("user", "meta", "delete", user, "wpsignal_dismissed_notices");
+      } catch {
+        // nothing was kept
+      }
+    };
+    forget();
+    try {
+      await admin.visitAdminPage("admin.php", TAB);
+      await expect(page.getByText(/Database size:/)).toBeVisible({ timeout: 20_000 });
+      const notice = page.getByText("Object Cache Missing");
+      // The probe asks twice; a site with a persistent cache never shows the notice.
+      const shown = await notice.waitFor({ state: "visible", timeout: 5_000 }).then(() => true, () => false);
+      test.skip(!shown, "the E2E site has a persistent object cache, so there is nothing to dismiss");
+      await notice.locator("xpath=ancestor::*[@role='alert' or @role='status' or contains(@class, 'notice')][1]").getByRole("button").first().click();
+      await expect(notice).toHaveCount(0);
+      expect(wp("user", "meta", "get", user, "wpsignal_dismissed_notices", "--format=json")).toContain("object-cache-missing");
+      await page.reload();
+      await expect(page.getByText(/Database size:/)).toBeVisible({ timeout: 20_000 });
+      await page.waitForTimeout(1_500);
+      await expect(notice).toHaveCount(0);
+    } finally {
+      forget();
+    }
+  });
+
   test("the retention slider saves once it rests, and the card says what the table takes", async ({ admin, page }) => {
     let months = "";
     try {

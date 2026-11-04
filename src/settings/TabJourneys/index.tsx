@@ -17,6 +17,7 @@ import { useSettings } from "../context";
 import { HistoryCard } from "./HistoryCard";
 import { Visuals } from "./Visuals";
 import { useVisuals } from "./useVisuals";
+import { DismissibleNotice } from "../DismissibleNotice";
 
 /** Bytes as "2.5 MB", counted by 1024 as a host's panel does. */
 function formatBytes(bytes: number): string {
@@ -44,6 +45,8 @@ export function TabJourneys({ title }: { title: string }) {
   const [version, setVersion] = useState(0);
   const visuals = useVisuals(true, version);
   const storage = visuals.data?.storage ?? null;
+  /* As the page's own request found it; unknown counts as present, so nobody is warned on a guess. */
+  const cache = window.wpsignalSettings?.history?.persistentCache ?? true;
   return (
     <Stack direction="column" gap="lg">
       <TabHeading
@@ -80,6 +83,14 @@ export function TabJourneys({ title }: { title: string }) {
             )}
           </Notice.Description>
         </Notice.Root>
+      )}
+      {historyEnabled && cache === false && (
+        <DismissibleNotice
+          id="object-cache-missing"
+          title={__("Object Cache Missing", "wordsocket")}
+        >
+          {__("Your host does not support object caching. This could cause performance degradation when Journeys History is enabled.", "wordsocket")}
+        </DismissibleNotice>
       )}
       <HistoryCard onPurged={() => setVersion((v) => v + 1)} />
       <Visuals key={version} visuals={visuals} />
