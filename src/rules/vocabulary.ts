@@ -26,6 +26,11 @@ function equals(op: string, actual: unknown, wanted: unknown): boolean {
   return false;
 }
 
+/**
+ * WordSocket's own condition tests, by key.
+ *
+ * @since 0.31.0
+ */
 export const conditions: Record<string, ConditionTest> = {
   page_kind: (ctx, c) => equals(c.op, ctx.page.kind, c.value),
   page_id: (ctx, c) =>
@@ -65,10 +70,18 @@ function hourBetween(c: RuleCondition, h: number): boolean {
   return from <= to ? h >= from && h <= to : h >= from || h <= to;
 }
 
-/** The conditions whose truth can change within a second: the two page clocks. */
+/**
+ * The conditions whose truth can change within a second: the two page clocks.
+ *
+ * @since 0.31.0
+ */
 export const SECOND_CONDITIONS = new Set(["dwell", "time_hidden"]);
 
-/** Every condition whose truth changes with time alone, so the engine ticks while one is in use. */
+/**
+ * Every condition whose truth changes with time alone, so the engine ticks while one is in use.
+ *
+ * @since 0.31.0
+ */
 export const TIMED_CONDITIONS = new Set([
   ...SECOND_CONDITIONS,
   "site_hour",
@@ -76,12 +89,21 @@ export const TIMED_CONDITIONS = new Set([
   "weekday",
 ]);
 
+/**
+ * What the built-in actions need.
+ *
+ * @since 0.31.0
+ */
 export interface ActionDeps {
   attention: Attention;
   loadPattern(id: number): Promise<Node | null>;
 }
 
-/** Show's `presentation` param, with a bare string read as the type alone. */
+/**
+ * Show's `presentation` param, with a bare string read as the type alone.
+ *
+ * @since 0.31.0
+ */
 export function presentationOf(value: unknown): RulePresentation {
   if (typeof value === "string") return { type: value, pattern: 0, text: "" };
   const v = (typeof value === "object" && value !== null ? value : {}) as {
@@ -114,9 +136,18 @@ async function showContent(
   });
 }
 
-/** The tab title a moment flashes when it names none. */
+/**
+ * The tab title a moment flashes when it names none.
+ *
+ * @since 0.31.0
+ */
 export const DEFAULT_TITLE = "Still there?";
 
+/**
+ * WordSocket's own action runners, by key.
+ *
+ * @since 0.31.0
+ */
 export function actions(deps: ActionDeps): Record<string, ActionRun> {
   return {
     show: (ctx, params, recovery, rule) => {

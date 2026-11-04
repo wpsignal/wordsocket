@@ -31,6 +31,11 @@ import {
 const SECOND_MS = 1_000;
 const MINUTE_MS = 60_000;
 
+/**
+ * What the engine is built from.
+ *
+ * @since 0.31.0
+ */
 export interface EngineDeps {
   registry: Registry;
   recovery: Recovery;
@@ -60,7 +65,11 @@ function parseSteps(journey: string): Step[] {
   });
 }
 
-/** The journey part of a context, from the steps so far. */
+/**
+ * The journey part of a context, from the steps so far.
+ *
+ * @since 0.31.0
+ */
 export function journeyContext(
   steps: Step[],
   current: string,
@@ -153,6 +162,11 @@ function isNewVisitor(journeyId: string): boolean {
   return store.visit === journeyId;
 }
 
+/**
+ * The rules engine: the rule set, evaluation and the replay.
+ *
+ * @since 0.31.0
+ */
 export interface Engine {
   setRules(rules: Rule[], version: number): void;
   readonly rules: Rule[];

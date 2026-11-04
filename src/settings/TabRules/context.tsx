@@ -16,6 +16,11 @@ import type { OptionGroup, Vocabulary } from "./model";
 import type { PatternOption } from "./ValueControl";
 import type { Journeys } from "./useJourneys";
 
+/**
+ * The Rules tab's reference data.
+ *
+ * @since 0.31.0
+ */
 export interface RulesData {
   vocabulary: Vocabulary;
   kinds: Record<string, string>;
@@ -26,9 +31,18 @@ export interface RulesData {
 
 const RulesContext = createContext<RulesData | null>(null);
 
+/**
+ * The provider of the Rules tab's reference data.
+ *
+ * @since 0.31.0
+ */
 export const RulesProvider = RulesContext.Provider;
 
-/** The tab's reference data; throws outside the provider, which is a bug, not a state. */
+/**
+ * The tab's reference data; throws outside the provider, which is a bug, not a state.
+ *
+ * @since 0.31.0
+ */
 export function useRules(): RulesData {
   const data = useContext(RulesContext);
   if (!data) throw new Error("useRules() needs a RulesProvider above it.");

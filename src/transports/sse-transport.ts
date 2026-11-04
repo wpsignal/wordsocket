@@ -16,6 +16,11 @@ import {
  */
 const MAX_BROWSER_RETRIES = 3;
 
+/**
+ * The Server-Sent Events transport, read-only, with browser-driven reconnects.
+ *
+ * @since 0.18.0
+ */
 export class SseTransport implements WPSTransport {
   public readonly name = "sse" as const;
   public readonly canPublish = false;

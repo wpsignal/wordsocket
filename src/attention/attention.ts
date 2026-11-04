@@ -5,8 +5,18 @@
  * cross-origin iframes.
  */
 
+/**
+ * Where the visitor's attention is: `page`, `window` or `hidden`.
+ *
+ * @since 0.31.0
+ */
 export type AttentionState = "page" | "window" | "hidden";
 
+/**
+ * The attention tracker: the current state, when the tab hid, and a change listener.
+ *
+ * @since 0.31.0
+ */
 export interface Attention {
   readonly state: AttentionState;
   /** When the tab became hidden (ms since the epoch), null while it is visible. */
@@ -17,7 +27,11 @@ export interface Attention {
   ): () => void;
 }
 
-/** Whether the primary input is a mouse or trackpad (it can hover and point finely), where window focus is trustworthy. */
+/**
+ * Whether the primary input is a mouse or trackpad (it can hover and point finely), where window focus is trustworthy.
+ *
+ * @since 0.31.0
+ */
 export function hasPointer(): boolean {
   try {
     return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
@@ -26,12 +40,21 @@ export function hasPointer(): boolean {
   }
 }
 
-/** A guess at the device: a hovering fine pointer is a desktop; otherwise the width says phone or tablet. */
+/**
+ * A guess at the device: a hovering fine pointer is a desktop; otherwise the width says phone or tablet.
+ *
+ * @since 0.31.0
+ */
 export function deviceOf(): "desktop" | "tablet" | "mobile" {
   if (hasPointer()) return "desktop";
   return window.innerWidth < 768 ? "mobile" : "tablet";
 }
 
+/**
+ * Create the attention tracker for this tab, following visibility and window focus.
+ *
+ * @since 0.31.0
+ */
 export function createAttention(): Attention {
   let state: AttentionState = document.hidden ? "hidden" : "page";
   let hiddenAt: number | null = document.hidden ? Date.now() : null;

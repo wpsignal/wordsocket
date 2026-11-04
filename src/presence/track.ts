@@ -24,7 +24,11 @@ import { sendReport, type ReportAnswer } from "./report";
 import { isCrawler, visitorId } from "../utils/identity";
 import { stored } from "../utils/storage";
 
-/** The least time between writes a page view that changes nothing waits for. */
+/**
+ * The least time between writes a page view that changes nothing waits for.
+ *
+ * @since 0.31.0
+ */
 export const WRITE_INTERVAL_MS = 60_000;
 const WRITTEN_KEY = "wordsocket-written";
 
@@ -45,11 +49,20 @@ const written = stored<Written>(
     typeof (value as Written).at === "number",
 );
 
-/** The client the tracker drives: presence only, so a test can stand one in. */
+/**
+ * The client the tracker drives: presence only, so a test can stand one in.
+ *
+ * @since 0.30.0
+ */
 export interface PresenceClient {
   setPresence(channel: string, state: Record<string, unknown> | null): void;
 }
 
+/**
+ * Options for `WPS.presence.track()`.
+ *
+ * @since 0.30.0
+ */
 export interface TrackOptions {
   /**
    * The plugin's own fields, carried in presence state and in every report (ShopSocket's cart id).
@@ -64,6 +77,11 @@ export interface TrackOptions {
   report?: boolean | (() => boolean);
 }
 
+/**
+ * A running tracker, as `WPS.presence.track()` returns it.
+ *
+ * @since 0.30.0
+ */
 export interface PresenceTracker {
   /** This browser's visitor id, the same `WPS.visitorId()` gives. */
   readonly visitor: string;

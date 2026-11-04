@@ -16,10 +16,20 @@ interface TriggersResponse {
   message?: string;
 }
 
+/**
+ * Fetch the triggers.
+ *
+ * @since 0.7.0
+ */
 export function getTriggers(): Promise<TriggersResponse> {
   return apiFetch({ path: "/wpsignal/v1/triggers" });
 }
 
+/**
+ * Save the triggers.
+ *
+ * @since 0.7.0
+ */
 export function saveTriggers(triggers: Trigger[]): Promise<TriggersResponse> {
   return apiFetch({
     path: "/wpsignal/v1/triggers",
@@ -41,10 +51,20 @@ export function saveDismissedNotices(ids: string[]): Promise<unknown> {
   });
 }
 
+/**
+ * Fetch the settings.
+ *
+ * @since 0.7.0
+ */
 export function getSettings(): Promise<Settings> {
   return apiFetch({ path: "/wpsignal/v1/settings" });
 }
 
+/**
+ * Save the given settings.
+ *
+ * @since 0.7.0
+ */
 export function saveSettings(settings: SettingsPost): Promise<SettingsPost> {
   return apiFetch({
     path: "/wpsignal/v1/settings",
@@ -53,6 +73,11 @@ export function saveSettings(settings: SettingsPost): Promise<SettingsPost> {
   });
 }
 
+/**
+ * Connect the site with an API key.
+ *
+ * @since 0.14.0
+ */
 export function connectWithApiKey(api_key: string): Promise<ConnectResponse> {
   return apiFetch({
     path: "/wpsignal/v1/connect",
@@ -61,6 +86,11 @@ export function connectWithApiKey(api_key: string): Promise<ConnectResponse> {
   });
 }
 
+/**
+ * Disconnect the site.
+ *
+ * @since 0.7.0
+ */
 export function disconnect(): Promise<{ ok: boolean }> {
   return apiFetch({
     path: "/wpsignal/v1/disconnect",
@@ -68,13 +98,19 @@ export function disconnect(): Promise<{ ok: boolean }> {
   });
 }
 
-/** Get a short-lived connection JWT for the current user. */
+/**
+ * Get a short-lived connection JWT for the current user.
+ *
+ * @since 0.7.0
+ */
 export function getToken(): Promise<{ token: string }> {
   return apiFetch({ path: "/wpsignal/v1/token" });
 }
 
 /**
  * Publish a test event via the server-side proxy (keeps site secret out of the browser).
+ *
+ * @since 0.14.0
  */
 export function publishEvent(
   channel: string,
@@ -88,6 +124,11 @@ export function publishEvent(
   });
 }
 
+/**
+ * Fetch the registered extensions.
+ *
+ * @since 0.21.0
+ */
 export function getExtensions(): Promise<{
   extensions: WordSocketExtensionInfo[];
 }> {
@@ -158,11 +199,20 @@ export function getJourneys(options: {
   return apiFetch({ path: `/wpsignal/v1/journeys?${query.toString()}` });
 }
 
+/**
+ * Fetch the rules listing.
+ *
+ * @since 0.31.0
+ */
 export function getRules(): Promise<import("./TabRules/model").RulesListing> {
   return apiFetch({ path: "/wpsignal/v1/rules" });
 }
 
-/** Save the rules; the answer is the fresh listing. */
+/**
+ * Save the rules; the answer is the fresh listing.
+ *
+ * @since 0.31.0
+ */
 export function saveRules(data: {
   rules: import("../rules/types").Rule[];
 }): Promise<import("./TabRules/model").RulesListing> {

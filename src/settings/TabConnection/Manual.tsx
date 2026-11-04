@@ -22,6 +22,8 @@ const isValidKey = (value: string) => value.length === 64 || isMaskedKey(value);
 
 /**
  * Manual connection component for non-ssl connections.
+ *
+ * @since 0.7.0
  */
 export default function Manual({ title = null }: { title?: string | null }) {
   // Context

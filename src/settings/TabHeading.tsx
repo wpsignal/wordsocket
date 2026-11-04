@@ -14,6 +14,11 @@ import { Stack, Text } from "@wordpress/ui";
  */
 import { HelpToolTip } from "./HelpToolTip";
 
+/**
+ * A tab's heading with its help text and breadcrumbs.
+ *
+ * @since 0.31.0
+ */
 export function TabHeading({
   title,
   beforeTitle,

@@ -30,6 +30,8 @@ const EMPTY_TRIGGER: Trigger = {
 
 /**
  * Triggers tab.
+ *
+ * @since 0.14.0
  */
 export function TabTriggers({ title }: { title: string }) {
   const { tabsCache, setTabsCache } = useSettings();

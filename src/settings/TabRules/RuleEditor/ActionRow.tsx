@@ -21,6 +21,11 @@ import { HelpToolTip } from "../../HelpToolTip";
 import { PresentationChoices, PresentationText } from "./Presentation";
 import { RemoveButton } from "./RemoveButton";
 
+/**
+ * One action of a rule in the builder.
+ *
+ * @since 0.31.0
+ */
 export function ActionRow({
   action,
   onChange,

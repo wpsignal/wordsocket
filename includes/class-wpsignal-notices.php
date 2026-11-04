@@ -20,17 +20,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Records the last publish failure.
+ *
+ * @since 0.20.0
  */
 class Notices {
 
 	/**
 	 * Option holding the last failure: array{code, message, time, until}.
+	 *
+	 * @since 0.20.0
 	 */
 	const OPTION = 'wpsignal_last_publish_error';
 
 	/**
 	 * Minimum seconds between writes for the same error code, so a burst of
 	 * failed triggers does not hammer wp_options.
+	 *
+	 * @since 0.20.0
 	 */
 	const WRITE_INTERVAL = 300;
 
@@ -38,6 +44,8 @@ class Notices {
 	 * Server error codes that mean this site's credentials are no longer valid
 	 * (deleted site, regenerated key, deactivated account). Shared by the
 	 * settings check, the disconnect handler, and the client enqueue.
+	 *
+	 * @since 0.21.0
 	 */
 	const REJECTED_CODES = array(
 		'unknown_site_key',
@@ -52,6 +60,8 @@ class Notices {
 	 * this site's credentials. Cleared by a successful publish, a connect, or
 	 * a disconnect.
 	 *
+	 * @since 0.21.0
+	 *
 	 * @return bool
 	 */
 	public static function credentials_rejected(): bool {
@@ -61,6 +71,8 @@ class Notices {
 
 	/**
 	 * Record a publish failure.
+	 *
+	 * @since 0.20.0
 	 *
 	 * @param string   $code    Error code from the server (e.g. quota_exceeded, unauthorized) or `unreachable`.
 	 * @param string   $message Human-readable detail.
@@ -93,6 +105,8 @@ class Notices {
 	 * Forget the last failure unless it is a quota pause, which a reachability
 	 * probe cannot see and which ends on its own at the end of the month.
 	 *
+	 * @since 0.21.0
+	 *
 	 * @return void
 	 */
 	public static function clear_transient(): void {
@@ -105,6 +119,8 @@ class Notices {
 
 	/**
 	 * Forget the last failure (successful publish, connect, or disconnect).
+	 *
+	 * @since 0.20.0
 	 *
 	 * @return void
 	 */
@@ -120,6 +136,8 @@ class Notices {
 	/**
 	 * The last failure, or null.
 	 *
+	 * @since 0.20.0
+	 *
 	 * @return array|null
 	 */
 	public static function last() {
@@ -129,6 +147,8 @@ class Notices {
 
 	/**
 	 * Copy for a failure, keyed by what the administrator can do about it.
+	 *
+	 * @since 0.20.0
 	 *
 	 * @param array $error Stored failure.
 	 * @return string

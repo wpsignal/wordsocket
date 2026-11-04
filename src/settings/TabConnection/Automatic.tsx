@@ -9,6 +9,11 @@ import { createInterpolateElement } from "@wordpress/element";
 const { dashboardUrl = "https://api.wpsignal.io/dashboard" } =
   window.wpSignalConfig ?? {};
 
+/**
+ * The Connect tab's one-click connection through the dashboard.
+ *
+ * @since 0.7.0
+ */
 export default function Automatic({ isConnecting }: { isConnecting: boolean }) {
   const handleOAuthConnect = (): void => {
     const oauthStartUrl = window.wpsignalSettings?.oauthStartUrl;

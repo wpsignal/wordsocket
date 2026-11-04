@@ -20,10 +20,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Page steps and the visit and leave routes.
+ *
+ * @since 0.30.0
  */
 class Presence {
 
-	/** Longest journey string accepted (50 steps of `kind:id:s` is well under this). */
+	/**
+	 * Longest journey string accepted (50 steps of `kind:id:s` is well under this).
+	 *
+	 * @since 0.30.0
+	 */
 	const MAX_JOURNEY_BYTES = 4000;
 
 	/**
@@ -40,17 +46,33 @@ class Presence {
 	 */
 	const MAX_AGO = 2592000;
 
-	/** The visitor id and the journey id are version 4 UUIDs. */
+	/**
+	 * The visitor id and the journey id are version 4 UUIDs.
+	 *
+	 * @since 0.30.0
+	 */
 	const UUID_PATTERN = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i';
 
-	/** Most fields a plugin may attach to a report, and the longest value. */
+	/**
+	 * Most fields a plugin may attach to a report.
+	 *
+	 * @since 0.30.0
+	 */
 	const MAX_DATA_FIELDS = 20;
-	const MAX_DATA_BYTES  = 200;
+
+	/**
+	 * Longest value a plugin may attach to a report, in bytes.
+	 *
+	 * @since 0.30.0
+	 */
+	const MAX_DATA_BYTES = 200;
 
 	/**
 	 * The step this request's page is, as `{ kind, id }`: the post type and id
 	 * for singular pages, the taxonomy and term id for term archives, an
 	 * id-less kind for everything else, `admin` in wp-admin.
+	 *
+	 * @since 0.30.0
 	 *
 	 * @return array{kind: string, id: int}
 	 */
@@ -58,6 +80,8 @@ class Presence {
 		$step = $this->detect_step();
 		/**
 		 * Filters the step the current page is in a visitor's journey.
+		 *
+		 * @since 0.30.0
 		 *
 		 * @param array{kind: string, id: int} $step The detected kind and id.
 		 */
@@ -193,6 +217,8 @@ class Presence {
 	 *
 	 * Hooked to `rest_api_init` during WPS::boot().
 	 *
+	 * @since 0.30.0
+	 *
 	 * @return void
 	 */
 	public function register_routes() {
@@ -268,6 +294,8 @@ class Presence {
 			 * Fires when a visitor's browser reports leaving a page (`pagehide`),
 			 * with the journey closed.
 			 *
+			 * @since 0.30.0
+			 *
 			 * @param array{visitor: string, journey_id: string, journey: string, steps: int, user_id: int, data: array, leaving: bool, ago: int} $report The report.
 			 */
 			do_action( 'wpsignal_visitor_leave', $report );
@@ -275,6 +303,8 @@ class Presence {
 			/**
 			 * Fires when a visitor's browser reports arriving on a page, with the
 			 * journey so far (this page's step open).
+			 *
+			 * @since 0.30.0
 			 *
 			 * @param array{visitor: string, journey_id: string, journey: string, steps: int, user_id: int, data: array, leaving: bool, ago: int} $report The report.
 			 */
@@ -289,6 +319,8 @@ class Presence {
 			 * own; `ok` cannot be overridden. The browser reads it through
 			 * `tracker.onVisit()`.
 			 *
+			 * @since 0.31.0
+			 *
 			 * @param array $answer Fields to add, empty to begin with.
 			 * @param array{visitor: string, journey_id: string, journey: string, steps: int, user_id: int, data: array, leaving: bool, ago: int} $report The report.
 			 */
@@ -302,6 +334,8 @@ class Presence {
 	/**
 	 * How many steps a journey string holds.
 	 *
+	 * @since 0.30.0
+	 *
 	 * @param string $journey The journey.
 	 * @return int
 	 */
@@ -312,6 +346,8 @@ class Presence {
 	/**
 	 * A plugin's fields, reduced to what a report may carry: snake-case keys,
 	 * scalar values, strings cut at MAX_DATA_BYTES. Nested values are dropped.
+	 *
+	 * @since 0.30.0
 	 *
 	 * @param array $data The `data` object as sent.
 	 * @return array<string, string|int|float|bool>

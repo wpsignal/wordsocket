@@ -27,6 +27,11 @@ import {
   PresentationText,
 } from "./RuleEditor/Presentation";
 
+/**
+ * A published synced pattern the presentation picker offers.
+ *
+ * @since 0.31.0
+ */
 export interface PatternOption {
   id: number;
   title: string;
@@ -54,7 +59,11 @@ const HOURS: Option[] = Array.from({ length: 24 }, (_, h) => ({
   label: `${h}:00`,
 }));
 
-/** A select over string values; the label is visible unless `hideLabel`, and `groups` puts the options under headings. */
+/**
+ * A select over string values; the label is visible unless `hideLabel`, and `groups` puts the options under headings.
+ *
+ * @since 0.31.0
+ */
 export function Choice({
   label,
   hideLabel,
@@ -173,6 +182,11 @@ function NumberField({
 const entries = (options: Record<string, string>): Option[] =>
   Object.entries(options).map(([value, label]) => ({ value, label }));
 
+/**
+ * The control for a condition or action value of the given type.
+ *
+ * @since 0.31.0
+ */
 export function ValueControl({
   type,
   value,

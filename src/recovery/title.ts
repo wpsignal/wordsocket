@@ -8,6 +8,11 @@
 
 const BEAT_MS = 1_500;
 
+/**
+ * A running title flash, stopped by the caller.
+ *
+ * @since 0.31.0
+ */
 export interface TitleFlash {
   stop(): void;
 }
@@ -39,6 +44,11 @@ function stopAll(): void {
   document.title = original;
 }
 
+/**
+ * Alternate the tab title with `text` while the tab is hidden, until stopped.
+ *
+ * @since 0.31.0
+ */
 export function flashTitle(text: string): TitleFlash {
   const id = Symbol(text);
   if (timer === undefined) {

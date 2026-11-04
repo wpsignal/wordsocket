@@ -1,5 +1,7 @@
 /**
  * Types.
+ *
+ * @since 0.7.0
  */
 
 export interface Trigger {
@@ -10,19 +12,32 @@ export interface Trigger {
   event: string;
 }
 
+/**
+ * A post type as the trigger select offers it.
+ *
+ * @since 0.7.0
+ */
 export interface PostTypeOption {
   value: string;
   label: string;
 }
 
-/** Each field saves on its own; send only what changed. */
+/**
+ * Each field saves on its own; send only what changed.
+ *
+ * @since 0.7.0
+ */
 export interface SettingsPost {
   yjs_provider_enabled?: boolean;
   developer_mode?: boolean;
   history_enabled?: boolean;
   journeys_retention_months?: number;
 }
-/** `GET /wpsignal/v1/settings`, as `Token::handle_get_settings()` answers it. */
+/**
+ * `GET /wpsignal/v1/settings`, as `Token::handle_get_settings()` answers it.
+ *
+ * @since 0.7.0
+ */
 export interface Settings {
   base_url: string;
   api_key: string;
@@ -44,6 +59,11 @@ export interface Settings {
   } | null;
 }
 
+/**
+ * The connect route's answer.
+ *
+ * @since 0.7.0
+ */
 export interface ConnectResponse {
   message: string;
   site_key: string;
@@ -105,6 +125,11 @@ export interface JourneyVisuals {
   currency: string;
 }
 
+/**
+ * A notice shown on the Connect tab.
+ *
+ * @since 0.7.0
+ */
 export interface NoticeState {
   type: "success" | "error" | "warning";
   message: string | React.ReactNode;

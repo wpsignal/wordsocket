@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Client: script enqueue for logged-in users (frontend + admin).
+ *
+ * @since 0.7.0
  */
 class Client {
 
@@ -24,6 +26,8 @@ class Client {
 	 * - 3 (0.28): `window.wordsocket.registerTab()`, a settings tab per extension.
 	 * - 4 (0.30): `WPS.presence.track()`, visitor journeys over presence.
 	 * - 5 (0.31): `WPS.attention` and `WPS.recovery`, the surfaces behind rules.
+	 *
+	 * @since 0.23.0
 	 *
 	 * @var int
 	 */
@@ -60,6 +64,10 @@ class Client {
 	/**
 	 * Constructor.
 	 *
+	 * @since 0.7.0
+	 * @since 0.30.0 Takes an optional Presence.
+	 * @since 0.31.0 Takes an optional Rules.
+	 *
 	 * @param Config        $config   Configuration accessor.
 	 * @param Token         $token    Token minter (used to embed an initial JWT server-side).
 	 * @param Presence|null $presence Page steps and report routes for the tracker.
@@ -77,6 +85,8 @@ class Client {
 	 *
 	 * Called during WPSignal::boot().
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return void
 	 */
 	public function init() {
@@ -92,6 +102,8 @@ class Client {
 	 * (base_url, site_key, and site_secret all set).
 	 * The script is loaded in the footer with no dependencies.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return void
 	 */
 	public function enqueue() {
@@ -100,6 +112,8 @@ class Client {
 		 *
 		 * Return `false` to prevent the script from loading (e.g. on specific post types
 		 * or for guest users). Return `true` to force-load it regardless of login state.
+		 *
+		 * @since 0.7.0
 		 *
 		 * @param bool $allow Default: `is_user_logged_in()`.
 		 */
@@ -184,6 +198,8 @@ class Client {
 			 * Return `true` to disable WebSocket and fall back to Server-Sent Events.
 			 * Useful in environments where WebSocket connections are blocked.
 			 *
+			 * @since 0.7.0
+			 *
 			 * @param bool $force Default: `false`.
 			 */
 			$force_sse            = apply_filters( 'wpsignal_force_sse', false );
@@ -216,6 +232,8 @@ class Client {
 	 *      (Gutenberg plugin until RTC ships in core; the Gutenberg > Experiments
 	 *      "Enable real-time collaboration" toggle, via wp_is_collaboration_enabled()).
 	 *   3. The wpsignal client script is already enqueued (connection exists).
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return void
 	 */

@@ -4,14 +4,28 @@
  * `wordsocket-prompt` prefixed and themed through `--wordsocket-prompt-*` in `recovery.css`.
  */
 
+/**
+ * A mounted presentation: owns its markup and answers open and close.
+ *
+ * @since 0.31.0
+ */
 export interface PromptMount {
   open(node: Node): void;
   close(): void;
 }
 
-/** Why a mount closed itself: the visitor did it; a toast's own clock passes nothing. */
+/**
+ * Why a mount closed itself: the visitor did it; a toast's own clock passes nothing.
+ *
+ * @since 0.31.0
+ */
 export type CloseReason = "dismissed";
 
+/**
+ * A presentation's factory: given the root and a close callback, returns its mount.
+ *
+ * @since 0.31.0
+ */
 export type PresentationMount = (
   root: HTMLElement,
   close: (reason?: CloseReason) => void,
@@ -21,7 +35,11 @@ const TOAST_MS = 8_000;
 
 const registry = new Map<string, PresentationMount>();
 
-/** Register a presentation under a key, replacing any earlier one. */
+/**
+ * Register a presentation under a key, replacing any earlier one.
+ *
+ * @since 0.31.0
+ */
 export function registerPresentation(
   key: string,
   mount: PresentationMount,
@@ -29,12 +47,20 @@ export function registerPresentation(
   registry.set(key, mount);
 }
 
-/** The mount for a key, falling back to the banner for an unknown one. */
+/**
+ * The mount for a key, falling back to the banner for an unknown one.
+ *
+ * @since 0.31.0
+ */
 export function presentationFor(key: string): PresentationMount {
   return registry.get(key) ?? registry.get("banner")!;
 }
 
-/** The layer every prompt mounts into, created on first use. */
+/**
+ * The layer every prompt mounts into, created on first use.
+ *
+ * @since 0.31.0
+ */
 export function promptLayer(): HTMLElement {
   let layer = document.getElementById("wordsocket-prompts");
   if (!layer) {

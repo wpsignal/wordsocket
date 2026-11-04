@@ -3,6 +3,11 @@
  * unreadable until the drop, so the source is remembered here for the targets to check).
  */
 
+/**
+ * The one drag in flight.
+ *
+ * @since 0.31.0
+ */
 export interface Dragging {
   group: string;
   index: number;
@@ -10,15 +15,29 @@ export interface Dragging {
 
 let current: Dragging | null = null;
 
+/**
+ * The item being dragged, if any.
+ *
+ * @since 0.31.0
+ */
 export function dragging(): Dragging | null {
   return current;
 }
 
+/**
+ * Record the item being dragged.
+ *
+ * @since 0.31.0
+ */
 export function setDragging(next: Dragging | null): void {
   current = next;
 }
 
-/** `items` with the item at `from` moved so that it sits at `to`. */
+/**
+ * `items` with the item at `from` moved so that it sits at `to`.
+ *
+ * @since 0.31.0
+ */
 export function moveItem<T>(items: T[], from: number, to: number): T[] {
   const bounded = Math.max(0, Math.min(items.length - 1, to));
   if (from === bounded) return items;
@@ -28,7 +47,11 @@ export function moveItem<T>(items: T[], from: number, to: number): T[] {
   return next;
 }
 
-/** The index an item dropped on `index`'s `side` lands at, once the source at `from` is lifted out. */
+/**
+ * The index an item dropped on `index`'s `side` lands at, once the source at `from` is lifted out.
+ *
+ * @since 0.31.0
+ */
 export function dropIndex(
   from: number,
   index: number,

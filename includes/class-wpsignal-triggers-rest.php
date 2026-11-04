@@ -19,11 +19,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Triggers REST API.
+ *
+ * @since 0.7.0
  */
 class Triggers_REST {
 
 	/**
 	 * The `wp_options` key for saved trigger configs.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @var string
 	 */
@@ -33,6 +37,8 @@ class Triggers_REST {
 	 * Register REST routes.
 	 *
 	 * Hooked to `rest_api_init` during WPS::boot().
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return void
 	 */
@@ -62,6 +68,8 @@ class Triggers_REST {
 	/**
 	 * Return saved trigger configs.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return WP_REST_Response
 	 */
 	public function get_triggers() {
@@ -72,6 +80,8 @@ class Triggers_REST {
 
 	/**
 	 * Save trigger configs (replaces entire array).
+	 *
+	 * @since 0.7.0
 	 *
 	 * @param WP_REST_Request $request The incoming request.
 	 * @return WP_REST_Response

@@ -19,7 +19,11 @@ import { presentationOf } from "../../../rules/vocabulary";
 import { Choice } from "../ValueControl";
 import { useRules } from "../context";
 
-/** The inline pieces: how to show it, then "with", then text or pattern, with the pattern picker beside its choice. */
+/**
+ * The inline pieces: how to show it, then "with", then text or pattern, with the pattern picker beside its choice.
+ *
+ * @since 0.31.0
+ */
 export function PresentationChoices({
   value,
   options,
@@ -83,7 +87,11 @@ export function PresentationChoices({
   );
 }
 
-/** The chip's own line: the text while "this text" is chosen; nothing while a pattern is. */
+/**
+ * The chip's own line: the text while "this text" is chosen; nothing while a pattern is.
+ *
+ * @since 0.31.0
+ */
 export function PresentationText({
   value,
   onChange,

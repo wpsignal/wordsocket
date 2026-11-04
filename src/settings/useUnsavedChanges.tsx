@@ -47,6 +47,11 @@ const GuardContext = createContext<Guard>({
   guard: (leave) => leave(),
 });
 
+/**
+ * Owns the dirty flag and the discard dialog for the app.
+ *
+ * @since 0.31.0
+ */
 export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
   const dirty = useRef(false);
   const pending = useRef<{ leave: Leave; stay?: Leave } | null>(null);
@@ -102,7 +107,11 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** Report whether the form is dirty; while it is, leaving the page prompts. */
+/**
+ * Report whether the form is dirty; while it is, leaving the page prompts.
+ *
+ * @since 0.31.0
+ */
 export function useUnsavedChanges(isDirty: boolean): void {
   const { dirty } = useContext(GuardContext);
   useEffect(() => {
@@ -121,7 +130,11 @@ export function useUnsavedChanges(isDirty: boolean): void {
   }, [dirty, isDirty]);
 }
 
-/** `guard( leave )`: run `leave` now, or once the visitor agrees to discard their changes. */
+/**
+ * `guard( leave )`: run `leave` now, or once the visitor agrees to discard their changes.
+ *
+ * @since 0.31.0
+ */
 export function useLeaveGuard(): Guard["guard"] {
   return useContext(GuardContext).guard;
 }

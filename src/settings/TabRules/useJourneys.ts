@@ -8,6 +8,11 @@
  */
 import { useEffect, useState } from "@wordpress/element";
 
+/**
+ * The stored journeys and the state of their load.
+ *
+ * @since 0.31.0
+ */
 export interface Journeys {
   provider: WPSHistoryProvider | null;
   journeys: WPSHistoryJourney[] | null;
@@ -15,10 +20,24 @@ export interface Journeys {
   failed: boolean;
 }
 
-/** The same window and ceiling as the Journeys tab, so both count the same journeys. */
+/**
+ * The same window and ceiling as the Journeys tab, so both count the same journeys.
+ *
+ * @since 0.31.0
+ */
 export const REPLAY_DAYS = 28;
+/**
+ * Most journeys the replay loads.
+ *
+ * @since 0.31.0
+ */
 export const REPLAY_LIMIT = 1000;
 
+/**
+ * Load the stored journeys for the replay from the registered history provider.
+ *
+ * @since 0.31.0
+ */
 export function useJourneys(): Journeys {
   const provider = window.WPS?.rules?.historyProvider ?? null;
   const [journeys, setJourneys] = useState<WPSHistoryJourney[] | null>(null);

@@ -27,6 +27,8 @@ for (const type of ["pointerdown", "keydown"]) {
 /**
  * Play the chime; false when there was no gesture yet, it already played this visit, or there is no
  * audio.
+ *
+ * @since 0.31.0
  */
 export function playSound(): boolean {
   if (!gestured || played.read()) return false;
@@ -62,7 +64,11 @@ export function playSound(): boolean {
   }
 }
 
-/** For tests and the engine: whether a gesture has been seen on this page. */
+/**
+ * For tests and the engine: whether a gesture has been seen on this page.
+ *
+ * @since 0.31.0
+ */
 export function hasGesture(): boolean {
   return gestured;
 }

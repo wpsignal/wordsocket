@@ -21,6 +21,11 @@ import type {
 import { isGroup } from "../../rules/types";
 import type { PatternOption } from "./ValueControl";
 
+/**
+ * The value types a condition or param may declare.
+ *
+ * @since 0.31.0
+ */
 export type ValueType =
   | "none"
   | "number"
@@ -33,6 +38,11 @@ export type ValueType =
   | "weekdays"
   | "presentation";
 
+/**
+ * A condition as PHP describes it to the builder.
+ *
+ * @since 0.31.0
+ */
 export interface ConditionSpec {
   key: string;
   label: string;
@@ -45,11 +55,21 @@ export interface ConditionSpec {
   source: string;
 }
 
+/**
+ * A select's options under one heading.
+ *
+ * @since 0.31.0
+ */
 export interface OptionGroup {
   label: string;
   options: Record<string, string>;
 }
 
+/**
+ * An action param as PHP describes it to the builder.
+ *
+ * @since 0.31.0
+ */
 export interface ParamSpec {
   type: ValueType;
   label: string;
@@ -62,6 +82,11 @@ export interface ParamSpec {
   suffix?: string;
 }
 
+/**
+ * An action as PHP describes it to the builder.
+ *
+ * @since 0.31.0
+ */
 export interface ActionSpec {
   key: string;
   label: string;
@@ -71,6 +96,11 @@ export interface ActionSpec {
   source: string;
 }
 
+/**
+ * A context as PHP describes it to the builder.
+ *
+ * @since 0.31.0
+ */
 export interface ContextSpec {
   key: string;
   label: string;
@@ -78,17 +108,31 @@ export interface ContextSpec {
   source: string;
 }
 
+/**
+ * The registered conditions, actions and contexts.
+ *
+ * @since 0.31.0
+ */
 export interface Vocabulary {
   conditions: ConditionSpec[];
   actions: ActionSpec[];
   contexts: ContextSpec[];
 }
 
-/** A rule as the listing returns it: the saved shape plus the keys nothing registered. */
+/**
+ * A rule as the listing returns it: the saved shape plus the keys nothing registered.
+ *
+ * @since 0.31.0
+ */
 export interface ListedRule extends Rule {
   unavailable?: string[];
 }
 
+/**
+ * What `GET /wpsignal/v1/rules` answers.
+ *
+ * @since 0.31.0
+ */
 export interface RulesListing {
   version: number;
   rules: ListedRule[];
@@ -99,7 +143,11 @@ export interface RulesListing {
   kindGroups: OptionGroup[];
 }
 
-/** An 8-hex id, from WordSocket's generator when the client is on the page. */
+/**
+ * An 8-hex id, from WordSocket's generator when the client is on the page.
+ *
+ * @since 0.31.0
+ */
 export function newId(): string {
   const uuid = window.WPS?.uuid?.();
   if (uuid) return uuid.replace(/-/g, "").slice(0, 8);
@@ -108,7 +156,11 @@ export function newId(): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** A sensible first value for a type, so a new row is valid as it appears. */
+/**
+ * A sensible first value for a type, so a new row is valid as it appears.
+ *
+ * @since 0.31.0
+ */
 export function defaultValue(
   type: ValueType,
   options: Record<string, string>,
@@ -142,6 +194,11 @@ export function defaultValue(
   }
 }
 
+/**
+ * A fresh condition using the vocabulary's first condition.
+ *
+ * @since 0.31.0
+ */
 export function newCondition(
   vocabulary: Vocabulary,
   kinds: Record<string, string>,
@@ -154,6 +211,11 @@ export function newCondition(
   };
 }
 
+/**
+ * A fresh action for `key`, with its params' defaults.
+ *
+ * @since 0.31.0
+ */
 export function newAction(
   vocabulary: Vocabulary,
   kinds: Record<string, string>,
@@ -170,6 +232,11 @@ export function newAction(
   return action;
 }
 
+/**
+ * A fresh rule with one condition and one action.
+ *
+ * @since 0.31.0
+ */
 export function newRule(
   vocabulary: Vocabulary,
   kinds: Record<string, string>,
@@ -196,11 +263,20 @@ const WEEKDAYS = [
   __("Saturday", "wordsocket"),
 ];
 
+/**
+ * A weekday's name from its number.
+ *
+ * @since 0.31.0
+ */
 export function weekdayName(day: number): string {
   return WEEKDAYS[day] ?? String(day);
 }
 
-/** A value in words, for the summary sentence. */
+/**
+ * A value in words, for the summary sentence.
+ *
+ * @since 0.31.0
+ */
 export function describeValue(
   type: ValueType,
   value: unknown,
@@ -341,6 +417,8 @@ function describeAction(
  * "If page is Post and time on page while visible at least 30, then Show banner saying "Still
  * there?" after 20 s, flashing the tab title while hidden." The frequency is the card's badge, not
  * part of the sentence.
+ *
+ * @since 0.31.0
  */
 export function summarize(
   rule: Rule,
@@ -360,7 +438,11 @@ export function summarize(
   return sprintf(__("If %1$s, then %2$s.", "wordsocket"), when, then);
 }
 
-/** The condition keys a rule names that the vocabulary lacks (a deactivated extension). */
+/**
+ * The condition keys a rule names that the vocabulary lacks (a deactivated extension).
+ *
+ * @since 0.31.0
+ */
 export function unavailableKeys(rule: ListedRule): string[] {
   return rule.unavailable ?? [];
 }

@@ -16,12 +16,18 @@ const IV_BYTES = 12;
  */
 type Bytes = Uint8Array<ArrayBuffer>;
 
-/** Decrypts one `IV || ciphertext || tag` payload to its plaintext bytes. */
+/**
+ * Decrypts one `IV || ciphertext || tag` payload to its plaintext bytes.
+ *
+ * @since 0.25.0
+ */
 export type Decryptor = (payload: Bytes) => Promise<Uint8Array>;
 
 /**
  * Build a decryptor for the site's raw 32-byte key: SubtleCrypto when the page
  * has it and the key imports, the pure-JS cipher otherwise.
+ *
+ * @since 0.25.0
  */
 export async function createDecryptor(rawKey: Bytes): Promise<Decryptor> {
   if (typeof crypto !== "undefined" && crypto.subtle) {

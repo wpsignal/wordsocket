@@ -16,23 +16,83 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * The rules registry, store and routes.
+ *
+ * @since 0.31.0
  */
 class Rules {
 
-	const MAX_RULES      = 50;
+	/**
+	 * Most rules a site may save.
+	 *
+	 * @since 0.31.0
+	 */
+	const MAX_RULES = 50;
+
+	/**
+	 * Most conditions a rule may hold.
+	 *
+	 * @since 0.31.0
+	 */
 	const MAX_CONDITIONS = 20;
-	const MAX_ACTIONS    = 10;
-	const MAX_TEXT       = 500;
-	const MAX_TITLE      = 80;
-	/** The longest an action may wait, in seconds. */
+
+	/**
+	 * Most actions a rule may hold.
+	 *
+	 * @since 0.31.0
+	 */
+	const MAX_ACTIONS = 10;
+
+	/**
+	 * Longest text param, in characters.
+	 *
+	 * @since 0.31.0
+	 */
+	const MAX_TEXT = 500;
+
+	/**
+	 * Longest attention title, in characters.
+	 *
+	 * @since 0.31.0
+	 */
+	const MAX_TITLE = 80;
+	/**
+	 * The longest an action may wait, in seconds.
+	 *
+	 * @since 0.31.0
+	 */
 	const MAX_AFTER = 3600;
-	/** The most a value kept for a condition or action nobody registered right now may weigh, as JSON. */
+	/**
+	 * The most a value kept for a condition or action nobody registered right now may weigh, as JSON.
+	 *
+	 * @since 0.31.0
+	 */
 	const MAX_UNKNOWN_BYTES = 2000;
-	/** How often a rule shows: on every transition, at most once per page view, once per visit (journey) or once per visitor. */
+	/**
+	 * How often a rule shows: on every transition, at most once per page view, once per visit (journey) or once per visitor.
+	 *
+	 * @since 0.31.0
+	 */
 	const FREQUENCIES = array( 'always', 'page', 'visit', 'visitor' );
 
-	const ID_PATTERN   = '/^[a-z0-9][a-z0-9_-]{0,63}$/i';
-	const KEY_PATTERN  = '/^[a-z][a-z0-9_]{0,63}$/';
+	/**
+	 * What a rule id looks like.
+	 *
+	 * @since 0.31.0
+	 */
+	const ID_PATTERN = '/^[a-z0-9][a-z0-9_-]{0,63}$/i';
+
+	/**
+	 * What a condition, action, param or context key looks like.
+	 *
+	 * @since 0.31.0
+	 */
+	const KEY_PATTERN = '/^[a-z][a-z0-9_]{0,63}$/';
+
+	/**
+	 * What a visitor or journey id looks like.
+	 *
+	 * @since 0.31.0
+	 */
 	const UUID_PATTERN = Presence::UUID_PATTERN;
 
 	/**
@@ -42,7 +102,11 @@ class Rules {
 	 */
 	const FIRING_KINDS = array( 'fired', 'returned', 'dismissed', 'clicked' );
 
-	/** Value types a condition or a param may declare. */
+	/**
+	 * Value types a condition or a param may declare.
+	 *
+	 * @since 0.31.0
+	 */
 	const VALUE_TYPES = array( 'none', 'number', 'text', 'boolean', 'select', 'kind', 'id', 'hours', 'weekdays', 'presentation' );
 
 	/**
@@ -83,6 +147,8 @@ class Rules {
 	/**
 	 * Constructor.
 	 *
+	 * @since 0.31.0
+	 *
 	 * @param Config    $config    Configuration accessor.
 	 * @param Publisher $publisher Event publisher.
 	 */
@@ -93,6 +159,8 @@ class Rules {
 
 	/**
 	 * Describe a condition the builder may offer; the browser half is `WPS.rules.condition( key, test )`.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @param string $key  `[a-z][a-z0-9_]*`.
 	 * @param array  $args `label`, `description`, `operators` (list of `{ key, label }`), `value` (a VALUE_TYPES entry), `options` (`{ key: label }` for `select`), `source`.
@@ -107,6 +175,8 @@ class Rules {
 
 	/**
 	 * Describe an action the builder may offer; the browser half is `WPS.rules.action( key, run )`.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @param string $key  `[a-z][a-z0-9_]*`.
 	 * @param array  $args `label`, `description`, `params` (`{ key: { type, label, options, default } }`), `live`, `source`.
@@ -154,6 +224,8 @@ class Rules {
 	/**
 	 * One param as the builder receives it: type, label, options, default, `when`, and the words before and after its control.
 	 *
+	 * @since 0.31.0
+	 *
 	 * @param string $param_key The param.
 	 * @param array  $param     As registered.
 	 * @return array
@@ -174,6 +246,8 @@ class Rules {
 
 	/**
 	 * Describe a live context and the placeholders it offers, for the builder's hints.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @param string $key  Context key.
 	 * @param array  $args `label`, `placeholders` (`{ 'cart.total': label }`), `source`.
@@ -239,6 +313,8 @@ class Rules {
 
 	/**
 	 * WordSocket's own vocabulary: the conditions and actions `src/rules/vocabulary.ts` implements.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @return void
 	 */
@@ -446,6 +522,8 @@ class Rules {
 	/**
 	 * Everything registered, for the builder: WordSocket's own entries first, then extensions' in registration order.
 	 *
+	 * @since 0.31.0
+	 *
 	 * @return array{conditions: array, actions: array, contexts: array}
 	 */
 	public function vocabulary(): array {
@@ -487,6 +565,8 @@ class Rules {
 		}
 		/**
 		 * Filters the page kinds a rule may name (ShopSocket adds `shop`, `cart`, `checkout`, `thanks`, `category`).
+		 *
+		 * @since 0.31.0
 		 *
 		 * @param array<string, string> $kinds Kind key => label.
 		 */
@@ -553,6 +633,8 @@ class Rules {
 	/**
 	 * The page kinds that are taxonomy archives: every public taxonomy, plus what `wpsignal_taxonomy_kinds` adds.
 	 *
+	 * @since 0.31.0
+	 *
 	 * @return array<string, string> Kind key => label.
 	 */
 	public function taxonomy_kinds(): array {
@@ -562,6 +644,8 @@ class Rules {
 		}
 		/**
 		 * Filters the kinds that count as a taxonomy archive (ShopSocket adds `category`, its product category pages).
+		 *
+		 * @since 0.31.0
 		 *
 		 * @param array<string, string> $taxonomies Kind key => label.
 		 */
@@ -596,6 +680,8 @@ class Rules {
 		}
 		/**
 		 * Filters the kinds that are post type archives (ShopSocket drops `product_archive`, since the shop page is its `shop` kind).
+		 *
+		 * @since 0.31.0
 		 *
 		 * @param array<string, string> $archives Kind key => label.
 		 */
@@ -699,11 +785,15 @@ class Rules {
 	/**
 	 * Rules shipped by extensions through `wpsignal_default_rules`, normalized, disabled.
 	 *
+	 * @since 0.31.0
+	 *
 	 * @return array<string, array> By id.
 	 */
 	private function defaults(): array {
 		/**
 		 * Filters the rules extensions ship. Each is a full rule; it appears disabled until saved, and a removed id stays removed.
+		 *
+		 * @since 0.31.0
 		 *
 		 * @param array $rules Rules.
 		 */
@@ -724,6 +814,8 @@ class Rules {
 
 	/**
 	 * Saved rules plus unsaved defaults, each flagged `unavailable` when it names a key nobody registered.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @return array
 	 */
@@ -753,6 +845,8 @@ class Rules {
 	/**
 	 * Enabled saved rules: what browsers receive.
 	 *
+	 * @since 0.31.0
+	 *
 	 * @return array
 	 */
 	public function enabled(): array {
@@ -761,6 +855,8 @@ class Rules {
 
 	/**
 	 * Condition and action keys of a rule that nothing registered (a deactivated extension's).
+	 *
+	 * @since 0.31.0
 	 *
 	 * @param array $rule The rule.
 	 * @return string[]
@@ -796,6 +892,8 @@ class Rules {
 	 * Check and normalize rules against the registry. Unknown keys pass only
 	 * when the saved copy of the same rule already had them, so a deactivated
 	 * extension's rule survives a save of the others.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @param array $rules As posted.
 	 * @return array|WP_Error Normalized rules, or `wpsignal_invalid_rules` naming the rule and field.
@@ -861,6 +959,8 @@ class Rules {
 	/**
 	 * How often a rule shows, from its `frequency` or the older `once` boolean; once per visit when it says neither.
 	 *
+	 * @since 0.31.0
+	 *
 	 * @param array $rule Rule.
 	 * @return string One of FREQUENCIES.
 	 */
@@ -876,6 +976,8 @@ class Rules {
 
 	/**
 	 * A `wpsignal_invalid_rules` error.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @param string $rule_id Rule id, '' when none.
 	 * @param string $field   The field at fault.
@@ -896,6 +998,8 @@ class Rules {
 
 	/**
 	 * Validate a condition group.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @param mixed    $group        `{ all: [...] }` or `{ any: [...] }`.
 	 * @param string   $rule_id      For errors.
@@ -936,6 +1040,8 @@ class Rules {
 
 	/**
 	 * Validate one condition against its registration.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @param mixed    $node         `{ condition, op, value }`.
 	 * @param string   $rule_id      For errors.
@@ -980,6 +1086,8 @@ class Rules {
 
 	/**
 	 * Validate the actions of a rule.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @param mixed    $actions      List of `{ action, params }`.
 	 * @param string   $rule_id      For errors.
@@ -1029,6 +1137,8 @@ class Rules {
 	/**
 	 * Whether a value kept unvalidated (its condition or action is not registered right now) is small enough to store and broadcast.
 	 *
+	 * @since 0.31.0
+	 *
 	 * @param mixed $value As given.
 	 * @return bool
 	 */
@@ -1038,6 +1148,8 @@ class Rules {
 
 	/**
 	 * Validate one value by its declared type.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @param string $type    A VALUE_TYPES entry.
 	 * @param mixed  $value   As given.
@@ -1096,6 +1208,8 @@ class Rules {
 	/**
 	 * Whether an id is a published synced pattern (`wp_block`).
 	 *
+	 * @since 0.31.0
+	 *
 	 * @param int $id Post id.
 	 * @return bool
 	 */
@@ -1106,6 +1220,8 @@ class Rules {
 
 	/**
 	 * Pattern ids an enabled rule names: what the prompt route serves, so a pattern is public from the moment a live rule shows it.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @return int[]
 	 */
@@ -1125,6 +1241,8 @@ class Rules {
 
 	/**
 	 * Save the rules, bump versions, and tell every open browser.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @param array $rules Validated rules.
 	 * @return array{version: int, rules: array, removed: string[]}
@@ -1161,6 +1279,8 @@ class Rules {
 	/**
 	 * A synced pattern was saved, trashed or deleted: when an enabled rule shows it, the version moves so every browser fetches its markup again, with no rule re-armed.
 	 *
+	 * @since 0.31.0
+	 *
 	 * @param int           $post_id The post.
 	 * @param \WP_Post|null $post    The post, when the hook passes it.
 	 * @return void
@@ -1182,6 +1302,8 @@ class Rules {
 	/**
 	 * A rule without its revision, for change detection.
 	 *
+	 * @since 0.31.0
+	 *
 	 * @param array $rule The rule.
 	 * @return string
 	 */
@@ -1193,6 +1315,8 @@ class Rules {
 
 	/**
 	 * The array with its keys sorted at every depth, so a field `saved()` adds on read compares equal wherever it sits.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @param array $value Array.
 	 * @return array
@@ -1212,6 +1336,8 @@ class Rules {
 
 	/**
 	 * What browsers receive: the version and the enabled rules.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @return array{version: int, rules: array}
 	 */
@@ -1333,6 +1459,8 @@ class Rules {
 	/**
 	 * `GET /rules`: everything the builder needs.
 	 *
+	 * @since 0.31.0
+	 *
 	 * @return WP_REST_Response
 	 */
 	public function handle_get(): WP_REST_Response {
@@ -1341,6 +1469,8 @@ class Rules {
 
 	/**
 	 * The listing both staff routes answer with.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @return array
 	 */
@@ -1359,6 +1489,8 @@ class Rules {
 	/**
 	 * `GET /rules/live`: what every browser already receives, for a tab re-syncing after a reconnect.
 	 *
+	 * @since 0.31.0
+	 *
 	 * @return WP_REST_Response
 	 */
 	public function handle_live(): WP_REST_Response {
@@ -1369,6 +1501,8 @@ class Rules {
 
 	/**
 	 * `POST /rules`: save the rules.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @param WP_REST_Request $request The request.
 	 * @return WP_REST_Response|WP_Error
@@ -1388,6 +1522,8 @@ class Rules {
 
 	/**
 	 * `GET /prompt/{id}`: a synced pattern rendered, for a prompt. Only ids an enabled rule names, and to anyone who asks.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @param WP_REST_Request $request The request.
 	 * @return WP_REST_Response|WP_Error
@@ -1416,6 +1552,8 @@ class Rules {
 
 	/**
 	 * Whether the enabled rule `$rule_id` has an action `$action`, so a firing report names something that can have fired.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @param string $rule_id The rule.
 	 * @param string $action  The action key.
@@ -1458,6 +1596,8 @@ class Rules {
 		WPS::journeys()->on_fired( $report );
 		/**
 		 * Fires when a visitor's browser reports that a rule fired, after WordSocket has stored it (History on).
+		 *
+		 * @since 0.31.0
 		 *
 		 * @param array{visitor: string, journey_id: string, rule_id: string, action: string, step: int, s: int, kind: string, user_id: int, data: array} $report The report: `s` the whole seconds into the step, `kind` one of FIRING_KINDS.
 		 */

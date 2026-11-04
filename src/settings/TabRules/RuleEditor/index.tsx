@@ -32,6 +32,11 @@ interface Props {
 
 type Field = "name" | "conditions" | "actions";
 
+/**
+ * The moment builder: edit one rule, then save or cancel.
+ *
+ * @since 0.31.0
+ */
 export function RuleEditor({ rule: initial, saving, onSave, onCancel }: Props) {
   const { history } = useRules();
   const [rule, setRule] = useState<Rule>(initial);

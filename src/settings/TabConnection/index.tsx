@@ -48,6 +48,11 @@ function consumeCallbackParams(): {
   return { notice, reason };
 }
 
+/**
+ * The Connect tab: connection status, connect and disconnect.
+ *
+ * @since 0.14.0
+ */
 export function TabConnection({ title }: { title: string }) {
   // Context
   const {

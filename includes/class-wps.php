@@ -39,6 +39,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * WPS - main singleton object.
+ *
+ * @since 0.7.0
  */
 class WPS {
 
@@ -164,6 +166,8 @@ class WPS {
 	/**
 	 * Get the singleton instance.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return WPS
 	 */
 	public static function instance() {
@@ -176,12 +180,16 @@ class WPS {
 	/**
 	 * Private constructor: use WPS::instance() instead.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return void
 	 */
 	private function __construct() {}
 
 	/**
 	 * Boot the plugin: instantiate and wire all components.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return void
 	 */
@@ -234,6 +242,8 @@ class WPS {
 		 *             ->register();
 		 *     } );
 		 * ```
+		 *
+		 * @since 0.7.0
 		 */
 		do_action( 'wpsignal_loaded' );
 
@@ -268,6 +278,8 @@ class WPS {
 	/**
 	 * Prepend the "WordSocket" block category to the editor category list.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @param array $categories Existing block categories.
 	 * @return array
 	 */
@@ -286,6 +298,8 @@ class WPS {
 	/**
 	 * Get the configuration accessor.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return Config
 	 */
 	public function config() {
@@ -295,6 +309,8 @@ class WPS {
 	/**
 	 * Get the event publisher.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return Publisher
 	 */
 	public function publisher() {
@@ -303,6 +319,8 @@ class WPS {
 
 	/**
 	 * Get the token/REST handler.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return Token
 	 */
@@ -318,6 +336,8 @@ class WPS {
 	/**
 	 * Channel namespace reservations (see `Channels`).
 	 *
+	 * @since 0.21.0
+	 *
 	 * @return Channels
 	 */
 	public function channels() {
@@ -326,6 +346,8 @@ class WPS {
 
 	/**
 	 * Extension registry (see `Extensions`).
+	 *
+	 * @since 0.21.0
 	 *
 	 * @return Extensions
 	 */
@@ -336,6 +358,8 @@ class WPS {
 	/**
 	 * Visitor presence: page steps and the visit and leave routes (see `Presence`).
 	 *
+	 * @since 0.30.0
+	 *
 	 * @return Presence
 	 */
 	public function presence() {
@@ -344,6 +368,8 @@ class WPS {
 
 	/**
 	 * The rules registry (see `Rules`): `WPS::rules()->condition( $key, $args )` and `->action( $key, $args )` on `wpsignal_loaded`.
+	 *
+	 * @since 0.31.0
 	 *
 	 * @return Rules
 	 */
@@ -364,6 +390,8 @@ class WPS {
 
 	/**
 	 * Get the trigger registry.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return Trigger_Registry
 	 */
@@ -386,6 +414,9 @@ class WPS {
 	 *         } )
 	 *         ->register();
 	 * ```
+	 *
+	 * @since 0.7.0
+	 *
 	 * @param string $event Event name (e.g. "post.updated", "comment.created").
 	 * @return Trigger A new trigger builder instance.
 	 */
@@ -403,6 +434,9 @@ class WPS {
 	 * ```php
 	 *     WPS::publish( 'events', 'custom.event', [ 'key' => 'value' ] );
 	 * ```
+	 *
+	 * @since 0.7.0
+	 *
 	 * @param string $channel Channel name (e.g. "events"). Scoped server-side.
 	 * @param string $event   Event name (e.g. "post.updated").
 	 * @param mixed  $data    Arbitrary data (will be JSON-encoded).

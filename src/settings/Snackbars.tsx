@@ -12,6 +12,8 @@ const MAX_VISIBLE = 3;
  * The toasts: every tab dispatches to core's `core/notices` store with `type: "snackbar"` and this
  * one list shows them, each dismissing itself after ten seconds. Core styles every snackbar alike;
  * the status class is ours.
+ *
+ * @since 0.29.0
  */
 export function Snackbars() {
   const notices = useSelect(

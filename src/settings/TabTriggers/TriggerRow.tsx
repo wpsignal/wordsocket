@@ -40,6 +40,11 @@ interface Props {
   onRemove: (index: number) => void;
 }
 
+/**
+ * One trigger in the Triggers tab's list.
+ *
+ * @since 0.7.0
+ */
 export function TriggerRow({
   trigger,
   index,

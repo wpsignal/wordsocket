@@ -14,7 +14,11 @@ interface YjsModule {
 
 let instance: YjsModule | null = null;
 
-/** The instance passed by the editor, or the global on Gutenberg before 23.9. */
+/**
+ * The instance passed by the editor, or the global on Gutenberg before 23.9.
+ *
+ * @since 0.26.0
+ */
 export function resolveYjs(passed?: YjsModule): YjsModule | null {
   return (
     passed ??
@@ -23,7 +27,11 @@ export function resolveYjs(passed?: YjsModule): YjsModule | null {
   );
 }
 
-/** Hold the editor's instance for the rest of the module graph. */
+/**
+ * Hold the editor's instance for the rest of the module graph.
+ *
+ * @since 0.26.0
+ */
 export function setYjs(y: YjsModule): void {
   instance = y;
 }
@@ -37,10 +45,20 @@ function yjs(): YjsModule {
   return instance;
 }
 
+/**
+ * Encode a doc's state vector.
+ *
+ * @since 0.26.0
+ */
 export function encodeStateVector(doc: YDoc): Uint8Array {
   return yjs().encodeStateVector(doc);
 }
 
+/**
+ * Encode a doc's state as an update, relative to a target state vector when given.
+ *
+ * @since 0.26.0
+ */
 export function encodeStateAsUpdate(
   doc: YDoc,
   encodedTargetStateVector?: Uint8Array,
@@ -48,6 +66,11 @@ export function encodeStateAsUpdate(
   return yjs().encodeStateAsUpdate(doc, encodedTargetStateVector);
 }
 
+/**
+ * Apply an update to a doc.
+ *
+ * @since 0.26.0
+ */
 export function applyUpdate(
   doc: YDoc,
   update: Uint8Array,

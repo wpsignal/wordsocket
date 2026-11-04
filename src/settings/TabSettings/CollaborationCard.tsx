@@ -25,6 +25,11 @@ const {
   experimentsUrl = "",
 } = window.wpsignalSettings?.rtc ?? {};
 
+/**
+ * The Settings tab's real-time collaboration card.
+ *
+ * @since 0.31.0
+ */
 export function CollaborationCard() {
   const { fetchStatus, isConnected } = useSettings();
   const provider = useSettingSwitch("yjsProviderEnabled", {

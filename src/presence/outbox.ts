@@ -10,10 +10,23 @@
 
 import { AWAY, JOURNEY_GAP_MS, SEPARATOR } from "./journey";
 
+/**
+ * The `localStorage` key the outbox is kept under.
+ *
+ * @since 0.31.0
+ */
 export const OUTBOX_KEY = "wordsocket-outbox";
-/** How often a visible page rewrites its entry. */
+/**
+ * How often a visible page rewrites its entry.
+ *
+ * @since 0.31.0
+ */
 export const OUTBOX_HEARTBEAT_MS = 15_000;
-/** How long after load the due journeys are sent. */
+/**
+ * How long after load the due journeys are sent.
+ *
+ * @since 0.31.0
+ */
 export const OUTBOX_FLUSH_DELAY_MS = 5000;
 /** Entries older than this are dropped unsent. */
 const MAX_AGE_MS = 30 * 24 * 60 * 60_000;
@@ -48,6 +61,11 @@ export interface DueJourney {
   ago: number;
 }
 
+/**
+ * The outbox: hold, drop and list the journeys due for a late leave.
+ *
+ * @since 0.31.0
+ */
 export interface Outbox {
   hold(entry: OutboxEntry): void;
   drop(n: string): void;

@@ -33,12 +33,20 @@ window.addEventListener("popstate", () => {
   );
 });
 
-/** Install the check every Back and Forward goes through; `stay` undoes the step. */
+/**
+ * Install the check every Back and Forward goes through; `stay` undoes the step.
+ *
+ * @since 0.31.0
+ */
 export function setNavigateGuard(next: Guard | null): void {
   guard = next ?? ((leave) => leave());
 }
 
-/** Called after an accepted Back or Forward. Returns the unsubscribe. */
+/**
+ * Called after an accepted Back or Forward. Returns the unsubscribe.
+ *
+ * @since 0.31.0
+ */
 export function onNavigate(fn: () => void): () => void {
   listeners.add(fn);
   return () => {
@@ -46,7 +54,11 @@ export function onNavigate(fn: () => void): () => void {
   };
 }
 
-/** The parameter's current value, or null. */
+/**
+ * The parameter's current value, or null.
+ *
+ * @since 0.31.0
+ */
 export function readUrlParam(name: string): string | null {
   return new URLSearchParams(window.location.search).get(name);
 }
@@ -58,7 +70,11 @@ function commit(url: URL, push: boolean): void {
   current = url.href;
 }
 
-/** Set or, with null, remove the parameter; `push` makes it a history entry. */
+/**
+ * Set or, with null, remove the parameter; `push` makes it a history entry.
+ *
+ * @since 0.31.0
+ */
 export function writeUrlParam(
   name: string,
   value: string | null,
@@ -70,7 +86,11 @@ export function writeUrlParam(
   commit(url, push);
 }
 
-/** Drop every parameter but `keep`, as a tab switch does with the old tab's own. */
+/**
+ * Drop every parameter but `keep`, as a tab switch does with the old tab's own.
+ *
+ * @since 0.31.0
+ */
 export function clearUrlParams(keep: string[]): void {
   const url = new URL(window.location.href);
   Array.from(url.searchParams.keys())
@@ -79,7 +99,11 @@ export function clearUrlParams(keep: string[]): void {
   commit(url, false);
 }
 
-/** State that starts from the URL parameter, writes every change back and follows Back and Forward; a call may override `push`. */
+/**
+ * State that starts from the URL parameter, writes every change back and follows Back and Forward; a call may override `push`.
+ *
+ * @since 0.31.0
+ */
 export function useUrlParam(
   name: string,
   { push = false } = {},

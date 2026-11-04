@@ -42,12 +42,16 @@ if ( ! defined( 'ABSPATH' ) ) {
  *     // staff read it, every visitor may write (presence) to it:
  *     WPS::instance()->channels()->reserve( 'woo:carts', 'manage_woocommerce', '__return_true' );
  * ```
+ *
+ * @since 0.21.0
  */
 class Channels {
 
 	/**
 	 * Namespaces WordSocket uses itself, with the capability that grants both
 	 * reading and writing. Applied in strict mode only; never a reservation.
+	 *
+	 * @since 0.22.0
 	 *
 	 * @var array<string, string>
 	 */
@@ -72,6 +76,8 @@ class Channels {
 	/**
 	 * Reserve a namespace for users with a capability, or for whom a callable returns true.
 	 *
+	 * @since 0.21.0
+	 *
 	 * @param string               $ns      Namespace such as `woo:orders` (no `site:` prefix). A trailing colon is implied.
 	 * @param string|callable      $grant   Who may subscribe: a capability name, or `callable( int $user_id ): bool`.
 	 * @param string|callable|null $publish Who may publish and enter presence; defaults to `$grant`.
@@ -89,6 +95,8 @@ class Channels {
 	/**
 	 * Reserved namespaces with their grants.
 	 *
+	 * @since 0.21.0
+	 *
 	 * @return array<string, string|callable>
 	 */
 	public function reservations(): array {
@@ -98,6 +106,8 @@ class Channels {
 	/**
 	 * Whether any namespace is reserved (strict mode).
 	 *
+	 * @since 0.21.0
+	 *
 	 * @return bool
 	 */
 	public function is_strict(): bool {
@@ -106,6 +116,8 @@ class Channels {
 
 	/**
 	 * Prefixes for a token.
+	 *
+	 * @since 0.21.0
 	 *
 	 * @param int      $user_id  User the token is minted for (0 for visitors).
 	 * @param string   $site_id  Hashed site identifier used in channel names.
@@ -143,6 +155,8 @@ class Channels {
 	 * publish grant the user passes. Plugins add plain channels through the
 	 * `wpsignal_token_publish_prefixes` filter.
 	 *
+	 * @since 0.22.0
+	 *
 	 * @param int    $user_id User the token is minted for (0 for visitors).
 	 * @param string $site_id Hashed site identifier used in channel names.
 	 * @return string[]
@@ -164,6 +178,8 @@ class Channels {
 
 	/**
 	 * Whether a grant applies to a user.
+	 *
+	 * @since 0.21.0
 	 *
 	 * @param string|callable $grant   Capability or callable.
 	 * @param int             $user_id User ID, 0 for visitors.

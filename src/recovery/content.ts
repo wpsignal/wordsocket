@@ -3,6 +3,11 @@
  * `{ node }` as given, or `{ pattern }` rendered by WordPress with the text as fallback.
  */
 
+/**
+ * What a prompt shows: text, a node or a pattern.
+ *
+ * @since 0.31.0
+ */
 export interface PromptContent {
   text?: string;
   node?: Node;
@@ -10,6 +15,11 @@ export interface PromptContent {
   pattern?: number;
 }
 
+/**
+ * Values for a content's placeholders.
+ *
+ * @since 0.31.0
+ */
 export type PromptContext = Record<string, unknown>;
 
 const PLACEHOLDER = /\{([a-z_][\w.]*)\}/gi;
@@ -30,7 +40,11 @@ function lookup(ctx: PromptContext, path: string): string {
   return typeof value === "object" ? "" : String(value);
 }
 
-/** The built-in context every prompt may name. */
+/**
+ * The built-in context every prompt may name.
+ *
+ * @since 0.31.0
+ */
 export function baseContext(): PromptContext {
   return {
     page: { title: document.title },
@@ -38,12 +52,21 @@ export function baseContext(): PromptContext {
   };
 }
 
-/** Fill a text's placeholders from the context. */
+/**
+ * Fill a text's placeholders from the context.
+ *
+ * @since 0.31.0
+ */
 export function fillText(text: string, ctx: PromptContext = {}): string {
   const merged = { ...baseContext(), ...ctx };
   return text.replace(PLACEHOLDER, (_, path: string) => lookup(merged, path));
 }
 
+/**
+ * The DOM node a prompt shows: the given node, the rendered pattern, or the text with its placeholders filled.
+ *
+ * @since 0.31.0
+ */
 export function resolveContent(
   content: PromptContent,
   ctx: PromptContext = {},

@@ -11,7 +11,17 @@ import {
   type RuleNode,
 } from "./types";
 
+/**
+ * Most rules a set may hold.
+ *
+ * @since 0.31.0
+ */
 export const MAX_RULES = 50;
+/**
+ * Most conditions a rule may hold.
+ *
+ * @since 0.31.0
+ */
 export const MAX_CONDITIONS = 20;
 const ID = /^[a-z0-9][a-z0-9_-]{0,63}$/i;
 const KEY = /^[a-z][a-z0-9_]{0,63}$/;
@@ -43,6 +53,11 @@ function countNode(node: unknown, budget: { left: number }): boolean {
   return budget.left >= 0;
 }
 
+/**
+ * Whether `value` is a well-formed rule.
+ *
+ * @since 0.31.0
+ */
 export function validateRule(value: unknown): value is Rule {
   if (!isRecord(value)) return false;
   if (typeof value.id !== "string" || !ID.test(value.id)) return false;
@@ -85,6 +100,11 @@ export function validateRule(value: unknown): value is Rule {
   );
 }
 
+/**
+ * Whether `value` is a well-formed set of rules.
+ *
+ * @since 0.31.0
+ */
 export function validateRules(value: unknown): value is Rule[] {
   return (
     Array.isArray(value) &&

@@ -7,11 +7,35 @@
 
 import { uuid } from "../utils/identity";
 
+/**
+ * The `sessionStorage` key the journey is kept under.
+ *
+ * @since 0.30.0
+ */
 export const JOURNEY_KEY = "wordsocket-journey";
+/**
+ * Most steps a journey keeps; older steps drop off the front.
+ *
+ * @since 0.30.0
+ */
 export const MAX_STEPS = 50;
+/**
+ * The kind of a step spent with the tab hidden.
+ *
+ * @since 0.30.0
+ */
 export const AWAY = "away";
+/**
+ * The character between a journey's steps.
+ *
+ * @since 0.30.0
+ */
 export const SEPARATOR = ">";
-/** Longest pause between arrivals that is still the same visit. */
+/**
+ * Longest pause between arrivals that is still the same visit.
+ *
+ * @since 0.30.0
+ */
 export const JOURNEY_GAP_MS = 30 * 60_000;
 
 const STEP = /^[a-z_]+:\d+:\d+$/;
@@ -36,12 +60,21 @@ interface Stored {
   e?: string;
 }
 
-/** A finished journey, handed back when a new one replaces it. */
+/**
+ * A finished journey, handed back when a new one replaces it.
+ *
+ * @since 0.30.0
+ */
 export interface EndedJourney {
   n: string;
   journey: string;
 }
 
+/**
+ * This tab's journey: its id, its steps and the open step's clock.
+ *
+ * @since 0.30.0
+ */
 export interface Journey {
   /** This journey's id, a version 4 UUID. */
   id(): string;
@@ -124,6 +157,11 @@ function format(kind: string, id: number, ms: number): string {
   )}`;
 }
 
+/**
+ * Create the journey for this tab, continuing the stored one when it is within the gap.
+ *
+ * @since 0.30.0
+ */
 export function createJourney(
   store: Storage | null = storage(),
   now: () => number = () => Date.now(),

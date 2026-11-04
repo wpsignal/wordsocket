@@ -116,6 +116,11 @@ function successMessage(siteKey: string): React.ReactNode {
  */
 const SettingsContext = createContext<SettingsState>(DEFAULT_STATE);
 
+/**
+ * Provides the settings state to the app.
+ *
+ * @since 0.14.0
+ */
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [tabsCache, setTabsCache] = useState<TabsCached>({ triggers: [] });
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_STATE);
@@ -200,6 +205,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * The settings state; throws outside the provider.
+ *
+ * @since 0.14.0
+ */
 export function useSettings() {
   const ctx = useContext(SettingsContext);
   if (!ctx) {

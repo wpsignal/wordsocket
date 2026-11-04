@@ -1,6 +1,8 @@
 /**
  * WPSignalEvent is a custom event class that extends the CustomEvent class.
  * Provides convenience properties for the channel and data of the event.
+ *
+ * @since 0.18.0
  */
 export default class WPSignalEvent<
   T = Record<string, unknown>,

@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Admin page for the WordSocket plugin.
+ *
+ * @since 0.7.0
  */
 class Admin_Page {
 
@@ -26,6 +28,8 @@ class Admin_Page {
 	/**
 	 * Constructor.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @param Config $config Configuration accessor.
 	 * @return void
 	 */
@@ -37,6 +41,8 @@ class Admin_Page {
 	 * Initialize admin hooks.
 	 *
 	 * Called during WPSignal::boot() when is_admin() is true.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return void
 	 */
@@ -115,6 +121,8 @@ class Admin_Page {
 	/**
 	 * Register the top-level WordSocket menu and subpages.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return void
 	 */
 	public function register_menu() {
@@ -166,6 +174,8 @@ class Admin_Page {
 	/**
 	 * The settings bundle's generated asset data (dependencies and version).
 	 *
+	 * @since 0.25.0
+	 *
 	 * @return array{dependencies: string[], version: string}
 	 */
 	private function settings_asset() {
@@ -179,6 +189,8 @@ class Admin_Page {
 	/**
 	 * Menu icon for the top-level WordSocket item. Fill using `#f3f1f1` this is the font color used for
 	 * default dashicons.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return string
 	 */
@@ -221,6 +233,8 @@ class Admin_Page {
 		 * with `$in_footer = true` is the right call. A stylesheet enqueued here
 		 * prints in the footer: fine for markup the script renders, too late for
 		 * anything echoed in PHP, which should enqueue on the page's load hook.
+		 *
+		 * @since 0.21.0
 		 */
 		do_action( 'wordsocket_settings_enqueue' );
 
@@ -344,6 +358,8 @@ class Admin_Page {
 	 * Server-side skeleton for the settings page.
 	 *
 	 * This is used to show a loading state while the React app is loading.
+	 *
+	 * @since 0.11.0
 	 *
 	 * @return void
 	 */

@@ -32,21 +32,39 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Cli {
 
 	/**
-	 * Journeys seeded when `--count` is not given, and the most one call seeds.
+	 * Journeys seeded when `--count` is not given.
 	 *
 	 * @since 0.31.0
 	 */
 	const DEFAULT_COUNT = 300;
-	const MAX_COUNT     = 5000;
 
 	/**
-	 * Journeys listed when `--count` is not given, the most one call lists, and the days it reaches back by default.
+	 * Most journeys one seed call creates.
 	 *
 	 * @since 0.31.0
 	 */
-	const LIST_COUNT     = 20;
+	const MAX_COUNT = 5000;
+
+	/**
+	 * Journeys listed when `--count` is not given.
+	 *
+	 * @since 0.31.0
+	 */
+	const LIST_COUNT = 20;
+
+	/**
+	 * Most journeys one list call prints.
+	 *
+	 * @since 0.31.0
+	 */
 	const LIST_MAX_COUNT = 1000;
-	const LIST_DAYS      = 28;
+
+	/**
+	 * Days `journeys list` reaches back by default.
+	 *
+	 * @since 0.31.0
+	 */
+	const LIST_DAYS = 28;
 
 	/**
 	 * The columns `list` prints by default, in order.

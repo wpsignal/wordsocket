@@ -6,8 +6,18 @@
 
 import { createJourney, type EndedJourney, type Journey } from "./journey";
 
+/**
+ * The events a page journey emits.
+ *
+ * @since 0.31.0
+ */
 export type JourneyEventType = "step" | "away" | "back" | "close";
 
+/**
+ * An event a page journey emits.
+ *
+ * @since 0.31.0
+ */
 export interface JourneyEvent {
   type: JourneyEventType;
   /**
@@ -82,6 +92,11 @@ function sameSite(href: string): boolean {
   }
 }
 
+/**
+ * The journey as this page advances it.
+ *
+ * @since 0.31.0
+ */
 export interface PageJourney {
   readonly journey: Journey;
   readonly kind: string;

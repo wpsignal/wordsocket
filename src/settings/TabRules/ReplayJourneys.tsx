@@ -27,6 +27,11 @@ import {
 } from "../TabJourneys/journeys";
 import { money, outcomeCounts, type Event, type Hit } from "./replay";
 
+/**
+ * The replay aside's tabs: reach or fired.
+ *
+ * @since 0.31.0
+ */
 export type ReplayTab = "reach" | "fired";
 
 const PAGE = 25;

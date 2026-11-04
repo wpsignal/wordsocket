@@ -206,7 +206,11 @@ export function ChartFrame({
   );
 }
 
-/** One row of a chart's table: `id`, then one value per column. */
+/**
+ * One row of a chart's table: `id`, then one value per column.
+ *
+ * @since 0.31.0
+ */
 export type TableRow = Record<string, string | number>;
 
 /** Rows a page of a table holds. */

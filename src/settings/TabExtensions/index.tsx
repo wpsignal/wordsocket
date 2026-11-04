@@ -29,6 +29,8 @@ function isExternal(url: string): boolean {
 /**
  * Extensions tab: cards rendered by installed extensions (through the slot),
  * followed by the catalogue of extensions not installed here.
+ *
+ * @since 0.21.0
  */
 export function TabExtensions({ title }: { title: string }) {
   const { isConnected } = useSettings();

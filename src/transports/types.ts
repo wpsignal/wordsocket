@@ -1,5 +1,15 @@
+/**
+ * A transport's name.
+ *
+ * @since 0.18.0
+ */
 export type WPSTransportName = "ws" | "sse";
 
+/**
+ * A transport's connection status.
+ *
+ * @since 0.18.0
+ */
 export type WPSTransportStatus = {
   name: WPSTransportName | null;
   connected: boolean;
@@ -14,12 +24,22 @@ export type WPSTransportStatus = {
   lastMessageAt: number | null;
 };
 
+/**
+ * A message a transport received.
+ *
+ * @since 0.18.0
+ */
 export type WPSTransportMessage = {
   event: string;
   channel: string;
   data: Record<string, unknown>;
 };
 
+/**
+ * What a transport reports when it closes.
+ *
+ * @since 0.18.0
+ */
 export type WPSTransportCloseEvent = {
   /** WebSocket close code, including the relay's application codes (4001, 4003, 4029). */
   code?: number;
@@ -34,6 +54,11 @@ export type WPSTransportCloseEvent = {
   transient?: boolean;
 };
 
+/**
+ * The callbacks a transport reports to.
+ *
+ * @since 0.18.0
+ */
 export type WPSTransportCallbacks = {
   onOpen: () => void;
   onMessage: (message: WPSTransportMessage) => void;
@@ -42,11 +67,21 @@ export type WPSTransportCallbacks = {
   onError: (error: unknown) => void;
 };
 
+/**
+ * What a transport needs to connect.
+ *
+ * @since 0.18.0
+ */
 export type WPSTransportConnectOptions = {
   token: string;
   channels: string[];
 };
 
+/**
+ * A connection to the relay over one protocol.
+ *
+ * @since 0.18.0
+ */
 export interface WPSTransport {
   readonly name: WPSTransportName;
   readonly canPublish: boolean;

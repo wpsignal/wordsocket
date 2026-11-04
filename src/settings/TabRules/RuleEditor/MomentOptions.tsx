@@ -24,6 +24,11 @@ import type { Rule, RuleAttention, RuleFrequency } from "../../../rules/types";
 
 const OFF: RuleAttention = { enabled: false, title: "" };
 
+/**
+ * A moment's frequency and attention settings in the builder.
+ *
+ * @since 0.31.0
+ */
 export function MomentOptions({
   rule,
   onChange,

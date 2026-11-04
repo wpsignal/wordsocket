@@ -20,14 +20,39 @@ use WP_Error;
  */
 class Abilities {
 
-	const CATEGORY   = 'wordsocket';
+	/**
+	 * The ability category every ability is registered under.
+	 *
+	 * @since 0.31.0
+	 */
+	const CATEGORY = 'wordsocket';
+
+	/**
+	 * The capability every ability needs.
+	 *
+	 * @since 0.31.0
+	 */
 	const CAPABILITY = 'manage_options';
 
-	/** The journeys an ability answers by default and at most. */
-	const JOURNEYS_LIMIT     = 100;
+	/**
+	 * Journeys an ability answers by default.
+	 *
+	 * @since 0.31.0
+	 */
+	const JOURNEYS_LIMIT = 100;
+
+	/**
+	 * Most journeys an ability answers.
+	 *
+	 * @since 0.31.0
+	 */
 	const JOURNEYS_MAX_LIMIT = 1000;
 
-	/** Patterns `describe-moments` lists at most. */
+	/**
+	 * Patterns `describe-moments` lists at most.
+	 *
+	 * @since 0.31.0
+	 */
 	const PATTERNS = 100;
 
 	/**

@@ -14,6 +14,8 @@ const CONSOLE_STYLES = {
 /**
  * A utility function to debug the WordSocket JS API.
  *
+ * @since 0.7.0
+ *
  * @param label - The label to display in the console.
  * @param summary - The summary to display in the console. Can be a string or an object.
  * @param type - The type of message to display in the console.

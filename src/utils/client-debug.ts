@@ -17,6 +17,8 @@ type WPSClientDebugOptions = {
 
 /**
  * Exposes console helpers for exercising the WordSocket sleep and wake path.
+ *
+ * @since 0.18.0
  */
 export default class WPSClientDebug {
   private readonly getStatus: () => WPSClientDebugStatus;

@@ -4,6 +4,11 @@
  * relay presence is for.
  */
 
+/**
+ * A visit or leave report as sent to WordPress.
+ *
+ * @since 0.30.0
+ */
 export interface PresenceReport {
   /** The visitor id (the browser). */
   v: string;
@@ -20,7 +25,11 @@ export interface PresenceReport {
   ago?: number;
 }
 
-/** What WordPress answered a report: `{ ok, ...fields }` from the response filter. */
+/**
+ * What WordPress answered a report: `{ ok, ...fields }` from the response filter.
+ *
+ * @since 0.31.0
+ */
 export type ReportAnswer = Record<string, unknown>;
 
 /**

@@ -18,6 +18,11 @@ const FIELDS = {
   historyEnabled: "history_enabled",
 } as const satisfies Record<string, keyof SettingsPost>;
 
+/**
+ * An optimistic boolean setting: its value and a setter that saves it.
+ *
+ * @since 0.31.0
+ */
 export function useSettingSwitch(
   key: keyof typeof FIELDS,
   messages: { success: string; error: string },

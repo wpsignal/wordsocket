@@ -507,6 +507,8 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
  * Error code used for the SSE-fallback no-op provider. It is one of core's
  * codes (so the editor never crashes on it), and the boot script tells the
  * editor it is handled so core's generic dialog stays closed.
+ *
+ * @since 0.20.0
  */
 export const SSE_FALLBACK_ERROR_CODE: SyncConnectionErrorCode = "unknown-error";
 
@@ -531,6 +533,11 @@ function statusFromState(state: WPSConnectionState): SyncConnectionStatus {
   };
 }
 
+/**
+ * Create the Yjs sync provider for the editor's collaboration options.
+ *
+ * @since 0.7.0
+ */
 export async function wpsignalProviderCreator(
   options: ProviderCreatorOptions,
 ): Promise<ProviderCreatorResult> {

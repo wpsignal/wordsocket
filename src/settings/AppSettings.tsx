@@ -238,6 +238,8 @@ function TabsSettings() {
 
 /**
  * Settings App.
+ *
+ * @since 0.7.0
  */
 export function SettingsApp() {
   return (

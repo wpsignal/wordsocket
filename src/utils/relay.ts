@@ -3,7 +3,11 @@
  * endpoints.
  */
 
-/** `endpoint` with `params` as its query string, for `new WebSocket()` or `new EventSource()`. */
+/**
+ * `endpoint` with `params` as its query string, for `new WebSocket()` or `new EventSource()`.
+ *
+ * @since 0.25.0
+ */
 export function withQuery(
   endpoint: string,
   params: Record<string, string>,
@@ -15,6 +19,8 @@ export function withQuery(
 
 /**
  * The endpoints to connect to.
+ *
+ * @since 0.25.0
  */
 export function relayEndpoints(config: {
   endpoints?: WpSignalEndpoints;

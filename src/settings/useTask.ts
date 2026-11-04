@@ -31,6 +31,8 @@ function messageOf(error: unknown): string | undefined {
  * error), tracking `phase` for the caller's UI and answering with the outcome instead of throwing.
  * Options and the task are read fresh on every run, so closures are never stale; also published as
  * `window.wordsocket.useTask`.
+ *
+ * @since 0.29.0
  */
 export function useTask<Args extends unknown[], Result>(
   task: (...args: Args) => Promise<Result>,

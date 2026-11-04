@@ -4,7 +4,11 @@
  * the URL API rather than by string concatenation.
  */
 
-/** `base` with `path` appended to its route and `params` set on its query. */
+/**
+ * `base` with `path` appended to its route and `params` set on its query.
+ *
+ * @since 0.31.0
+ */
 export function restUrl(
   base: string,
   path = "",

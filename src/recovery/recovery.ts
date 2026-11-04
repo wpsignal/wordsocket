@@ -38,16 +38,31 @@ const store = stored<RulesStore>(
   (value): value is RulesStore => isRecord(value),
 );
 
+/**
+ * The engine's per-visitor store as it stands.
+ *
+ * @since 0.31.0
+ */
 export function readStore(): RulesStore {
   return store.read();
 }
 
+/**
+ * Change the engine's per-visitor store in place and write it back.
+ *
+ * @since 0.31.0
+ */
 export function writeStore(update: (store: RulesStore) => void): void {
   const current = store.read();
   update(current);
   store.write(current);
 }
 
+/**
+ * Options for showing a prompt.
+ *
+ * @since 0.31.0
+ */
 export interface ShowOptions {
   /** The rule showing this prompt, for whoever listens to closes. */
   rule?: string;
@@ -59,6 +74,11 @@ export interface ShowOptions {
   pattern?: Node | null;
 }
 
+/**
+ * The recovery API: show prompts, register presentations and flash the title.
+ *
+ * @since 0.31.0
+ */
 export interface Recovery {
   show(
     content: PromptContent,

@@ -65,33 +65,80 @@ class Journeys {
 	const NEW_PER_HOUR = 30;
 
 	/**
-	 * Rows one prune statement deletes before checking the clock, and the seconds a prune may run.
+	 * Rows one prune statement deletes before checking the clock.
 	 *
 	 * @since 0.31.0
 	 */
-	const PRUNE_BATCH   = 1000;
+	const PRUNE_BATCH = 1000;
+
+	/**
+	 * Seconds a prune may run.
+	 *
+	 * @since 0.31.0
+	 */
 	const PRUNE_SECONDS = 2;
 
 	/**
-	 * The feed's defaults and ceilings.
+	 * Days back the feed reaches by default.
 	 *
 	 * @since 0.31.0
 	 */
-	const FEED_DAYS      = 28;
-	const FEED_MAX_DAYS  = 90;
-	const FEED_LIMIT     = 1000;
+	const FEED_DAYS = 28;
+
+	/**
+	 * Most days back the feed reaches.
+	 *
+	 * @since 0.31.0
+	 */
+	const FEED_MAX_DAYS = 90;
+
+	/**
+	 * Journeys the feed answers by default.
+	 *
+	 * @since 0.31.0
+	 */
+	const FEED_LIMIT = 1000;
+
+	/**
+	 * Most journeys the feed answers.
+	 *
+	 * @since 0.31.0
+	 */
 	const FEED_MAX_LIMIT = 1000;
 
 	/**
-	 * The visuals' window, the newest journeys they list, the longest a step counts for, and how long a
-	 * computed answer is cached.
+	 * The visuals' window, in days.
 	 *
 	 * @since 0.31.0
 	 */
-	const VISUALS_DAYS      = 28;
-	const VISUALS_JOURNEYS  = 1000;
-	const MAX_STEP_SECONDS  = DAY_IN_SECONDS;
-	const CACHE_TTL         = 60;
+	const VISUALS_DAYS = 28;
+
+	/**
+	 * The newest journeys the visuals read minutes from.
+	 *
+	 * @since 0.31.0
+	 */
+	const VISUALS_JOURNEYS = 1000;
+
+	/**
+	 * The longest a step counts for, in seconds.
+	 *
+	 * @since 0.31.0
+	 */
+	const MAX_STEP_SECONDS = DAY_IN_SECONDS;
+
+	/**
+	 * Seconds a computed visuals answer is cached.
+	 *
+	 * @since 0.31.0
+	 */
+	const CACHE_TTL = 60;
+
+	/**
+	 * The transient the visuals answer is cached under.
+	 *
+	 * @since 0.31.0
+	 */
 	const VISUALS_TRANSIENT = 'wpsignal_journey_visuals';
 
 	/**
@@ -102,13 +149,25 @@ class Journeys {
 	const CREDIT_WINDOW = 7 * DAY_IN_SECONDS;
 
 	/**
-	 * What an outcome key, a ref and a colour look like.
+	 * What an outcome key looks like.
 	 *
 	 * @since 0.31.0
 	 */
 	const OUTCOME_PATTERN = '/^[a-z][a-z_]{0,19}$/';
-	const REF_PATTERN     = '/^[A-Za-z0-9_-]{1,32}$/';
-	const COLOR_PATTERN   = '/^#[0-9a-f]{6}$/i';
+
+	/**
+	 * What a ref looks like.
+	 *
+	 * @since 0.31.0
+	 */
+	const REF_PATTERN = '/^[A-Za-z0-9_-]{1,32}$/';
+
+	/**
+	 * What an outcome's colour looks like.
+	 *
+	 * @since 0.31.0
+	 */
+	const COLOR_PATTERN = '/^#[0-9a-f]{6}$/i';
 	/**
 	 * A `YYYY-MM` month as the page route takes it.
 	 *
@@ -136,7 +195,7 @@ class Journeys {
 	 *
 	 * @since 0.31.0
 	 */
-	const KIND_CODES     = array(
+	const KIND_CODES = array(
 		'home'    => 'h',
 		'away'    => 'w',
 		'search'  => 's',
@@ -144,11 +203,41 @@ class Journeys {
 		'other'   => 'o',
 		'admin'   => 'ad',
 	);
-	const POST_CODE      = 'p';
-	const TERM_CODE      = 't';
-	const CODE_PATTERN   = '/^[a-z_]+\z/';
+
+	/**
+	 * The packed code of any post type kind.
+	 *
+	 * @since 0.31.0
+	 */
+	const POST_CODE = 'p';
+
+	/**
+	 * The packed code of any taxonomy kind.
+	 *
+	 * @since 0.31.0
+	 */
+	const TERM_CODE = 't';
+
+	/**
+	 * What a kind and its code look like.
+	 *
+	 * @since 0.31.0
+	 */
+	const CODE_PATTERN = '/^[a-z_]+\z/';
+
+	/**
+	 * The suffix a post type archive kind carries.
+	 *
+	 * @since 0.31.0
+	 */
 	const ARCHIVE_SUFFIX = '_archive';
-	const ARCHIVE_CODE   = '_' . self::KIND_CODES['archive'];
+
+	/**
+	 * The packed suffix of a post type archive kind.
+	 *
+	 * @since 0.31.0
+	 */
+	const ARCHIVE_CODE = '_' . self::KIND_CODES['archive'];
 	/**
 	 * What a step reads as when its post or term is gone.
 	 *
@@ -197,31 +286,67 @@ class Journeys {
 	const QUERY_COLUMNS = 'id, HEX(journey_id) AS journey_id, HEX(visitor) AS visitor, user_id, ref, journey, steps, outcome, value, started_at, last_seen, firings, data';
 
 	/**
-	 * What `query()` reads by default and at most: the days back and the rows; and the rows `query_all()` reads a page.
+	 * Days back `query()` reads by default.
 	 *
 	 * @since 0.31.0
 	 */
-	const QUERY_DAYS      = 28;
-	const QUERY_MAX_DAYS  = 365;
-	const QUERY_MAX_LIMIT = 10000;
-	const QUERY_PAGE      = 1000;
+	const QUERY_DAYS = 28;
 
 	/**
-	 * How many months a journey is kept: the least, the most and the default.
+	 * Most days back `query()` reads.
 	 *
 	 * @since 0.31.0
 	 */
-	const RETENTION_MIN_MONTHS     = 1;
-	const RETENTION_MAX_MONTHS     = 12;
+	const QUERY_MAX_DAYS = 365;
+
+	/**
+	 * Most rows `query()` reads.
+	 *
+	 * @since 0.31.0
+	 */
+	const QUERY_MAX_LIMIT = 10000;
+
+	/**
+	 * Rows `query_all()` reads a page.
+	 *
+	 * @since 0.31.0
+	 */
+	const QUERY_PAGE = 1000;
+
+	/**
+	 * Fewest months a journey is kept.
+	 *
+	 * @since 0.31.0
+	 */
+	const RETENTION_MIN_MONTHS = 1;
+
+	/**
+	 * Most months a journey is kept.
+	 *
+	 * @since 0.31.0
+	 */
+	const RETENTION_MAX_MONTHS = 12;
+
+	/**
+	 * Months a journey is kept by default.
+	 *
+	 * @since 0.31.0
+	 */
 	const RETENTION_DEFAULT_MONTHS = 3;
 
 	/**
-	 * The journeys download: the `admin-post.php` action, its nonce and the rows its JSON holds at most.
+	 * The journeys download's `admin-post.php` action and nonce.
 	 *
 	 * @since 0.31.0
 	 */
 	const DOWNLOAD_ACTION = 'wpsignal_journeys_download';
-	const DOWNLOAD_LIMIT  = 10000;
+
+	/**
+	 * Rows the JSON download holds at most.
+	 *
+	 * @since 0.31.0
+	 */
+	const DOWNLOAD_LIMIT = 10000;
 
 	/**
 	 * Configuration accessor.

@@ -6,7 +6,11 @@
 import type { Recovery } from "../recovery/recovery";
 import type { Rule, RuleCondition } from "./types";
 
-/** Everything a condition may look at: the built-in contexts plus every registered one. */
+/**
+ * Everything a condition may look at: the built-in contexts plus every registered one.
+ *
+ * @since 0.31.0
+ */
 export type RuleContext = Record<string, unknown> & {
   page: {
     kind: string;
@@ -37,24 +41,46 @@ export type RuleContext = Record<string, unknown> & {
   site: { name: string };
 };
 
+/**
+ * A condition's test against the context.
+ *
+ * @since 0.31.0
+ */
 export type ConditionTest = (
   ctx: RuleContext,
   condition: RuleCondition,
 ) => boolean;
+/**
+ * An action's runner.
+ *
+ * @since 0.31.0
+ */
 export type ActionRun = (
   ctx: RuleContext,
   params: Record<string, unknown>,
   recovery: Recovery,
   rule: Rule,
 ) => void | Promise<void>;
+/**
+ * A reader of one live context value.
+ *
+ * @since 0.31.0
+ */
 export type ContextRead = () => unknown;
 
 /**
  * What a report is about: the firing itself, or what the visitor did with the prompt it showed (the
  * return to the tab it opened into while hidden, a dismissal, a click on a link or button inside).
+ *
+ * @since 0.31.0
  */
 export type FiringKind = "fired" | "returned" | "dismissed" | "clicked";
 
+/**
+ * A firing or a later event on its prompt, as reported.
+ *
+ * @since 0.31.0
+ */
 export interface Firing {
   rule: string;
   action: string;
@@ -66,7 +92,11 @@ export interface Firing {
   kind?: FiringKind;
 }
 
-/** A firing as a history provider stored it, with what the store learned afterwards. */
+/**
+ * A firing as a history provider stored it, with what the store learned afterwards.
+ *
+ * @since 0.31.0
+ */
 export interface HistoryFiring {
   rule: string;
   action: string;
@@ -81,6 +111,11 @@ export interface HistoryFiring {
   order_at?: string;
 }
 
+/**
+ * A stored journey as a history provider lists it.
+ *
+ * @since 0.31.0
+ */
 export interface HistoryJourney {
   journey: string;
   started_at?: string;
@@ -95,6 +130,11 @@ export interface HistoryJourney {
   firings?: HistoryFiring[];
 }
 
+/**
+ * Where the replay loads stored journeys from.
+ *
+ * @since 0.31.0
+ */
 export interface HistoryProvider {
   /** Journeys for the replay, newest first; the provider decides the window. */
   load(options: { days?: number; limit?: number }): Promise<HistoryJourney[]>;
@@ -102,6 +142,11 @@ export interface HistoryProvider {
   outcomes?: boolean;
 }
 
+/**
+ * The registered vocabulary, listeners and history provider.
+ *
+ * @since 0.31.0
+ */
 export interface Registry {
   conditions: Map<string, ConditionTest>;
   contexts: Map<string, ContextRead>;
@@ -111,6 +156,11 @@ export interface Registry {
   history: HistoryProvider | null;
 }
 
+/**
+ * Create an empty rules registry.
+ *
+ * @since 0.31.0
+ */
 export function createRegistry(): Registry {
   return {
     conditions: new Map(),

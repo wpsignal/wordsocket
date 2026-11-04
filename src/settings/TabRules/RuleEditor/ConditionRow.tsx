@@ -19,6 +19,11 @@ import { useRules } from "../context";
 import { RemoveButton } from "./RemoveButton";
 import { HelpToolTip } from "../../HelpToolTip";
 
+/**
+ * One condition of a rule in the builder.
+ *
+ * @since 0.31.0
+ */
 export function ConditionRow({
   condition,
   handle,

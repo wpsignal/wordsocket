@@ -23,6 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * HMAC-signed event publishing.
+ *
+ * @since 0.7.0
  */
 class Publisher {
 
@@ -35,6 +37,8 @@ class Publisher {
 
 	/**
 	 * Constructor.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @param Config $config Configuration accessor.
 	 * @return void
@@ -49,6 +53,8 @@ class Publisher {
 	 * Not enforced: the option can be cleared to retry immediately.
 	 * It is a performance measure, not a hard gate.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return bool True if the site is currently throttled (messages_until is in the future).
 	 */
 	private function is_message_quota_exceeded() {
@@ -61,6 +67,8 @@ class Publisher {
 
 	/**
 	 * Persist a throttle timestamp received from the server's 429 response.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @param string $error_code Server error code (e.g. "quota_exceeded").
 	 * @return int|null Unix timestamp the throttle lasts until, or null when nothing was stored.
@@ -88,6 +96,9 @@ class Publisher {
 	 *         'post_title' => 'Hello World',
 	 *     ] );
 	 * ```
+	 *
+	 * @since 0.7.0
+	 *
 	 * @param string $channel Channel name (e.g. "events"). Scoped server-side.
 	 * @param string $event   Event name (e.g. "post.updated").
 	 * @param mixed  $data    Arbitrary data (will be JSON-encoded).
@@ -201,6 +212,8 @@ class Publisher {
 	 * plan's connection limit. Signed like a publish over an empty body, so it
 	 * needs no dashboard session. Extensions use it for "online now" figures.
 	 *
+	 * @since 0.22.0
+	 *
 	 * @return array{active_connections: int, max_connections: int}|\WP_Error
 	 */
 	public function stats() {
@@ -241,6 +254,8 @@ class Publisher {
 	 * Turn a non-2xx server response into a `WP_Error` carrying the server's
 	 * own code (prefixed `wpsignal_`) and message.
 	 *
+	 * @since 0.22.0
+	 *
 	 * @param array  $response wp_remote_* response.
 	 * @param string $fallback Code to use when the body has none.
 	 * @return WP_Error
@@ -263,6 +278,8 @@ class Publisher {
 	/**
 	 * Generate an HMAC-SHA256 signature for a publish request.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @param string $body         Raw JSON body string.
 	 * @param string $timestamp_ms Millisecond timestamp string.
 	 * @return string Hex-encoded HMAC-SHA256 signature.
@@ -273,6 +290,8 @@ class Publisher {
 
 	/**
 	 * Encrypt a plaintext string using AES-256-GCM.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @param string $plaintext Data to encrypt.
 	 * @return string|false Base64-encoded payload, or false if key is unavailable

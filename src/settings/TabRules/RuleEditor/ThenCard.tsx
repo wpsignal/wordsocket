@@ -18,6 +18,11 @@ import { useRules } from "../context";
 import { ActionRow } from "./ActionRow";
 import { MomentOptions } from "./MomentOptions";
 
+/**
+ * The builder's actions card.
+ *
+ * @since 0.31.0
+ */
 export function ThenCard({
   rule,
   onChange,

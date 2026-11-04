@@ -7,9 +7,18 @@ import {
   WPSTransportStatus,
 } from "./types";
 
-/** Application close code the relay uses for an invalid or expired token. */
+/**
+ * Application close code the relay uses for an invalid or expired token.
+ *
+ * @since 0.20.0
+ */
 export const AUTH_FAILED_CLOSE_CODE = 4001;
 
+/**
+ * The WebSocket transport, with publishing and keepalive.
+ *
+ * @since 0.18.0
+ */
 export class WebSocketTransport implements WPSTransport {
   public readonly name = "ws" as const;
   public readonly canPublish = true;

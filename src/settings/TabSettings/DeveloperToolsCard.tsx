@@ -16,6 +16,11 @@ import { Stack } from "@wordpress/ui";
 import { useSettingSwitch } from "./useSettingSwitch";
 import CollapsibleCard from "../CollapsibleCard";
 
+/**
+ * The Settings tab's developer tools card.
+ *
+ * @since 0.31.0
+ */
 export function DeveloperToolsCard() {
   const developerMode = useSettingSwitch("developerMode", {
     success: __("Settings saved.", "wordsocket"),

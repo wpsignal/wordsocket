@@ -15,6 +15,11 @@ import { TabHeading } from "../TabHeading";
 import { DeveloperToolsCard } from "./DeveloperToolsCard";
 import { CollaborationCard } from "./CollaborationCard";
 
+/**
+ * The Settings tab.
+ *
+ * @since 0.14.0
+ */
 export function TabSettings({ title }: { title: string }) {
   return (
     <Stack direction="column" gap="lg" className="wpsignal-settings-tab">

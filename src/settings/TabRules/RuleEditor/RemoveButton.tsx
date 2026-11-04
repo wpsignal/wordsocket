@@ -8,6 +8,11 @@
 import { IconButton } from "@wordpress/ui";
 import { closeSmall } from "@wordpress/icons";
 
+/**
+ * The button that removes a row from the builder.
+ *
+ * @since 0.31.0
+ */
 export function RemoveButton({
   label,
   onClick,

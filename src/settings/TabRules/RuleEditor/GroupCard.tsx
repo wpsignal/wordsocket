@@ -31,6 +31,11 @@ import { itemsOf, modeOf, withItems, type Mode } from "./groups";
 import { dragging, dropIndex, moveItem } from "./reorder";
 import { HelpToolTip } from "../../HelpToolTip";
 
+/**
+ * A group of conditions in the builder, with its all or any mode.
+ *
+ * @since 0.31.0
+ */
 export function GroupCard({
   group,
   depth,

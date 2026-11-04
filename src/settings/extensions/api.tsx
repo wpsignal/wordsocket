@@ -15,17 +15,34 @@ import { useEffect, useState } from "@wordpress/element";
 import { useSettings } from "../context";
 import { useTask } from "../useTask";
 
-/** Bumped on breaking changes to the API below. */
+/**
+ * Bumped on breaking changes to the API below.
+ *
+ * @since 0.21.0
+ */
 export const API_VERSION = 1;
 
 const Panels = createSlotFill("WordSocketExtensionPanels");
 const Status = createSlotFill("WordSocketConnectionStatus");
 
-/** Where the Extensions tab renders extension cards. */
+/**
+ * Where the Extensions tab renders extension cards.
+ *
+ * @since 0.21.0
+ */
 export const ExtensionPanelSlot = Panels.Slot;
-/** Where the Connect tab renders extension status lines. */
+/**
+ * Where the Connect tab renders extension status lines.
+ *
+ * @since 0.21.0
+ */
 export const ConnectionStatusSlot = Status.Slot;
 
+/**
+ * An extension's card on the Extensions tab.
+ *
+ * @since 0.21.0
+ */
 export function ExtensionPanel({
   name,
   title,
@@ -78,6 +95,11 @@ export function ExtensionPanel({
   );
 }
 
+/**
+ * Render a status line on the Connect tab.
+ *
+ * @since 0.21.0
+ */
 export function ConnectionStatusFill({
   children,
 }: {
@@ -86,6 +108,11 @@ export function ConnectionStatusFill({
   return <Status.Fill>{children}</Status.Fill>;
 }
 
+/**
+ * The site's connection state, for an extension.
+ *
+ * @since 0.21.0
+ */
 export function useConnection(): WordSocketConnection {
   const { isConnected, siteKey, fetchStatus, lastError } = useSettings();
   return { isConnected, siteKey, fetchStatus, lastError };
@@ -97,6 +124,11 @@ export function useConnection(): WordSocketConnection {
 const tabs = new Map<string, WordSocketExtensionTab>();
 const tabListeners = new Set<() => void>();
 
+/**
+ * Register an extension's settings tab.
+ *
+ * @since 0.28.0
+ */
 export function registerTab(tab: WordSocketExtensionTab): void {
   if (
     !tab ||
@@ -112,7 +144,11 @@ export function registerTab(tab: WordSocketExtensionTab): void {
   tabListeners.forEach((fn) => fn());
 }
 
-/** The registered extension tabs, in registration order; re-renders on change. */
+/**
+ * The registered extension tabs, in registration order; re-renders on change.
+ *
+ * @since 0.28.0
+ */
 export function useExtensionTabs(): WordSocketExtensionTab[] {
   const [, setVersion] = useState(0);
   useEffect(() => {
@@ -125,6 +161,11 @@ export function useExtensionTabs(): WordSocketExtensionTab[] {
   return Array.from(tabs.values());
 }
 
+/**
+ * The client's connection state, updated as it changes.
+ *
+ * @since 0.21.0
+ */
 export function useClientState(): WPSConnectionState | null {
   const [state, setState] = useState<WPSConnectionState | null>(
     window.WPS?.state ?? null,
@@ -141,6 +182,8 @@ export function useClientState(): WPSConnectionState | null {
 /**
  * Publish the API. Runs at module evaluation, before the app mounts, so an
  * extension script that depends on `wpsignal-settings` finds it immediately.
+ *
+ * @since 0.21.0
  */
 export function installExtensionsApi(): void {
   const api: WordSocketExtensionsApi = {

@@ -17,6 +17,11 @@ import { dragHandle } from "@wordpress/icons";
  */
 import { setDragging } from "./reorder";
 
+/**
+ * The grip that drags a condition or group, or moves it with the arrow keys.
+ *
+ * @since 0.31.0
+ */
 export function MoveHandle({
   label,
   group,

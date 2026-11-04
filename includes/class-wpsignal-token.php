@@ -18,6 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * JWT minting and REST API endpoints.
+ *
+ * @since 0.7.0
  */
 class Token {
 
@@ -26,6 +28,8 @@ class Token {
 	 * token by its version and keeps older ones working: 1 (before 0.22) has no
 	 * publish claim and publishes wherever it may subscribe; 2 carries
 	 * `allowed_publish_prefixes`. Bump it only when the claims change meaning.
+	 *
+	 * @since 0.22.0
 	 */
 	const TOKEN_VERSION = 2;
 
@@ -59,6 +63,8 @@ class Token {
 	/**
 	 * Constructor.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @param Config        $config    Configuration accessor.
 	 * @param Publisher     $publisher Event publisher for the /publish proxy.
 	 * @param Channels|null $channels  Namespace reservations; a fresh registry (no reservations) when omitted.
@@ -74,6 +80,8 @@ class Token {
 	 * Register all WordSocket REST routes.
 	 *
 	 * Hooked to `rest_api_init` during WPSignal::boot().
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return void
 	 */
@@ -176,6 +184,8 @@ class Token {
 	 * `GET /wpsignal/v1/stats`: browsers connected to this site right now and
 	 * the plan's connection limit, straight from the server (see `Publisher::stats()`).
 	 *
+	 * @since 0.22.0
+	 *
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function handle_stats() {
@@ -242,6 +252,8 @@ class Token {
 		 * Plugins can append their own channels so they are included in the
 		 * initial WebSocket/SSE subscription without a separate subscribe call.
 		 *
+		 * @since 0.7.0
+		 *
 		 * @param string[] $channels  Default channels for this site.
 		 * @param int      $user_id   Current user ID.
 		 * @param string   $site_id   Hashed site identifier from the JWT.
@@ -263,6 +275,8 @@ class Token {
 		 * list (see `Channels::allowed_prefixes()`), so register every channel you
 		 * subscribe to through `wpsignal_token_channels`.
 		 *
+		 * @since 0.7.0
+		 *
 		 * @param string[] $prefixes  Default allowed prefixes.
 		 * @param int      $user_id   Current user ID.
 		 * @param string   $site_id   Hashed site identifier from the JWT.
@@ -282,6 +296,8 @@ class Token {
 		 * then on only reserved namespaces whose publish grant the user passes
 		 * (see `Channels::reserve()`), so a channel registered for reading stays
 		 * read-only unless it is added here.
+		 *
+		 * @since 0.22.0
 		 *
 		 * @param string[] $prefixes  Default publish prefixes.
 		 * @param int      $user_id   Current user ID.
@@ -323,6 +339,8 @@ class Token {
 	/**
 	 * REST handler: mint a token for the current user and return it as JSON.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return \WP_REST_Response|\WP_Error Token response or error.
 	 */
 	public function handle_token() {
@@ -338,6 +356,8 @@ class Token {
 	 *
 	 * Routes a publish request through PHP so the HMAC site secret never
 	 * reaches the browser. Used by the Explorer page.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @param WP_REST_Request $request The incoming REST request.
 	 * @return WP_REST_Response|\WP_Error Success response or error.
@@ -366,6 +386,8 @@ class Token {
 
 	/**
 	 * Register this WordPress site with the WPSignal server.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @param WP_REST_Request $request The incoming REST request.
 	 * @return WP_REST_Response|\WP_Error Success response or error.
@@ -454,6 +476,8 @@ class Token {
 	 * refusal means the server already forgot the site or the key, which is as
 	 * disconnected as it gets (see `GONE_ON_DISCONNECT`).
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return WP_REST_Response|\WP_Error Success response or error.
 	 */
 	public function handle_disconnect() {
@@ -516,6 +540,8 @@ class Token {
 	 * exists on the server via a lightweight publish (see `verify_site_exists`).
 	 * The API key is never sent back in full: only a `****` mask plus its last
 	 * four characters, which `handle_register` accepts as "reuse the stored key".
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return WP_REST_Response Settings response.
 	 */
@@ -584,6 +610,8 @@ class Token {
 	/**
 	 * The last publish failure for the settings UI, or null.
 	 *
+	 * @since 0.20.0
+	 *
 	 * @return array|null array{code, message, detail, time}.
 	 */
 	private function last_publish_error() {
@@ -602,6 +630,8 @@ class Token {
 	/**
 	 * Disconnect refusals that mean there is nothing left to disconnect on the
 	 * server, so local credentials are cleared anyway.
+	 *
+	 * @since 0.20.1
 	 */
 	private const GONE_ON_DISCONNECT = array(
 		'wpsignal_not_found',
@@ -619,6 +649,8 @@ class Token {
 	 * credentials are dead and is recorded; a network error is recorded as
 	 * unreachable. Used by the settings endpoint and by the admin notice, so
 	 * the notice heals as soon as the server is back.
+	 *
+	 * @since 0.21.0
 	 *
 	 * @return bool True if the site still exists (or the server is unreachable).
 	 */
@@ -663,6 +695,8 @@ class Token {
 	/**
 	 * `****` plus the last four characters, or '' when no key is stored.
 	 *
+	 * @since 0.20.0
+	 *
 	 * @param string $api_key Full key.
 	 * @return string
 	 */
@@ -675,6 +709,8 @@ class Token {
 
 	/**
 	 * Base64url encoding (RFC 7515).
+	 *
+	 * @since 0.7.0
 	 *
 	 * @param string $data Raw binary or string data to encode.
 	 * @return string Base64url-encoded string.

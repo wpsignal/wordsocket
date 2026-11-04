@@ -29,7 +29,11 @@ import {
   conditions as builtinConditions,
 } from "./vocabulary";
 
-/** The client the rules module needs: events and the connection, so a test can stand one in. */
+/**
+ * The client the rules module needs: events and the connection, so a test can stand one in.
+ *
+ * @since 0.31.0
+ */
 export interface RulesClient {
   on(
     event: string,
@@ -38,6 +42,11 @@ export interface RulesClient {
   onConnectionChange(handler: (connected: boolean) => void): () => void;
 }
 
+/**
+ * `WPS.rules`: what extensions register and listen to.
+ *
+ * @since 0.31.0
+ */
 export interface RulesApi {
   condition(key: string, test: ConditionTest): void;
   /**

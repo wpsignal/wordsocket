@@ -6,6 +6,8 @@
  * clients recovering from the same outage does not retry in lockstep, while
  * the countdown shown to users still means something. `reset()` after a
  * successful connection returns to the first step.
+ *
+ * @since 0.20.0
  */
 export class Backoff {
   private attempts = 0;

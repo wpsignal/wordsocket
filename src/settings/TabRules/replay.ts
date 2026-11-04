@@ -12,6 +12,11 @@
 import type { Rule } from "../../rules/types";
 import { parseJourney, type Step } from "../TabJourneys/journeys";
 
+/**
+ * What a visitor did with a prompt after it fired.
+ *
+ * @since 0.31.0
+ */
 export type Event = "returned" | "dismissed" | "clicked";
 
 /**
@@ -42,7 +47,11 @@ export interface Replay {
   hits: Hit[];
 }
 
-/** A shown prompt's strongest fate: clicked over dismissed over came back over nothing. */
+/**
+ * A shown prompt's strongest fate: clicked over dismissed over came back over nothing.
+ *
+ * @since 0.31.0
+ */
 export interface Fates {
   clicked: number;
   dismissed: number;

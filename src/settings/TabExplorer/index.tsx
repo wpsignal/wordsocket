@@ -459,6 +459,11 @@ function PanelToken() {
   );
 }
 
+/**
+ * The Explorer tab: a live event log and a publish form for testing.
+ *
+ * @since 0.14.0
+ */
 export function TabExplorer({ title }: { title: string }) {
   const [isConnected, setIsConnected] = useState(false);
   return (

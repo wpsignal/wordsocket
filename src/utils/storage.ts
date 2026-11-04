@@ -6,16 +6,30 @@
  * - A write swallows a blocked store, so the value lasts for this page only.
  */
 
+/**
+ * A guarded accessor for one web storage key.
+ *
+ * @since 0.31.0
+ */
 export interface Stored<T> {
   read(): T;
   write(value: T): void;
 }
 
+/**
+ * Whether `value` is a plain object.
+ *
+ * @since 0.31.0
+ */
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** A key in `localStorage` or `sessionStorage` holding a `T`; `fallback` makes a fresh default and `valid` tells a `T` from anything else. */
+/**
+ * A key in `localStorage` or `sessionStorage` holding a `T`; `fallback` makes a fresh default and `valid` tells a `T` from anything else.
+ *
+ * @since 0.31.0
+ */
 export function stored<T>(
   area: "local" | "session",
   key: string,

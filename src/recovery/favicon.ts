@@ -11,6 +11,11 @@ function iconLink(): HTMLLinkElement | null {
   return document.querySelector<HTMLLinkElement>('link[rel~="icon"]');
 }
 
+/**
+ * Draw a dot on the favicon, resolving to whether it could be drawn.
+ *
+ * @since 0.31.0
+ */
 export function badgeFavicon(color = "#d63638"): Promise<boolean> {
   const link = iconLink();
   if (!link) return Promise.resolve(false);
@@ -48,6 +53,11 @@ export function badgeFavicon(color = "#d63638"): Promise<boolean> {
   });
 }
 
+/**
+ * Release one badge and restore the favicon once the last is released.
+ *
+ * @since 0.31.0
+ */
 export function clearFavicon(): void {
   holders = Math.max(0, holders - 1);
   if (holders > 0 || !original) return;

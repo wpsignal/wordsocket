@@ -44,6 +44,11 @@ function toSaved(rule: ListedRule): Rule {
   return saved;
 }
 
+/**
+ * The Moments tab: the list of rules and the builder.
+ *
+ * @since 0.31.0
+ */
 export function TabRules({ title }: { title: string }) {
   const [listing, setListing] = useState<RulesListing | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);

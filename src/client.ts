@@ -72,6 +72,11 @@ const STALE_CONNECTION_TIMEOUT_MS = 45000;
 /** How often the watchdog samples transport liveness while connected. */
 const STALE_CHECK_INTERVAL_MS = 10000;
 
+/**
+ * The WordSocket client behind `window.WPS`: transports, subscriptions, presence, rules and recovery.
+ *
+ * @since 0.7.0
+ */
 export class WPSignalClient implements WPSApi {
   /** The config PHP printed as `wpSignalConfig`: the token, the key, the endpoints. Never public. */
   private readonly printed: WpSignalConfig;
