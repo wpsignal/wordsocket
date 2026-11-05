@@ -215,7 +215,7 @@ function TabsSettings() {
               {tab.title}
               {tab.new && (
                 <Badge intent="informational" className="wpsignal-tab-new">
-                  {__("Beta", "wordsocket")}
+                  {__("New", "wordsocket")}
                 </Badge>
               )}
             </Tabs.Tab>
