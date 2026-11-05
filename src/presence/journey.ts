@@ -3,6 +3,10 @@
  * so the string follows the visitor through the tab and dies with it. One journey is one visit, a
  * new one starts after JOURNEY_GAP_MS, and the format is a contract with PHP and every extension
  * (root `CLAUDE.md`).
+ *
+ * - A live tab holds a Web Lock named after its journey, let go on `pagehide` and taken again on a
+ *   restore, so a tab that starts with a copy of another tab's storage finds the journey held and
+ *   begins one of its own.
  */
 
 import { uuid } from "../utils/identity";
@@ -37,6 +41,12 @@ export const SEPARATOR = ">";
  * @since 0.30.0
  */
 export const JOURNEY_GAP_MS = 30 * 60_000;
+/**
+ * The Web Lock a live tab holds on its journey: this prefix and the journey id.
+ *
+ * @since 0.31.0
+ */
+export const LOCK_PREFIX = "wordsocket-journey:";
 
 const STEP = /^[a-z_]+:\d+:\d+$/;
 
@@ -111,6 +121,27 @@ export interface Journey {
    * @since 0.31.0
    */
   end(): void;
+  /**
+   * Take the lock on this journey, resolving true when it is this tab's; when another tab holds
+   * it, this tab inherited a copy of its storage, so a new journey begins and false is resolved.
+   *
+   * @since 0.31.0
+   */
+  claim(): Promise<boolean>;
+  /**
+   * Let the lock go, for `pagehide`, so a cached page holds nothing.
+   *
+   * @since 0.31.0
+   */
+  release(): void;
+}
+
+function locks(): LockManager | null {
+  try {
+    return navigator.locks ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function storage(): Storage | null {
@@ -220,11 +251,42 @@ export function createJourney(
     endedOn = null;
   };
 
+  /* The journey id the held lock names, and what lets it go. */
+  let held: string | null = null;
+  let letGo: (() => void) | null = null;
+  const release = () => {
+    letGo?.();
+    letGo = null;
+    held = null;
+  };
+  /* Ask for the lock on `id`; true unless another page holds it or locks are not available. */
+  const hold = (id: string): Promise<boolean> => {
+    release();
+    held = id;
+    const manager = locks();
+    if (!manager) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      manager
+        .request(LOCK_PREFIX + id, { ifAvailable: true }, (lock) => {
+          if (!lock) {
+            resolve(false);
+            return undefined;
+          }
+          resolve(true);
+          return new Promise<void>((done) => {
+            letGo = done;
+          });
+        })
+        .catch(() => resolve(true));
+    });
+  };
+
   const arrive = (kind: string, id: number, since?: number) => {
     page = { kind, id };
     at = now();
     open = { kind, id, since: since ?? at };
     commit(at);
+    if (held !== n) void hold(n);
   };
 
   const current = () => {
@@ -290,5 +352,15 @@ export function createJourney(
       endedOn = `${page.kind}:${page.id}`;
       commit();
     },
+    async claim() {
+      if (await hold(n)) return true;
+      // Another live tab owns this journey: this tab begins its own.
+      renew();
+      at = now();
+      commit(at);
+      void hold(n);
+      return false;
+    },
+    release,
   };
 }

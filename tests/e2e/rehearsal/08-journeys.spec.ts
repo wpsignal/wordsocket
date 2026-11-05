@@ -214,6 +214,47 @@ test.describe("Journeys", () => {
     await expect.poll(() => row(second, "journey"), { timeout: 15_000 }).toMatch(/^p:\d+:\d+$/);
   });
 
+  test("a tab that starts with a copy of another tab's storage begins a journey of its own", async ({ browser, baseURL }) => {
+    const visitor = await browser.newContext({ baseURL, ignoreHTTPSErrors: true });
+    const shop = await visitor.newPage();
+    const visits: { page: string; n: string }[] = [];
+    const record = (name: string, tab: Page) =>
+      tab.on("request", (request) => {
+        if (!request.url().includes("/wpsignal/v1/visit")) return;
+        visits.push({ page: name, n: (JSON.parse(request.postData() ?? "{}") as { n: string }).n });
+      });
+    const held = (tab: Page) => tab.evaluate(() => (JSON.parse(window.sessionStorage.getItem("wordsocket-journey") ?? "{}") as { n?: string }).n ?? "");
+    record("shop", shop);
+    await arrive(shop, "/");
+    await expect.poll(() => visits.length).toBe(1);
+    const first = visits[0].n;
+    expect(await held(shop)).toBe(first);
+
+    // window.open() with an opener copies sessionStorage, so the new tab starts with the first journey.
+    const [copy] = await Promise.all([visitor.waitForEvent("page"), shop.evaluate(() => window.open("/", "_blank"))]);
+    record("copy", copy);
+    await waitForState(copy, { connected: true, transport: "ws" });
+    // The journey is held by the first tab, so the copy lets it go and waits for an interaction.
+    await expect.poll(() => held(copy)).not.toBe(first);
+    await copy.waitForTimeout(1000);
+    expect(visits.filter((v) => v.page === "copy"), "nothing reported before the visitor acts").toHaveLength(0);
+    await engage(copy);
+    await expect.poll(() => visits.filter((v) => v.page === "copy").length).toBe(1);
+    const second = visits.find((v) => v.page === "copy")?.n ?? "";
+    expect(second).toMatch(/^[0-9a-f-]{36}$/);
+    expect(second).not.toBe(first);
+    expect(await held(copy)).toBe(second);
+
+    // The first tab still holds its journey through a reload, since the lock is let go and taken again.
+    await shop.reload();
+    await waitForState(shop, { connected: true, transport: "ws" });
+    await engage(shop);
+    await shop.waitForTimeout(500);
+    expect(await held(shop)).toBe(first);
+    expect(visits.filter((v) => v.page === "shop" && v.n !== first)).toHaveLength(0);
+    await visitor.close();
+  });
+
   test("with History off the tab still draws what was kept under a notice, and the replay keeps its provider", async ({ admin, page }) => {
     wp("option", "update", "wpsignal_history_enabled", "0");
     try {

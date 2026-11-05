@@ -119,8 +119,9 @@ let instance: PageJourney | null = null;
  * @since 0.30.0
  * @since 0.31.0 A `close` says whether a same-site navigation caused it, a new journey begins on
  *               the visitor's first interaction rather than at load, a `step` onto another page off
- *               a journey an extension ended carries it as `ended`, and the visibility change an
- *               unloading document fires is not an `away`.
+ *               a journey an extension ended carries it as `ended`, the visibility change an
+ *               unloading document fires is not an `away`, and a journey under way goes on only
+ *               once this tab holds its lock.
  */
 export function pageJourney(): PageJourney {
   if (instance) return instance;
@@ -131,16 +132,28 @@ export function pageJourney(): PageJourney {
   const handlers = new Set<(event: JourneyEvent) => void>();
   const emit = (event: JourneyEvent) => handlers.forEach((fn) => fn(event));
 
-  /* A journey under way continues at load; a new one waits for the visitor's first interaction. */
-  let started = journey.continuing(kind, id);
+  let started = false;
+  /* Whether `pagehide` has run: a document unloading or parked in the back/forward cache is not away. */
+  let unloaded = false;
   /* When the page was last shown, which a held first step's clock starts from; 0 while hidden. */
   let shownAt = document.hidden ? 0 : Date.now();
   const begin = (since?: number) => {
     started = true;
     emit({ type: "step", ended: journey.step(kind, id, since) ?? undefined });
   };
-  if (started) begin();
-  else watchEngagement(() => begin(shownAt || Date.now()));
+  const awaitEngagement = () =>
+    watchEngagement(() => begin(shownAt || Date.now()));
+  /*
+   * A journey under way continues at load once this tab holds it. One another tab holds was copied
+   * with the storage, whatever its steps, so this tab's own waits for the visitor's first
+   * interaction, as a new one does.
+   */
+  const underWay = journey.continuing(kind, id);
+  void journey.claim().then((own) => {
+    if (unloaded) return;
+    if (own && underWay) begin(shownAt || Date.now());
+    else awaitEngagement();
+  });
 
   /* The last same-site link click or form submit this tab saw, 0 when none. */
   let navigatedAt = 0;
@@ -169,8 +182,6 @@ export function pageJourney(): PageJourney {
     if (sameSite(form.action || window.location.href)) navigatedAt = Date.now();
   });
 
-  /* Whether `pagehide` has run: a document unloading or parked in the back/forward cache is not away. */
-  let unloaded = false;
   document.addEventListener("visibilitychange", () => {
     if (unloaded) return;
     if (!started) {
@@ -187,6 +198,7 @@ export function pageJourney(): PageJourney {
   });
   window.addEventListener("pagehide", () => {
     unloaded = true;
+    journey.release();
     if (!started) return;
     emit({
       type: "close",
@@ -198,7 +210,11 @@ export function pageJourney(): PageJourney {
     if (!event.persisted) return;
     unloaded = false;
     navigatedAt = 0;
-    if (started) begin();
+    if (!started) return;
+    /* The restored page takes its lock again; a tab that took the journey meanwhile keeps it. */
+    void journey.claim().then(() => {
+      if (!unloaded) begin();
+    });
   });
 
   instance = {
