@@ -19,7 +19,7 @@ const FIELDS = {
 } as const satisfies Record<string, keyof SettingsPost>;
 
 /**
- * An optimistic boolean setting: its value and a setter that saves it.
+ * An optimistic boolean setting: its value and a setter that saves it, pending until the settings have loaded.
  *
  * @since 0.31.0
  */
@@ -38,7 +38,9 @@ export function useSettingSwitch(
   );
   return {
     checked: settings[key],
-    isPending: save.isPending,
+    /* The load's answer would overwrite a change made before it lands. */
+    isPending:
+      save.isPending || ["init", "connecting"].includes(settings.fetchStatus),
     change(value: boolean) {
       setSetting(key, value);
       return save.run(value);
