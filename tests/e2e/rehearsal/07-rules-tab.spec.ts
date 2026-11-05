@@ -15,6 +15,9 @@ const TAB = "page=wordsocket&tab=moments";
 async function arrive(page: Page, path: string): Promise<void> {
   await page.goto(path);
   await waitForState(page, { connected: true, transport: "ws" });
+  // The visitor's first interaction, which starts a new journey (WordSocket 0.31).
+  await page.mouse.move(12, 12);
+  await page.mouse.move(48, 48);
 }
 
 /** The builder's selects are `@wordpress/ui` comboboxes over a listbox, not native selects. */
