@@ -3,8 +3,9 @@
  */
 import { __ } from "@wordpress/i18n";
 import { useEffect, useState } from "@wordpress/element";
-import { SlotFillProvider, TabPanel } from "@wordpress/components";
+import { SlotFillProvider } from "@wordpress/components";
 import { PluginArea } from "@wordpress/plugins";
+import { Badge, Tabs } from "@wordpress/ui";
 
 /**
  * Internal dependencies.
@@ -14,14 +15,26 @@ import { TabTriggers } from "./TabTriggers";
 import { TabConnection } from "./TabConnection";
 import { TabExplorer } from "./TabExplorer";
 import { TabExtensions } from "./TabExtensions";
+import { TabRules } from "./TabRules";
+import { TabJourneys } from "./TabJourneys";
 import { Snackbars } from "./Snackbars";
 import { SettingsProvider, useSettings } from "./context";
 import { useExtensionTabs } from "./extensions/api";
+import { clearUrlParams, onNavigate, writeUrlParam } from "./useUrlParam";
+import { UnsavedChangesProvider, useLeaveGuard } from "./useUnsavedChanges";
+
+interface Tab {
+  name: string;
+  title: string;
+  className: string;
+  /** Shows a "New" badge beside the title. */
+  new?: boolean;
+}
 
 /**
  * Settings App Tabs.
  */
-const TABS = [
+const TABS: Tab[] = [
   {
     name: "connection",
     title: __("Connect", "wordsocket"),
@@ -31,6 +44,18 @@ const TABS = [
     name: "settings",
     title: __("Settings", "wordsocket"),
     className: "wpsignal-tab-settings",
+  },
+  {
+    name: "moments",
+    title: __("Moments", "wordsocket"),
+    className: "wpsignal-tab-moments",
+    new: true,
+  },
+  {
+    name: "journeys",
+    title: __("Journeys", "wordsocket"),
+    className: "wpsignal-tab-journeys",
+    new: true,
   },
   {
     name: "triggers",
@@ -50,39 +75,51 @@ const TABS = [
 ];
 
 /**
- * Tabs that stay usable before the site is connected. Extensions stays open
- * so the catalogue is visible to a user who has not connected yet; the tab
- * shows a "connect first" notice above installed panels in that state.
+ * Tabs usable before the site is connected; Extensions stays open so the catalogue is visible, with
+ * a connect-first notice above installed panels.
  */
 const ALWAYS_ENABLED = ["connection", "extensions"];
 
-/** Tabs for people writing code against the site: listed only in developer mode (the Settings tab's switch). */
+/**
+ * Tabs for people writing code against the site: listed only in developer mode (the Settings tab's
+ * switch).
+ */
 const DEVELOPER_TABS = ["triggers", "explorer"];
 
-/** The `tab` query parameter, so a tab can be linked to (admin.php?page=wordsocket&tab=extensions). */
+/**
+ * Tabs that belong to a feature: listed only while the feature is on (the Settings tab's Moments
+ * and Journeys switches).
+ */
+const FEATURE_TABS = { moments: "momentsEnabled", journeys: "historyEnabled" } as const;
+
+/**
+ * The `tab` query parameter, so a tab can be linked to (admin.php?page=wordsocket&tab=extensions).
+ */
 function tabFromUrl(names: string[]): string | undefined {
   const name = new URLSearchParams(window.location.search).get("tab");
   return name && names.includes(name) ? name : undefined;
 }
 
 function rememberTabInUrl(name: string): void {
-  const url = new URL(window.location.href);
-  if (name === TABS[0].name) {
-    url.searchParams.delete("tab");
-  } else {
-    url.searchParams.set("tab", name);
-  }
-  window.history.replaceState(window.history.state, "", url.toString());
+  clearUrlParams(["page"]);
+  writeUrlParam("tab", name === TABS[0].name ? null : name);
 }
 
+/**
+ * The tab list and the open tab's content.
+ *
+ * @since 0.31.0 `@wordpress/ui` Tabs, controlled, so a switch away from unsaved changes is asked
+ *               through the leave guard and a "New" badge marks a tab.
+ */
 function TabsSettings() {
-  const { isConnected, fetchStatus, developerMode } = useSettings();
-  // Until the first settings load answers, every tab is enabled so a linked
-  // tab is selected straight away. If the site then turns out to be
-  // disconnected, the tabs become disabled and TabPanel moves to Connect on
-  // its own (it re-selects the first enabled tab); the URL follows below.
-  // The initial fetch moves fetchStatus init -> connecting -> idle; later
-  // connects reuse "connecting", so remember the first completion.
+  const settings = useSettings();
+  const { isConnected, fetchStatus, developerMode } = settings;
+  const guard = useLeaveGuard();
+  /*
+   * Every tab is enabled until the first settings load answers, so a linked tab opens at once; if
+   * the site is then disconnected the tabs disable and the open one falls back to Connect. Later
+   * connects reuse "connecting", so the first completion is remembered.
+   */
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     if (!loaded && fetchStatus !== "init" && fetchStatus !== "connecting") {
@@ -94,67 +131,134 @@ function TabsSettings() {
    * Extension tabs come after the built-in ones and need a connected site.
    */
   const extensionTabs = useExtensionTabs();
-  const allTabs = [
-    ...TABS.filter((tab) => developerMode || !DEVELOPER_TABS.includes(tab.name)),
+  const allTabs: Tab[] = [
+    ...TABS.filter((tab) => {
+      const feature = FEATURE_TABS[tab.name as keyof typeof FEATURE_TABS];
+      return (
+        (developerMode || !DEVELOPER_TABS.includes(tab.name)) &&
+        (!feature || settings[feature])
+      );
+    }),
     ...extensionTabs.map((tab) => ({
       name: tab.name,
       title: tab.title,
+      new: tab.new ?? false,
       className: `wpsignal-tab-${tab.name}`,
     })),
   ];
-  const allowedTabs =
-    loading || isConnected
-      ? allTabs
-      : allTabs.map((tab) => ({ ...tab, disabled: !ALWAYS_ENABLED.includes(tab.name) }));
-  const requested = tabFromUrl(allTabs.map((tab) => tab.name));
+  const names = allTabs.map((tab) => tab.name);
+  const enabled = (name: string) =>
+    loading || isConnected || ALWAYS_ENABLED.includes(name);
 
+  /* The open tab: the URL's on load and after Back or Forward, else Connect. */
+  const [selected, setSelected] = useState(
+    () => tabFromUrl(names) ?? TABS[0].name,
+  );
+  useEffect(
+    () => onNavigate(() => setSelected(tabFromUrl(names) ?? TABS[0].name)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [names.join()],
+  );
+  /* A tab no longer offered (disconnected, developer mode or its feature off, an extension gone) falls back to Connect, URL included. */
   useEffect(() => {
-    if (!loading && !isConnected && requested && !ALWAYS_ENABLED.includes(requested)) {
-      rememberTabInUrl(TABS[0].name);
-    }
-  }, [loading, isConnected, requested]);
+    if (names.includes(selected) && enabled(selected)) return;
+    setSelected(TABS[0].name);
+    rememberTabInUrl(TABS[0].name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [names.join(), selected, loading, isConnected]);
 
-  useEffect(() => {
-    // A link to a developer tab while developer mode is off lands on Connect; the URL follows.
-    const linked = new URLSearchParams(window.location.search).get("tab");
-    if (!developerMode && linked && DEVELOPER_TABS.includes(linked)) {
-      rememberTabInUrl(TABS[0].name);
+  const select = (name: string) => {
+    if (name === selected || !names.includes(name)) return;
+    guard(() => {
+      setSelected(name);
+      rememberTabInUrl(name);
+    });
+  };
+
+  const content = (tab: Tab) => {
+    switch (tab.name) {
+      case "connection":
+        return <TabConnection title={tab.title} />;
+      case "settings":
+        return <TabSettings title={tab.title} />;
+      case "moments":
+        return <TabRules title={tab.title} />;
+      case "journeys":
+        return <TabJourneys title={tab.title} />;
+      case "triggers":
+        return <TabTriggers title={tab.title} />;
+      case "explorer":
+        return <TabExplorer title={tab.title} />;
+      case "extensions":
+        return <TabExtensions title={tab.title} />;
+      default: {
+        const ext = extensionTabs.find((e) => e.name === tab.name);
+        return ext ? <ext.render /> : null;
+      }
     }
-  }, [developerMode]);
+  };
 
   return (
-    <TabPanel
-      className="wpsignal-settings-app"
-      tabs={allowedTabs}
-      initialTabName={requested}
-      onSelect={rememberTabInUrl}
+    <div
+      style={{
+        overflow: "auto",
+        boxSizing: "content-box",
+      }}
     >
-      {(tab) => (
-        <div className="wpsignal-tab-content">
-          {tab.name === "connection" && <TabConnection title={tab.title} />}
-          {tab.name === "settings" && <TabSettings title={tab.title} />}
-          {tab.name === "triggers" && <TabTriggers title={tab.title} />}
-          {tab.name === "explorer" && <TabExplorer title={tab.title} />}
-          {tab.name === "extensions" && <TabExtensions title={tab.title} />}
-          {extensionTabs
-            .filter((ext) => ext.name === tab.name)
-            .map((ext) => (
-              <ext.render key={ext.name} />
-            ))}
-        </div>
-      )}
-    </TabPanel>
+      <Tabs.Root
+        className="wpsignal-settings-app"
+        value={selected}
+        onValueChange={(value) => select(String(value))}
+      >
+        <Tabs.List
+          className="wpsignal-settings-app__tabs"
+          style={{
+            maxWidth: "100%",
+          }}
+        >
+          {allTabs.map((tab) => (
+            <Tabs.Tab
+              key={tab.name}
+              value={tab.name}
+              className={tab.className}
+              disabled={!enabled(tab.name)}
+            >
+              {tab.title}
+              {tab.new && (
+                <Badge intent="informational" className="wpsignal-tab-new">
+                  {__("New", "wordsocket")}
+                </Badge>
+              )}
+            </Tabs.Tab>
+          ))}
+        </Tabs.List>
+        {allTabs.map((tab) => (
+          <Tabs.Panel
+            key={tab.name}
+            value={tab.name}
+            tabIndex={-1}
+            className="wpsignal-tab-content"
+          >
+            {content(tab)}
+          </Tabs.Panel>
+        ))}
+      </Tabs.Root>
+    </div>
   );
 }
 
 /**
  * Settings App.
+ *
+ * @since 0.7.0
  */
 export function SettingsApp() {
   return (
     <SlotFillProvider>
       <SettingsProvider>
-        <TabsSettings />
+        <UnsavedChangesProvider>
+          <TabsSettings />
+        </UnsavedChangesProvider>
         {/* Extensions registered with `scope: "wordsocket"` render here, in
             every tab, so their fills reach the Extensions and Connect tabs. */}
         <PluginArea scope="wordsocket" />

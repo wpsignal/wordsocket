@@ -1,0 +1,165 @@
+/*
+ * The prompts WPS.recovery shows. Themes override the custom properties on
+ * :root; everything is scoped under .wordsocket-prompt so a theme's own
+ * dialog or notice styles are not touched.
+ */
+:root {
+  --wordsocket-prompt-bg: #fff;
+  --wordsocket-prompt-fg: #1e1e1e;
+  --wordsocket-prompt-border: #dcdcde;
+  --wordsocket-prompt-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
+  --wordsocket-prompt-radius: 8px;
+  --wordsocket-prompt-font: inherit;
+  --wordsocket-prompt-z: 100000;
+  --wordsocket-prompt-motion: 240ms;
+}
+
+#wordsocket-prompts {
+  position: relative;
+  z-index: var(--wordsocket-prompt-z);
+  font-family: var(--wordsocket-prompt-font);
+}
+
+.wordsocket-prompt {
+  box-sizing: border-box;
+  background: var(--wordsocket-prompt-bg);
+  color: var(--wordsocket-prompt-fg);
+  border: 1px solid var(--wordsocket-prompt-border);
+  box-shadow: var(--wordsocket-prompt-shadow);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.wordsocket-prompt,
+.wordsocket-prompt * {
+  box-sizing: border-box;
+}
+
+.wordsocket-prompt__body {
+  padding: 16px 44px 16px 20px;
+}
+
+.wordsocket-prompt__body > :first-child {
+  margin-top: 0;
+}
+
+.wordsocket-prompt__body > :last-child {
+  margin-bottom: 0;
+}
+
+.wordsocket-prompt__text {
+  white-space: pre-line;
+  margin: 0;
+}
+
+.wordsocket-prompt__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.wordsocket-prompt__close:hover,
+.wordsocket-prompt__close:focus-visible {
+  background: rgb(0 0 0 / 0.08);
+  outline: none;
+}
+
+/* Banner and bar span the viewport; toast and panel sit in a corner. */
+.wordsocket-prompt--banner,
+.wordsocket-prompt--bar,
+.wordsocket-prompt--toast,
+.wordsocket-prompt--panel {
+  position: fixed;
+  z-index: var(--wordsocket-prompt-z);
+  opacity: 0;
+  transition:
+    opacity var(--wordsocket-prompt-motion) ease,
+    transform var(--wordsocket-prompt-motion) ease;
+}
+
+.wordsocket-prompt--banner.is-open,
+.wordsocket-prompt--bar.is-open,
+.wordsocket-prompt--toast.is-open,
+.wordsocket-prompt--panel.is-open {
+  opacity: 1;
+  transform: none;
+}
+
+.wordsocket-prompt--banner {
+  top: 0;
+  left: 0;
+  right: 0;
+  border-width: 0 0 1px;
+  transform: translateY(-100%);
+}
+
+.wordsocket-prompt--bar {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-width: 1px 0 0;
+  transform: translateY(100%);
+}
+
+.wordsocket-prompt--toast {
+  right: 16px;
+  bottom: 16px;
+  max-width: min(360px, calc(100vw - 32px));
+  border-radius: var(--wordsocket-prompt-radius);
+  transform: translateY(12px);
+}
+
+.wordsocket-prompt--panel {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(400px, 100vw);
+  overflow: auto;
+  border-width: 0 0 0 1px;
+  transform: translateX(100%);
+}
+
+.wordsocket-prompt--panel .wordsocket-prompt__body {
+  padding: 24px 44px 24px 24px;
+}
+
+.wordsocket-prompt--modal {
+  width: min(480px, calc(100vw - 32px));
+  max-width: none;
+  padding: 0;
+  border-radius: var(--wordsocket-prompt-radius);
+  position: fixed;
+  inset: 0;
+  margin: auto;
+}
+
+.wordsocket-prompt--modal::backdrop {
+  background: rgb(0 0 0 / 0.4);
+}
+
+.wordsocket-prompt--modal .wordsocket-prompt__body {
+  padding: 24px 44px 24px 24px;
+}
+
+body.wordsocket-prompt-open {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wordsocket-prompt--banner,
+  .wordsocket-prompt--bar,
+  .wordsocket-prompt--toast,
+  .wordsocket-prompt--panel {
+    transition: none;
+  }
+}

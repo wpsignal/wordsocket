@@ -18,6 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * JWT minting and REST API endpoints.
+ *
+ * @since 0.7.0
  */
 class Token {
 
@@ -26,8 +28,17 @@ class Token {
 	 * token by its version and keeps older ones working: 1 (before 0.22) has no
 	 * publish claim and publishes wherever it may subscribe; 2 carries
 	 * `allowed_publish_prefixes`. Bump it only when the claims change meaning.
+	 *
+	 * @since 0.22.0
 	 */
 	const TOKEN_VERSION = 2;
+
+	/**
+	 * Seconds a connection token lives before the client refreshes it.
+	 *
+	 * @since 0.31.0
+	 */
+	const LIFETIME = 300;
 	/**
 	 * Configuration accessor.
 	 *
@@ -52,6 +63,8 @@ class Token {
 	/**
 	 * Constructor.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @param Config        $config    Configuration accessor.
 	 * @param Publisher     $publisher Event publisher for the /publish proxy.
 	 * @param Channels|null $channels  Namespace reservations; a fresh registry (no reservations) when omitted.
@@ -67,6 +80,8 @@ class Token {
 	 * Register all WordSocket REST routes.
 	 *
 	 * Hooked to `rest_api_init` during WPSignal::boot().
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return void
 	 */
@@ -134,11 +149,22 @@ class Token {
 					'methods'             => 'POST',
 					'callback'            => array( $this, 'handle_post_settings' ),
 					'args'                => array(
-						'yjs_provider_enabled' => array(
+						'yjs_provider_enabled'      => array(
 							'type' => 'boolean',
 						),
-						'developer_mode'       => array(
+						'developer_mode'            => array(
 							'type' => 'boolean',
+						),
+						'moments_enabled'           => array(
+							'type' => 'boolean',
+						),
+						'history_enabled'           => array(
+							'type' => 'boolean',
+						),
+						'journeys_retention_months' => array(
+							'type'    => 'integer',
+							'minimum' => Journeys::RETENTION_MIN_MONTHS,
+							'maximum' => Journeys::RETENTION_MAX_MONTHS,
 						),
 					),
 					'permission_callback' => $permission_callback,
@@ -161,6 +187,8 @@ class Token {
 	 * `GET /wpsignal/v1/stats`: browsers connected to this site right now and
 	 * the plan's connection limit, straight from the server (see `Publisher::stats()`).
 	 *
+	 * @since 0.22.0
+	 *
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function handle_stats() {
@@ -174,6 +202,8 @@ class Token {
 	 * Can be called directly from PHP (e.g. to embed the token in a page) or
 	 * via the REST endpoint. Returns a plain array on success or WP_Error on
 	 * failure.
+	 *
+	 * @since 0.31.0 Lives `LIFETIME` seconds, filterable through `wpsignal_token_lifetime`.
 	 *
 	 * @return array|\WP_Error Token data array or error.
 	 */
@@ -196,9 +226,17 @@ class Token {
 			);
 		}
 
-		$user      = wp_get_current_user();
-		$now       = time();
-		$exp       = $now + 300;
+		$user = wp_get_current_user();
+		$now  = time();
+		/**
+		 * Filters how long a connection token lives, in seconds, 60 to 3600.
+		 *
+		 * @since 0.31.0
+		 *
+		 * @param int $lifetime Default `Token::LIFETIME`, 300.
+		 */
+		$lifetime  = (int) apply_filters( 'wpsignal_token_lifetime', self::LIFETIME );
+		$exp       = $now + min( 3600, max( 60, $lifetime ) );
 		$tenant_id = hash( 'sha256', 'tenant:' . $site_key );
 		$site_id   = hash( 'sha256', 'site:' . $site_key );
 
@@ -216,6 +254,8 @@ class Token {
 		 *
 		 * Plugins can append their own channels so they are included in the
 		 * initial WebSocket/SSE subscription without a separate subscribe call.
+		 *
+		 * @since 0.7.0
 		 *
 		 * @param string[] $channels  Default channels for this site.
 		 * @param int      $user_id   Current user ID.
@@ -238,6 +278,8 @@ class Token {
 		 * list (see `Channels::allowed_prefixes()`), so register every channel you
 		 * subscribe to through `wpsignal_token_channels`.
 		 *
+		 * @since 0.7.0
+		 *
 		 * @param string[] $prefixes  Default allowed prefixes.
 		 * @param int      $user_id   Current user ID.
 		 * @param string   $site_id   Hashed site identifier from the JWT.
@@ -257,6 +299,8 @@ class Token {
 		 * then on only reserved namespaces whose publish grant the user passes
 		 * (see `Channels::reserve()`), so a channel registered for reading stays
 		 * read-only unless it is added here.
+		 *
+		 * @since 0.22.0
 		 *
 		 * @param string[] $prefixes  Default publish prefixes.
 		 * @param int      $user_id   Current user ID.
@@ -298,6 +342,8 @@ class Token {
 	/**
 	 * REST handler: mint a token for the current user and return it as JSON.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return \WP_REST_Response|\WP_Error Token response or error.
 	 */
 	public function handle_token() {
@@ -313,6 +359,8 @@ class Token {
 	 *
 	 * Routes a publish request through PHP so the HMAC site secret never
 	 * reaches the browser. Used by the Explorer page.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @param WP_REST_Request $request The incoming REST request.
 	 * @return WP_REST_Response|\WP_Error Success response or error.
@@ -341,6 +389,8 @@ class Token {
 
 	/**
 	 * Register this WordPress site with the WPSignal server.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @param WP_REST_Request $request The incoming REST request.
 	 * @return WP_REST_Response|\WP_Error Success response or error.
@@ -429,6 +479,8 @@ class Token {
 	 * refusal means the server already forgot the site or the key, which is as
 	 * disconnected as it gets (see `GONE_ON_DISCONNECT`).
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return WP_REST_Response|\WP_Error Success response or error.
 	 */
 	public function handle_disconnect() {
@@ -492,6 +544,8 @@ class Token {
 	 * The API key is never sent back in full: only a `****` mask plus its last
 	 * four characters, which `handle_register` accepts as "reuse the stored key".
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return WP_REST_Response Settings response.
 	 */
 	public function handle_get_settings() {
@@ -503,14 +557,17 @@ class Token {
 
 		return rest_ensure_response(
 			array(
-				'base_url'             => $this->config->base_url(),
-				'api_key'              => self::mask_api_key( $this->config->api_key() ),
-				'site_key'             => $is_connected ? $this->config->site_key() : '',
-				'is_connected'         => $is_connected,
-				'yjs_provider_enabled' => $this->config->yjs_provider_enabled(),
-				'developer_mode'       => $this->config->developer_mode(),
-				'credential_source'    => $this->config->credential_source(),
-				'last_error'           => $this->last_publish_error(),
+				'base_url'                  => $this->config->base_url(),
+				'api_key'                   => self::mask_api_key( $this->config->api_key() ),
+				'site_key'                  => $is_connected ? $this->config->site_key() : '',
+				'is_connected'              => $is_connected,
+				'yjs_provider_enabled'      => $this->config->yjs_provider_enabled(),
+				'developer_mode'            => $this->config->developer_mode(),
+				'moments_enabled'           => $this->config->moments_enabled(),
+				'history_enabled'           => $this->config->history_enabled(),
+				'journeys_retention_months' => $this->config->journeys_retention_months(),
+				'credential_source'         => $this->config->credential_source(),
+				'last_error'                => $this->last_publish_error(),
 			)
 		);
 	}
@@ -518,35 +575,53 @@ class Token {
 	/**
 	 * Save settings.
 	 *
+	 * @since 0.31.0 Saves `moments_enabled`, `history_enabled` and `journeys_retention_months` too.
+	 *
 	 * @param WP_REST_Request $request The incoming REST request.
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function handle_post_settings( WP_REST_Request $request ) {
-		// Each switch saves on its own; a request carrying neither has nothing to do.
-		$switches = array_intersect_key(
+		// Each field saves on its own; a request carrying none has nothing to do.
+		$fields = array_intersect_key(
 			$request->get_params(),
 			array(
-				'yjs_provider_enabled' => true,
-				'developer_mode'       => true,
+				'yjs_provider_enabled'      => true,
+				'developer_mode'            => true,
+				'moments_enabled'           => true,
+				'history_enabled'           => true,
+				'journeys_retention_months' => true,
 			)
 		);
-		if ( empty( $switches ) ) {
+		if ( empty( $fields ) ) {
 			return new WP_Error( 'wpsignal_no_settings', __( 'No settings to save.', 'wordsocket' ), array( 'status' => 400 ) );
 		}
-		foreach ( $switches as $name => $value ) {
-			update_option( 'wpsignal_' . $name, rest_sanitize_boolean( $value ) );
+		$moments = $this->config->moments_enabled();
+		foreach ( $fields as $name => $value ) {
+			$clean = 'journeys_retention_months' === $name
+				? min( Journeys::RETENTION_MAX_MONTHS, max( Journeys::RETENTION_MIN_MONTHS, (int) $value ) )
+				: rest_sanitize_boolean( $value );
+			update_option( 'wpsignal_' . $name, $clean );
+		}
+		// Open browsers take the moments back, or get them, at once.
+		if ( $this->config->moments_enabled() !== $moments ) {
+			WPS::rules()->refresh();
 		}
 
 		return rest_ensure_response(
 			array(
-				'yjs_provider_enabled' => $this->config->yjs_provider_enabled(),
-				'developer_mode'       => $this->config->developer_mode(),
+				'yjs_provider_enabled'      => $this->config->yjs_provider_enabled(),
+				'developer_mode'            => $this->config->developer_mode(),
+				'moments_enabled'           => $this->config->moments_enabled(),
+				'history_enabled'           => $this->config->history_enabled(),
+				'journeys_retention_months' => $this->config->journeys_retention_months(),
 			)
 		);
 	}
 
 	/**
 	 * The last publish failure for the settings UI, or null.
+	 *
+	 * @since 0.20.0
 	 *
 	 * @return array|null array{code, message, detail, time}.
 	 */
@@ -566,6 +641,8 @@ class Token {
 	/**
 	 * Disconnect refusals that mean there is nothing left to disconnect on the
 	 * server, so local credentials are cleared anyway.
+	 *
+	 * @since 0.20.1
 	 */
 	private const GONE_ON_DISCONNECT = array(
 		'wpsignal_not_found',
@@ -583,6 +660,8 @@ class Token {
 	 * credentials are dead and is recorded; a network error is recorded as
 	 * unreachable. Used by the settings endpoint and by the admin notice, so
 	 * the notice heals as soon as the server is back.
+	 *
+	 * @since 0.21.0
 	 *
 	 * @return bool True if the site still exists (or the server is unreachable).
 	 */
@@ -627,6 +706,8 @@ class Token {
 	/**
 	 * `****` plus the last four characters, or '' when no key is stored.
 	 *
+	 * @since 0.20.0
+	 *
 	 * @param string $api_key Full key.
 	 * @return string
 	 */
@@ -639,6 +720,8 @@ class Token {
 
 	/**
 	 * Base64url encoding (RFC 7515).
+	 *
+	 * @since 0.7.0
 	 *
 	 * @param string $data Raw binary or string data to encode.
 	 * @return string Base64url-encoded string.

@@ -35,13 +35,31 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/** @var string Current plugin version. */
+/**
+ * Current plugin version.
+ *
+ * @since 0.7.0
+ *
+ * @var string
+ */
 const VERSION = '0.29.1';
 
-/** @var string Absolute path to the plugin directory (with trailing slash). */
+/**
+ * Absolute path to the plugin directory (with trailing slash).
+ *
+ * @since 0.7.0
+ *
+ * @var string
+ */
 const DIR = __DIR__ . '/';
 
-/** @var string Encryption key version. */
+/**
+ * Encryption key version.
+ *
+ * @since 0.14.0
+ *
+ * @var string
+ */
 const ENCRYPTION_KEY_VERSION = 'wpsignal-v1';
 
 /** @var string URL to the plugin directory (with trailing slash). */
@@ -52,3 +70,5 @@ require_once DIR . 'includes/autoload.php';
 
 // Boot the plugin.
 WPS::instance()->boot();
+
+register_deactivation_hook( __FILE__, static fn() => wp_clear_scheduled_hook( Journeys::CRON_HOOK ) );

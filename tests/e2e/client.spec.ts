@@ -62,6 +62,20 @@ test.describe("Realtime client", () => {
       window.WPS!.onChannel("site:abc123:notwoo:stock", "woo:stock"),
     ]);
     expect(checks).toEqual([true, true, false, false]);
+
+    // The public config: the plugin version, the debug flag, the site's name and this page's step, frozen.
+    const config = await page.evaluate(() => ({
+      ...window.WPS!.config,
+      frozen: Object.isFrozen(window.WPS!.config) && Object.isFrozen(window.WPS!.config.page),
+      debug: typeof window.WPS!.debug,
+      printed: (window.WPS as unknown as { printed?: unknown }).printed === undefined,
+    }));
+    expect(config.version).toMatch(/^\d+\.\d+\.\d+/);
+    expect(typeof config.isDebug).toBe("boolean");
+    expect(config.siteName).not.toBe("");
+    expect(config.page.kind).toBe("home");
+    expect(config.frozen).toBe(true);
+    expect(config.debug).toBe("function");
   });
 
   test("a published post arrives as a wpsignal:post.updated DOM event", async ({ page, requestUtils }) => {

@@ -35,6 +35,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  *         )
  *     );
  * ```
+ *
+ * @since 0.21.0
  */
 class Extensions {
 
@@ -43,6 +45,8 @@ class Extensions {
 	 * when they are not registered on this site. `url` is either an absolute
 	 * URL or a path inside wp-admin, which `all()` resolves with `admin_url()`
 	 * so the link also works on a site installed in a subdirectory.
+	 *
+	 * @since 0.21.0
 	 *
 	 * @var array<string, array{title: string, description: string, url: string, available: bool}>
 	 */
@@ -77,6 +81,8 @@ class Extensions {
 	/**
 	 * Register an extension installed on this site.
 	 *
+	 * @since 0.21.0
+	 *
 	 * @param string $slug Plugin slug, for example `shopsocket`.
 	 * @param array  $args Extension metadata: `title`, `description`, `version`,
 	 *                     `docs_url`, `file` (`plugin_basename( __FILE__ )`, which
@@ -110,6 +116,8 @@ class Extensions {
 	 * A registered extension names its own file; everything else is assumed to
 	 * sit where WordPress.org installs it, in a directory named after its slug.
 	 *
+	 * @since 0.23.1
+	 *
 	 * @return array<string, string> Slug => plugin file.
 	 */
 	public function plugin_files(): array {
@@ -127,6 +135,8 @@ class Extensions {
 	/**
 	 * Registered extensions.
 	 *
+	 * @since 0.21.0
+	 *
 	 * @return array<string, array>
 	 */
 	public function registered(): array {
@@ -136,6 +146,8 @@ class Extensions {
 	/**
 	 * Everything the Extensions tab shows: registered extensions first, then
 	 * catalogue entries not installed here.
+	 *
+	 * @since 0.21.0
 	 *
 	 * @return array<int, array>
 	 */
@@ -184,6 +196,8 @@ class Extensions {
 	 * A catalogue link as the browser should follow it: an absolute URL passes
 	 * through, anything else is a wp-admin path resolved with `admin_url()`.
 	 *
+	 * @since 0.27.0
+	 *
 	 * @param string $url Absolute URL, or a path inside wp-admin.
 	 * @return string
 	 */
@@ -196,6 +210,8 @@ class Extensions {
 
 	/**
 	 * `GET /wpsignal/v1/extensions`.
+	 *
+	 * @since 0.21.0
 	 *
 	 * @return void
 	 */
@@ -215,6 +231,8 @@ class Extensions {
 
 	/**
 	 * REST handler.
+	 *
+	 * @since 0.21.0
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return \WP_REST_Response

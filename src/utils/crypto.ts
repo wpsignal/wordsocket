@@ -16,17 +16,29 @@ const IV_BYTES = 12;
  */
 type Bytes = Uint8Array<ArrayBuffer>;
 
-/** Decrypts one `IV || ciphertext || tag` payload to its plaintext bytes. */
+/**
+ * Decrypts one `IV || ciphertext || tag` payload to its plaintext bytes.
+ *
+ * @since 0.25.0
+ */
 export type Decryptor = (payload: Bytes) => Promise<Uint8Array>;
 
 /**
  * Build a decryptor for the site's raw 32-byte key: SubtleCrypto when the page
  * has it and the key imports, the pure-JS cipher otherwise.
+ *
+ * @since 0.25.0
  */
 export async function createDecryptor(rawKey: Bytes): Promise<Decryptor> {
   if (typeof crypto !== "undefined" && crypto.subtle) {
     try {
-      const key = await crypto.subtle.importKey("raw", rawKey, { name: "AES-GCM" }, false, ["decrypt"]);
+      const key = await crypto.subtle.importKey(
+        "raw",
+        rawKey,
+        { name: "AES-GCM" },
+        false,
+        ["decrypt"],
+      );
       return async (payload) => {
         const plain = await crypto.subtle.decrypt(
           { name: "AES-GCM", iv: payload.slice(0, IV_BYTES) },
@@ -39,5 +51,6 @@ export async function createDecryptor(rawKey: Bytes): Promise<Decryptor> {
       // A key SubtleCrypto refuses is still a valid AES key: fall through.
     }
   }
-  return async (payload) => gcm(rawKey, payload.slice(0, IV_BYTES)).decrypt(payload.slice(IV_BYTES));
+  return async (payload) =>
+    gcm(rawKey, payload.slice(0, IV_BYTES)).decrypt(payload.slice(IV_BYTES));
 }

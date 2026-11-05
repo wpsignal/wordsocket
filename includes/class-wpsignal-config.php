@@ -59,11 +59,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Configuration accessor.
+ *
+ * @since 0.7.0
  */
 class Config {
 
 	/**
 	 * Get the WPSignal server base URL.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return string Server URL.
 	 */
@@ -82,6 +86,8 @@ class Config {
 	 * not in `wp_allowed_protocols()`, which would reduce the socket URL to an
 	 * empty string.
 	 *
+	 * @since 0.25.0
+	 *
 	 * @return array{ws: string, sse: string} e.g. `wss://api.wpsignal.io/ws` and `https://api.wpsignal.io/sse`.
 	 */
 	public function endpoints(): array {
@@ -90,6 +96,8 @@ class Config {
 
 	/**
 	 * The endpoints for a given relay base URL (see `endpoints()`).
+	 *
+	 * @since 0.25.0
 	 *
 	 * @param string $base Relay base URL, `http` or `https`.
 	 * @return array{ws: string, sse: string}
@@ -105,6 +113,8 @@ class Config {
 	/**
 	 * Get the server connect URL.
 	 *
+	 * @since 0.14.0
+	 *
 	 * @return string Connect URL.
 	 */
 	public function connect_url() {
@@ -114,6 +124,8 @@ class Config {
 
 	/**
 	 * Get the server exchange URL.
+	 *
+	 * @since 0.14.0
 	 *
 	 * @return string Exchange URL.
 	 */
@@ -127,6 +139,8 @@ class Config {
 	 *
 	 * Assigned by the server during site registration. Used in publish headers
 	 * and to derive tenant_id / site_id for JWTs.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return string Site key (hex string) or empty string if not registered.
 	 */
@@ -142,6 +156,8 @@ class Config {
 	 *
 	 * Used to sign publish requests. Never exposed to browsers.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return string Publish secret (hex string) or empty string if not registered.
 	 */
 	public function site_secret() {
@@ -156,6 +172,8 @@ class Config {
 	 *
 	 * Used in the Authorization header when registering sites with the server.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return string API key or empty string if not set.
 	 */
 	public function api_key() {
@@ -167,6 +185,8 @@ class Config {
 	 *
 	 * Priority: wp_options (auto-saved during registration) > WPSIGNAL_JWT_SECRET
 	 * constant in wp-config.php (backward compatibility).
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return string JWT secret or empty string if not configured.
 	 */
@@ -190,6 +210,8 @@ class Config {
 	 * modifying core. The site key is used as the HKDF salt to scope the
 	 * derived key to this specific site registration.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return string Raw 32-byte key, or empty string if site key is missing
 	 *                or WP salt constants are not defined.
 	 */
@@ -206,6 +228,8 @@ class Config {
 		 *
 		 * The default seed is `AUTH_KEY . SECURE_AUTH_KEY` from WordPress salts. Override this to
 		 * supply your own key material without modifying WordPress salts.
+		 *
+		 * @since 0.7.0
 		 *
 		 * @param string $seed The default seed string.
 		 * @usage: custom encryption seed:
@@ -226,6 +250,8 @@ class Config {
 	 *
 	 * Defaults to true so the provider is active after connecting.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return bool
 	 */
 	public function yjs_provider_enabled() {
@@ -233,12 +259,9 @@ class Config {
 	}
 
 	/**
-	 * Whether the settings page shows its developer tabs (Triggers, Explorer).
+	 * Whether the settings page shows its developer tabs (Triggers, Explorer); off by default.
 	 *
-	 * Off by default: a site owner installing an extension has no use for
-	 * hook wiring or a live event console, and both read as "what is this
-	 * for" (tester feedback, 2026-10-15). A developer switches it on once,
-	 * on the Settings tab.
+	 * @since 0.29.0
 	 *
 	 * @return bool
 	 */
@@ -247,8 +270,100 @@ class Config {
 	}
 
 	/**
+	 * Whether moments reach visitors (the Settings tab's switch); off by default.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return bool
+	 */
+	public function moments_enabled(): bool {
+		return (bool) get_option( 'wpsignal_moments_enabled', false );
+	}
+
+	/**
+	 * Whether journeys are kept on the site (the Settings tab's switch); off by default.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return bool
+	 */
+	public function history_enabled(): bool {
+		return (bool) get_option( 'wpsignal_history_enabled', false );
+	}
+
+	/**
+	 * How many months a journey is kept, within `Journeys::RETENTION_MIN_MONTHS` and `RETENTION_MAX_MONTHS`.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return int
+	 */
+	public function journeys_retention_months(): int {
+		return min(
+			Journeys::RETENTION_MAX_MONTHS,
+			max( Journeys::RETENTION_MIN_MONTHS, (int) get_option( 'wpsignal_journeys_retention_months', Journeys::RETENTION_DEFAULT_MONTHS ) )
+		);
+	}
+
+	/**
+	 * The journeys table's `dbDelta` version as installed, empty before the first install.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return string
+	 */
+	public function db_version(): string {
+		return (string) get_option( 'wpsignal_db_version', '' );
+	}
+
+	/**
+	 * Record the journeys table's version; autoloaded, since every request compares it.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string $version The version installed.
+	 * @return void
+	 */
+	public function save_db_version( string $version ): void {
+		update_option( 'wpsignal_db_version', $version, true );
+	}
+
+	/**
+	 * The saved rules (0.31): `{ version, rules, removed }`, in shape whatever is stored.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return array{version: int, rules: array, removed: string[]}
+	 */
+	public function rules(): array {
+		$saved = get_option( 'wpsignal_rules', array() );
+		$saved = is_array( $saved ) ? $saved : array();
+		return array(
+			'version' => (int) ( $saved['version'] ?? 0 ),
+			'rules'   => array_values( array_filter( (array) ( $saved['rules'] ?? array() ), 'is_array' ) ),
+			'removed' => array_values( array_map( 'strval', (array) ( $saved['removed'] ?? array() ) ) ),
+		);
+	}
+
+	/**
+	 * Write the rules option.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param array $saved `{ version, rules, removed }`.
+	 * @return void
+	 */
+	public function save_rules( array $saved ): void {
+		// Autoloaded: `Rules::config()` reads it on every front-end page view.
+		update_option( 'wpsignal_rules', $saved, true );
+	}
+
+
+	/**
 	 * Check whether the WordPress sync engine (real-time collaboration) is
 	 * available on this site.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return bool True if the sync engine is available, false otherwise.
 	 */
@@ -265,6 +380,8 @@ class Config {
 	 * no longer exist). Whatever core ships later, this function stays the
 	 * single source of truth.
 	 *
+	 * @since 0.19.0
+	 *
 	 * @return bool
 	 */
 	public function is_wp_rtc_enabled() {
@@ -275,6 +392,8 @@ class Config {
 	 * Check whether the plugin is fully configured for publishing.
 	 *
 	 * Returns true when base_url, site_key, and site_secret are all set.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return bool
 	 */
@@ -289,6 +408,8 @@ class Config {
 	 *
 	 * Called after a successful POST to /api/sites/register. Expects the
 	 * response array from the server.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @param array $data {
 	 *     Data from the manual connect flow.
@@ -313,6 +434,8 @@ class Config {
 	 * Unlike save_registration(), this does not touch the api_key option
 	 * because the automatic flow authenticates via session JWT rather than
 	 * an API key that the user pastes manually.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @param array $data {
 	 *     Data from the automatic connect flow.
@@ -339,6 +462,8 @@ class Config {
 	 * site rather than deleting it, so usage history survives a disconnect
 	 * and reconnecting the same site URL reactivates the same site key.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return void
 	 */
 	public function clear_registration() {
@@ -353,6 +478,8 @@ class Config {
 	 * Forget the quota throttle and the last publish failure. A new
 	 * connection (or a disconnect) must not inherit a paused state.
 	 *
+	 * @since 0.20.0
+	 *
 	 * @return void
 	 */
 	public function clear_publish_state() {
@@ -366,6 +493,8 @@ class Config {
 	 * Returns 'constant' when all three credential constants are defined in
 	 * wp-config.php, 'database' otherwise. Used by the settings UI to show a
 	 * read-only notice when credentials are injected via constants.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return string 'constant' | 'database'
 	 */

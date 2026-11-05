@@ -26,6 +26,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * plugin is deactivated and none of its code runs. Sites that would rather
  * keep the plain names filter `wordsocket_nested_plugin_rows` to an empty
  * array.
+ *
+ * @since 0.23.1
  */
 class Plugins_Screen {
 
@@ -46,6 +48,8 @@ class Plugins_Screen {
 	/**
 	 * Constructor.
 	 *
+	 * @since 0.23.1
+	 *
 	 * @param Extensions $extensions Extension registry.
 	 */
 	public function __construct( Extensions $extensions ) {
@@ -54,6 +58,8 @@ class Plugins_Screen {
 
 	/**
 	 * Hook into the plugins screen.
+	 *
+	 * @since 0.23.1
 	 *
 	 * @return void
 	 */
@@ -64,6 +70,8 @@ class Plugins_Screen {
 
 	/**
 	 * Rename extension rows so they sort under WordSocket.
+	 *
+	 * @since 0.23.1
 	 *
 	 * @param array<string, array> $plugins Plugins the list table will show.
 	 * @return array<string, array>
@@ -97,6 +105,8 @@ class Plugins_Screen {
 
 	/**
 	 * Indent the nested rows.
+	 *
+	 * @since 0.23.1
 	 *
 	 * @param string $hook_suffix Current admin screen.
 	 * @return void
@@ -140,6 +150,8 @@ class Plugins_Screen {
 	 * own dependency data and is what puts "Requires: WordSocket" on the row
 	 * already. A slug alone is not enough: WordSocket has no business renaming
 	 * a plugin that happens to sit in a directory this one recognises.
+	 *
+	 * @since 0.23.1
 	 *
 	 * @param array<string, array>|null $plugins Installed plugins to look through.
 	 *                                           Defaults to `get_plugins()`.
@@ -191,6 +203,8 @@ class Plugins_Screen {
 		 *
 		 * Return an empty array to leave every plugin where WordPress puts it.
 		 *
+		 * @since 0.23.1
+		 *
 		 * @param array<string, string> $rows Plugin file => extension slug.
 		 */
 		$this->rows = (array) apply_filters( 'wordsocket_nested_plugin_rows', $rows );
@@ -201,6 +215,8 @@ class Plugins_Screen {
 	/**
 	 * Whether a plugin's header names WordSocket as a dependency
 	 * (`Requires Plugins`, WordPress 6.5 and later).
+	 *
+	 * @since 0.23.1
 	 *
 	 * @param array $data Plugin data from `get_plugins()`.
 	 * @return bool
@@ -215,6 +231,8 @@ class Plugins_Screen {
 
 	/**
 	 * WordSocket's own plugin file, as the list table keys it.
+	 *
+	 * @since 0.23.1
 	 *
 	 * @return string
 	 */

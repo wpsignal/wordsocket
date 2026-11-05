@@ -58,6 +58,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Trigger builder.
+ *
+ * @since 0.7.0
  */
 class Trigger {
 
@@ -115,6 +117,8 @@ class Trigger {
 	 *
 	 * Typically called via WPS::trigger() rather than directly.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @param string $event Event name (e.g. "post.updated", "comment.created").
 	 */
 	public function __construct( $event ) {
@@ -129,6 +133,9 @@ class Trigger {
 	 *     ->on( 'save_post', 20, 3 )    // priority 20, 3 args
 	 *     ->on( 'wp_login' )            // defaults: priority 10, 1 arg
 	 * ```
+	 *
+	 * @since 0.7.0
+	 *
 	 * @param string $hook          WordPress action hook name.
 	 * @param int    $priority      Optional. Hook priority. Default 10.
 	 * @param int    $accepted_args Optional. Number of hook arguments. Default 1.
@@ -151,6 +158,9 @@ class Trigger {
 	 * ```php
 	 *     ->channel( 'orders' )
 	 * ```
+	 *
+	 * @since 0.7.0
+	 *
 	 * @param string $channel Channel name.
 	 * @return $this
 	 */
@@ -175,6 +185,9 @@ class Trigger {
 	 *         ];
 	 *     } )
 	 * ```
+	 *
+	 * @since 0.7.0
+	 *
 	 * @param callable $callback Data builder. Receives hook args, returns array.
 	 * @return $this
 	 */
@@ -196,6 +209,9 @@ class Trigger {
 	 *         return 'publish' === $post->post_status;
 	 *     } )
 	 * ```
+	 *
+	 * @since 0.7.0
+	 *
 	 * @param callable $callback Condition check. Receives hook args, returns bool.
 	 * @return $this
 	 */
@@ -210,6 +226,8 @@ class Trigger {
 	 * This wires the WordPress hook so the trigger fires automatically.
 	 * Must be called after configuring the builder.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return void
 	 */
 	public function register() {
@@ -221,6 +239,8 @@ class Trigger {
 	/**
 	 * Get the event name.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return string Event name (e.g. "post.updated").
 	 */
 	public function get_event() {
@@ -229,6 +249,8 @@ class Trigger {
 
 	/**
 	 * Get the WordPress hook name.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return string|null Hook name, or null if not set.
 	 */
@@ -239,6 +261,8 @@ class Trigger {
 	/**
 	 * Get the hook priority.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return int Priority (default 10).
 	 */
 	public function get_priority() {
@@ -247,6 +271,8 @@ class Trigger {
 
 	/**
 	 * Get the number of accepted hook arguments.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return int Accepted args count (default 1).
 	 */
@@ -257,6 +283,8 @@ class Trigger {
 	/**
 	 * Get the channel name.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return string Channel name (default "events").
 	 */
 	public function get_channel() {
@@ -266,6 +294,8 @@ class Trigger {
 	/**
 	 * Check whether this trigger has a condition callback.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return bool True if a when() callback is set.
 	 */
 	public function has_condition() {
@@ -274,6 +304,8 @@ class Trigger {
 
 	/**
 	 * Evaluate the condition callback against the hook arguments.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @param array $args Hook arguments passed by WordPress.
 	 * @return bool True if the trigger should fire, false to skip.
@@ -287,6 +319,8 @@ class Trigger {
 
 	/**
 	 * Build the event data payload from the hook arguments.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @param array $args Hook arguments passed by WordPress.
 	 * @return array Data payload to include in the published event.

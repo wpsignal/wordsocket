@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Custom triggers: hydrates saved trigger configs into the registry.
+ *
+ * @since 0.7.0
  */
 class Custom_Triggers {
 
@@ -26,6 +28,8 @@ class Custom_Triggers {
 	/**
 	 * Constructor.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @param Trigger_Registry $registry Trigger registry to add triggers to.
 	 * @return void
 	 */
@@ -35,6 +39,8 @@ class Custom_Triggers {
 
 	/**
 	 * Load saved configs from wp_options and register them.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return void
 	 */
@@ -66,6 +72,8 @@ class Custom_Triggers {
 	 *
 	 * Hooks transition_post_status and fires when a post of the configured
 	 * type transitions to 'publish'.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @param array $config Trigger config from wp_options.
 	 * @return void
@@ -116,6 +124,8 @@ class Custom_Triggers {
 	 * Register an option trigger.
 	 *
 	 * Hooks update_option_{option_name} and fires whenever the option changes.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @param array $config Trigger config from wp_options.
 	 * @return void

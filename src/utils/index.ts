@@ -14,6 +14,8 @@ const CONSOLE_STYLES = {
 /**
  * A utility function to debug the WordSocket JS API.
  *
+ * @since 0.7.0
+ *
  * @param label - The label to display in the console.
  * @param summary - The summary to display in the console. Can be a string or an object.
  * @param type - The type of message to display in the console.
@@ -56,7 +58,9 @@ export function wpsDebug(
 function getStackTrace() {
   const obj: { stack?: string } = {};
   // V8-only helper; other engines simply produce no trace.
-  (Error as unknown as { captureStackTrace?: (o: object, f: unknown) => void }).captureStackTrace?.(obj, getStackTrace);
+  (
+    Error as unknown as { captureStackTrace?: (o: object, f: unknown) => void }
+  ).captureStackTrace?.(obj, getStackTrace);
   const stack = obj.stack ?? "";
   // remove the first 2 lines from the trace string (this function and the caller)
   const trace = "Stack trace:\n" + stack.split("\n").slice(2).join("\n") + "\n";

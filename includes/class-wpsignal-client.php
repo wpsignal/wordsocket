@@ -13,19 +13,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Client: script enqueue for logged-in users (frontend + admin).
+ *
+ * @since 0.7.0
  */
 class Client {
 
 	/**
 	 * Version of the browser API (`window.WPS`), bumped when it gains methods
 	 * extensions may rely on, so PHP can check for them without comparing plugin
-	 * versions. 
-	 * - 2 (0.23): `uuid()`, `visitorId()`, `onChannel()`. 
+	 * versions.
+	 * - 2 (0.23): `uuid()`, `visitorId()`, `onChannel()`.
 	 * - 3 (0.28): `window.wordsocket.registerTab()`, a settings tab per extension.
+	 * - 4 (0.30): `WPS.presence.track()`, visitor journeys over presence.
+	 * - 5 (0.31): `WPS.attention` and `WPS.recovery`, the surfaces behind rules.
+	 *
+	 * @since 0.23.0
 	 *
 	 * @var int
 	 */
-	const API_VERSION = 3;
+	const API_VERSION = 5;
 
 	/**
 	 * Configuration accessor.
@@ -42,20 +48,44 @@ class Client {
 	private $token;
 
 	/**
+	 * Page steps for `WPS.presence.track()`.
+	 *
+	 * @var Presence
+	 */
+	private $presence;
+
+	/**
+	 * The rules for `WPS.rules` (0.31), when the facade handed one over.
+	 *
+	 * @var Rules|null
+	 */
+	private $rules;
+
+	/**
 	 * Constructor.
 	 *
-	 * @param Config $config Configuration accessor.
-	 * @param Token  $token  Token minter (used to embed an initial JWT server-side).
+	 * @since 0.7.0
+	 * @since 0.30.0 Takes an optional Presence.
+	 * @since 0.31.0 Takes an optional Rules.
+	 *
+	 * @param Config        $config   Configuration accessor.
+	 * @param Token         $token    Token minter (used to embed an initial JWT server-side).
+	 * @param Presence|null $presence Page steps and report routes for the tracker.
+	 * @param Rules|null    $rules    The rules registry and store.
 	 */
-	public function __construct( Config $config, Token $token ) {
-		$this->config = $config;
-		$this->token  = $token;
+	public function __construct( Config $config, Token $token, ?Presence $presence = null, ?Rules $rules = null ) {
+		$this->config   = $config;
+		$this->token    = $token;
+		$this->presence = $presence ?? new Presence();
+		$this->rules    = $rules;
 	}
 
 	/**
 	 * Hook into wp_enqueue_scripts and admin_enqueue_scripts.
 	 *
 	 * Called during WPSignal::boot().
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return void
 	 */
@@ -72,6 +102,8 @@ class Client {
 	 * (base_url, site_key, and site_secret all set).
 	 * The script is loaded in the footer with no dependencies.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return void
 	 */
 	public function enqueue() {
@@ -80,6 +112,8 @@ class Client {
 		 *
 		 * Return `false` to prevent the script from loading (e.g. on specific post types
 		 * or for guest users). Return `true` to force-load it regardless of login state.
+		 *
+		 * @since 0.7.0
 		 *
 		 * @param bool $allow Default: `is_user_logged_in()`.
 		 */
@@ -114,6 +148,10 @@ class Client {
 			$asset['version'],
 			true
 		);
+		// The prompts' stylesheet (0.31), emitted beside the script by the build.
+		if ( file_exists( DIR . 'build/client.css' ) ) {
+			wp_enqueue_style( 'wpsignal', URL . 'build/client.css', array(), $asset['version'] );
+		}
 
 		/*
 		 * Mint a token server-side so client.js can connect immediately without
@@ -129,9 +167,25 @@ class Client {
 			'isWpRtcAvailable' => $this->config->is_wp_sync_available(),
 			'isWpRtcEnabled'   => $this->config->is_wp_rtc_enabled(),
 			'restUrl'          => rest_url( 'wpsignal/v1/token' ),
-			'nonce'            => wp_create_nonce( 'wp_rest' ),
 			'isDebug'          => ( defined( 'WP_ENVIRONMENT_TYPE' ) && WP_ENVIRONMENT_TYPE !== 'production' ),
+			'presence'         => $this->presence->config(),
+			'siteName'         => get_bloginfo( 'name' ),
+			'version'          => VERSION,
 		);
+		if ( $this->rules ) {
+			$localize['rules'] = $this->rules->config();
+		}
+
+		/*
+		 * The REST nonce goes only to logged-in visitors. A guest page may be
+		 * served from a full-page cache for hours, and a stale nonce on a
+		 * cookie-less request is refused by the REST API (403) where a request
+		 * with no nonce at all is accepted as a guest; the token refresh and
+		 * the presence reports both depend on that.
+		 */
+		if ( is_user_logged_in() ) {
+			$localize['nonce'] = wp_create_nonce( 'wp_rest' );
+		}
 
 		$token_data = $this->token->mint();
 		if ( ! is_wp_error( $token_data ) ) {
@@ -143,6 +197,8 @@ class Client {
 			 *
 			 * Return `true` to disable WebSocket and fall back to Server-Sent Events.
 			 * Useful in environments where WebSocket connections are blocked.
+			 *
+			 * @since 0.7.0
 			 *
 			 * @param bool $force Default: `false`.
 			 */
@@ -176,6 +232,8 @@ class Client {
 	 *      (Gutenberg plugin until RTC ships in core; the Gutenberg > Experiments
 	 *      "Enable real-time collaboration" toggle, via wp_is_collaboration_enabled()).
 	 *   3. The wpsignal client script is already enqueued (connection exists).
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return void
 	 */

@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Browser-based OAuth-style connection flow.
+ *
+ * @since 0.7.0
  */
 class Connect {
 
@@ -26,6 +28,8 @@ class Connect {
 	/**
 	 * Constructor.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @param Config $config Configuration accessor.
 	 *
 	 * @return void
@@ -38,6 +42,8 @@ class Connect {
 	 * Register admin-post action hooks.
 	 *
 	 * Called during WPS::boot().
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return void
 	 */
@@ -55,6 +61,8 @@ class Connect {
 	 * dashboard authorize page with the nonce and a callback URL.
 	 *
 	 * Requires manage_options capability and a valid nonce.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return void
 	 */
@@ -126,6 +134,8 @@ class Connect {
 	 *
 	 * Can run without a WordPress session (nopriv) because the state nonce
 	 * provides the sole CSRF protection.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return void
 	 */

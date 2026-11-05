@@ -31,6 +31,34 @@ final class AdminPageTest extends WordSocketTestCase {
 		return $config;
 	}
 
+	public function test_the_notices_a_user_closed_are_printed_and_saved_through_their_user_meta(): void {
+		$this->as_admin();
+		$user = get_current_user_id();
+		delete_user_meta( $user, Admin_Page::DISMISSED_META );
+		$this->assertSame( array(), Admin_Page::dismissed_notices(), 'nothing closed yet' );
+
+		$request = new WP_REST_Request( 'POST', '/wp/v2/users/me' );
+		$request->set_body_params( array( 'meta' => array( Admin_Page::DISMISSED_META => array( 'object-cache-missing', 'object-cache-missing' ) ) ) );
+		$response = rest_do_request( $request );
+		$this->assertSame( 200, $response->get_status() );
+		// The test site's cache drop-in serves the row read before the write; read the fresh one.
+		wp_cache_delete( $user, 'user_meta' );
+		$this->assertSame( array( 'object-cache-missing' ), get_user_meta( $user, Admin_Page::DISMISSED_META, true ), 'deduped' );
+		$config = $this->settings_config();
+		$this->assertSame( array( 'object-cache-missing' ), $config['dismissed'] );
+		$this->assertIsBool( $config['history']['persistentCache'], 'the page prints the probe rather than asking a route' );
+
+		$request = new WP_REST_Request( 'POST', '/wp/v2/users/me' );
+		$request->set_body_params( array( 'meta' => array( Admin_Page::DISMISSED_META => array( 'Not A Slug' ) ) ) );
+		$this->assertSame( 400, rest_do_request( $request )->get_status(), 'the schema refuses anything but a slug' );
+
+		wp_set_current_user( 0 );
+		$request = new WP_REST_Request( 'POST', '/wp/v2/users/' . $user );
+		$request->set_body_params( array( 'meta' => array( Admin_Page::DISMISSED_META => array() ) ) );
+		$this->assertSame( 401, rest_do_request( $request )->get_status(), 'nobody writes another user\'s list' );
+		delete_user_meta( $user, Admin_Page::DISMISSED_META );
+	}
+
 	/**
 	 * 0.29.0 built this URL with wp_nonce_url(), which HTML-escapes it;
 	 * wp_localize_script() used to decode that and the inline JSON does not,
@@ -51,9 +79,10 @@ final class AdminPageTest extends WordSocketTestCase {
 	 * Nothing in the config is HTML-escaped: it is JSON, read by scripts, never printed as markup.
 	 */
 	public function test_no_settings_value_carries_html_entities(): void {
-		$flat = array();
+		$flat   = array();
+		$config = $this->settings_config();
 		array_walk_recursive(
-			$this->settings_config(),
+			$config,
 			static function ( $value ) use ( &$flat ): void {
 				if ( is_string( $value ) ) {
 					$flat[] = $value;

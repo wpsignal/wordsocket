@@ -1,0 +1,385 @@
+/*
+ * `WPS.presence.track( channel, options )`: enters relay presence as `{ v, n, j, ...state }`,
+ * announces again on every journey change, and reports visits and leaves to WordPress, which keeps
+ * them while History is on. The lab in `examples/wordsocket-presence-lab` is its test.
+ *
+ * - The outbox (`outbox.ts`) holds the journey's last known state while reporting, and the page's
+ *   first tracker sends the leaves for held journeys that can no longer continue.
+ * - A visit is written on a change of state, not on every page: a journey's first step, a page of a
+ *   kind in `config.writeKinds`, the tab going hidden, an explicit `report()`, and otherwise once
+ *   WRITE_INTERVAL_MS after the last write while the page is visible.
+ * - A journey WordPress answers as ended goes on while the visitor stays on that page; the next
+ *   other page begins a new one and sends the leave for the old.
+ */
+
+import {
+  OUTBOX_FLUSH_DELAY_MS,
+  OUTBOX_HEARTBEAT_MS,
+  claimFlush,
+  createOutbox,
+} from "./outbox";
+import type { EndedJourney } from "./journey";
+import { pageJourney } from "./page-journey";
+import { sendReport, type ReportAnswer } from "./report";
+import { isCrawler, visitorId } from "../utils/identity";
+import { stored } from "../utils/storage";
+
+/**
+ * The least time between writes a page view that changes nothing waits for.
+ *
+ * @since 0.31.0
+ */
+export const WRITE_INTERVAL_MS = 60_000;
+const WRITTEN_KEY = "wordsocket-written";
+
+/** The last visit written from this tab: the journey id and when. */
+interface Written {
+  n: string;
+  at: number;
+}
+
+const written = stored<Written>(
+  "session",
+  WRITTEN_KEY,
+  () => ({ n: "", at: 0 }),
+  (value): value is Written =>
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as Written).n === "string" &&
+    typeof (value as Written).at === "number",
+);
+
+/**
+ * The client the tracker drives: presence only, so a test can stand one in.
+ *
+ * @since 0.30.0
+ */
+export interface PresenceClient {
+  setPresence(channel: string, state: Record<string, unknown> | null): void;
+}
+
+/**
+ * Options for `WPS.presence.track()`.
+ *
+ * @since 0.30.0
+ */
+export interface TrackOptions {
+  /**
+   * The plugin's own fields, carried in presence state and in every report (ShopSocket's cart id).
+   */
+  state?: Record<string, unknown>;
+  /**
+   * Whether to report visits and leaves to WordPress. Default true; false for a live-only board; a
+   * function is read before each report, so a plugin can hold reports until they are worth storing
+   * (ShopSocket: until the visitor has a cart). Presence is announced either way, and while the
+   * site keeps journeys (`config.report`) every visitor reports whatever this says.
+   */
+  report?: boolean | (() => boolean);
+}
+
+/**
+ * A running tracker, as `WPS.presence.track()` returns it.
+ *
+ * @since 0.30.0
+ */
+export interface PresenceTracker {
+  /** This browser's visitor id, the same `WPS.visitorId()` gives. */
+  readonly visitor: string;
+  /** This visit's journey id. */
+  journeyId(): string;
+  /** The journey so far, the open step's time included. */
+  journey(): string;
+  /** Replace the plugin's fields: presence is announced again at once. */
+  update(state: Record<string, unknown>): void;
+  /**
+   * Send the visit report again for the current journey, so a change the plugin saw (a cart
+   * edited) reaches the row at once; `onVisit` handlers hear the answer. Nothing when not reporting.
+   */
+  report(): void;
+  /**
+   * Called after every change to the journey (a step, away, back, a new visit). Returns the
+   * unsubscribe.
+   */
+  onChange(handler: (journey: string, journeyId: string) => void): () => void;
+  /**
+   * Called with what WordPress answered each visit report (`ok` plus the fields of the
+   * `wpsignal_visitor_visit_response` filter), so a plugin reads its own state without a request
+   * of its own; the latest answer is replayed to a late subscriber, and null means none is coming
+   * (the tracker does not report, the report failed, or this page changed nothing worth writing).
+   * Returns the unsubscribe.
+   */
+  onVisit(handler: (answer: ReportAnswer | null) => void): () => void;
+  /** Leave presence and stop listening. The journey in storage is kept. */
+  stop(): void;
+}
+
+/**
+ * The tracker behind `WPS.presence.track()`.
+ *
+ * @since 0.30.0
+ * @since 0.31.0 `report` may be a predicate, `onVisit()` hands out the visit answer, `report()` sends
+ *               the visit again (coalesced, a failure not handed on), a journey WordPress answers as ended is left for a new one at the next other page, a same-site
+ *               navigation sends no leave, a null channel enters no presence, a site that keeps
+ *               journeys reports every visitor, a new journey is announced and reported from the
+ *               visitor's first interaction, an outbox in `localStorage` reports the end of a
+ *               journey the browser never got to, and a visit is written on a change of state
+ *               rather than on every page.
+ */
+export function createTracker(
+  client: PresenceClient,
+  config: WpSignalPresenceConfig | undefined,
+  nonce: string | undefined,
+  channel: string | null,
+  options: TrackOptions = {},
+): PresenceTracker {
+  const page = pageJourney();
+  const { journey } = page;
+  const v = visitorId();
+  /* A crawler never reports; a site keeping journeys hears from everyone else. */
+  const reporting = (): boolean =>
+    !!config &&
+    !isCrawler() &&
+    (config.report === true ||
+      (typeof options.report === "function"
+        ? options.report()
+        : options.report !== false));
+  let state = options.state ?? {};
+  let stopped = false;
+  const writeKinds = new Set(config?.writeKinds ?? []);
+  const outbox = createOutbox();
+  /* The journey as it stands, held for the flush of a later page. */
+  const hold = (j: string = journey.current()) => {
+    if (!reporting()) return;
+    outbox.hold({
+      n: journey.id(),
+      j,
+      at: Date.now(),
+      ...(Object.keys(state).length ? { data: state } : {}),
+    });
+  };
+  let heartbeat: ReturnType<typeof setInterval> | null = null;
+  const beat = () => {
+    hold();
+    heartbeat ??= setInterval(() => {
+      if (!document.hidden) hold();
+    }, OUTBOX_HEARTBEAT_MS);
+  };
+  const handlers = new Set<(journey: string, journeyId: string) => void>();
+  const visitHandlers = new Set<(answer: ReportAnswer | null) => void>();
+  /* The newest visit answer, undefined until the first report settles, so a late subscriber gets it. */
+  let lastVisit: ReportAnswer | null | undefined;
+
+  const announce = () => {
+    if (stopped) return;
+    if (channel !== null) {
+      client.setPresence(channel, {
+        ...state,
+        v,
+        n: journey.id(),
+        j: journey.current(),
+      });
+    }
+    const current = journey.current();
+    handlers.forEach((fn) => fn(current, journey.id()));
+  };
+
+  const send = (
+    url: string | undefined,
+    n: string,
+    j: string,
+    keepalive: boolean,
+  ): Promise<ReportAnswer | null> => {
+    if (!url || !reporting()) return Promise.resolve(null);
+    const body = {
+      v,
+      n,
+      journey: j,
+      ...(Object.keys(state).length ? { data: state } : {}),
+    };
+    return sendReport(url, body, nonce, keepalive);
+  };
+  /* The leave for a journey that ended, dropped from the outbox once WordPress has it. */
+  const farewell = ({ n, journey: j }: EndedJourney) => {
+    void send(config?.leaveUrl, n, j, false).then((answer) => {
+      if (answer) outbox.drop(n);
+    });
+  };
+  /* A `report()` while one is in flight queues exactly one more. */
+  let inFlight = false;
+  let queued = false;
+  /* The write a page view that changed nothing waits for, while the page is visible. */
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const disarm = () => {
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
+  };
+  const visit = (requested = false) => {
+    if (requested && inFlight) {
+      queued = true;
+      return;
+    }
+    disarm();
+    inFlight = true;
+    const n = journey.id();
+    if (reporting()) written.write({ n, at: Date.now() });
+    void send(config?.visitUrl, n, journey.current(), false).then((answer) => {
+      inFlight = false;
+      if (stopped) return;
+      /*
+       * WordPress says an extension ended this journey (an order placed): the next other page
+       * begins a new one.
+       */
+      const ended = (answer?.journey as { ended?: boolean } | undefined)?.ended;
+      if (ended && n === journey.id()) journey.end();
+      if (queued) {
+        queued = false;
+        visit(true);
+        return;
+      }
+      /* A failed `report()` keeps the last answer: handlers hear only answers, never a retry's null. */
+      if (requested && answer === null) return;
+      lastVisit = answer;
+      visitHandlers.forEach((fn) => fn(answer));
+    });
+  };
+
+  /*
+   * Whether this step is worth a write now: the journey's first, a kind that always writes, or the
+   * interval since the last write up.
+   */
+  const due = (): boolean => {
+    const last = written.read();
+    return (
+      last.n !== journey.id() ||
+      writeKinds.has(page.kind) ||
+      Date.now() - last.at >= WRITE_INTERVAL_MS
+    );
+  };
+  /* A step: written now when due, otherwise once the interval is up, and subscribers hear that no answer follows the arrival. */
+  const settle = () => {
+    if (due()) {
+      visit();
+      return;
+    }
+    disarm();
+    if (!document.hidden) {
+      timer = setTimeout(
+        () => {
+          timer = null;
+          if (!stopped && !document.hidden) visit();
+        },
+        Math.max(0, WRITE_INTERVAL_MS - (Date.now() - written.read().at)),
+      );
+    }
+    lastVisit = null;
+    visitHandlers.forEach((fn) => fn(null));
+  };
+
+  /* A journey under way is announced and settled now; a new one on its first `step`. */
+  if (page.started()) {
+    announce();
+    settle();
+    beat();
+  }
+  const off = page.onChange((event) => {
+    if (stopped) return;
+    switch (event.type) {
+      case "step":
+        if (event.ended) farewell(event.ended);
+        announce();
+        settle();
+        beat();
+        break;
+      case "away":
+        announce();
+        visit();
+        hold();
+        break;
+      case "back":
+        /*
+         * Back after the gap: the old journey gets its leave with the away capped at the gap, and
+         * this return is the first step of a new one.
+         */
+        if (event.ended) {
+          farewell(event.ended);
+          visit();
+        }
+        announce();
+        hold();
+        break;
+      case "close":
+        hold(event.closed ?? journey.current());
+        /* The next page's visit carries this step; the leave is for a tab that closes or goes elsewhere. */
+        if (event.navigating) break;
+        send(
+          config?.leaveUrl,
+          journey.id(),
+          event.closed ?? journey.current(),
+          true,
+        );
+        break;
+    }
+  });
+
+  /*
+   * The leaves WordPress never heard: every held journey past the gap, each as a leave dated by how
+   * long ago it ended, dropped once acknowledged. One flush per page, by whichever tracker came first.
+   */
+  if (config?.leaveUrl && !isCrawler() && claimFlush()) {
+    const url = config.leaveUrl;
+    setTimeout(() => {
+      outbox.due().forEach((due) => {
+        void sendReport(
+          url,
+          {
+            v,
+            n: due.n,
+            journey: due.journey,
+            ...(due.data ? { data: due.data } : {}),
+            ago: due.ago,
+          },
+          nonce,
+        ).then((answer) => {
+          if (answer) outbox.drop(due.n);
+        });
+      });
+    }, OUTBOX_FLUSH_DELAY_MS);
+  }
+
+  return {
+    visitor: v,
+    journeyId: () => journey.id(),
+    journey: () => journey.current(),
+    update(next) {
+      state = next;
+      announce();
+    },
+    report() {
+      if (!stopped) visit(true);
+    },
+    onChange(handler) {
+      handlers.add(handler);
+      return () => {
+        handlers.delete(handler);
+      };
+    },
+    onVisit(handler) {
+      visitHandlers.add(handler);
+      if (!reporting()) handler(null);
+      else if (lastVisit !== undefined) handler(lastVisit);
+      return () => {
+        visitHandlers.delete(handler);
+      };
+    },
+    stop() {
+      if (stopped) return;
+      stopped = true;
+      disarm();
+      if (heartbeat !== null) clearInterval(heartbeat);
+      off();
+      handlers.clear();
+      visitHandlers.clear();
+      if (channel !== null) client.setPresence(channel, null);
+    },
+  };
+}

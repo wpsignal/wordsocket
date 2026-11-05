@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Admin page for the WordSocket plugin.
+ *
+ * @since 0.7.0
  */
 class Admin_Page {
 
@@ -26,6 +28,8 @@ class Admin_Page {
 	/**
 	 * Constructor.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @param Config $config Configuration accessor.
 	 * @return void
 	 */
@@ -38,6 +42,8 @@ class Admin_Page {
 	 *
 	 * Called during WPSignal::boot() when is_admin() is true.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return void
 	 */
 	public function init() {
@@ -45,7 +51,77 @@ class Admin_Page {
 	}
 
 	/**
+	 * The user meta holding the ids of the settings notices a user closed.
+	 *
+	 * @since 0.31.0
+	 */
+	const DISMISSED_META = 'wpsignal_dismissed_notices';
+
+	/**
+	 * Register the dismissed-notices user meta for the REST API, so the settings app writes it through `/wp/v2/users/me`.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return void
+	 */
+	public static function register_meta(): void {
+		register_meta(
+			'user',
+			self::DISMISSED_META,
+			array(
+				'type'              => 'array',
+				'single'            => true,
+				'default'           => array(),
+				'sanitize_callback' => array( __CLASS__, 'sanitize_dismissed' ),
+				'auth_callback'     => static fn( bool $allowed, string $key, int $user_id ): bool => get_current_user_id() === $user_id && current_user_can( 'manage_options' ),
+				'show_in_rest'      => array(
+					'schema' => array(
+						'type'     => 'array',
+						'maxItems' => 50,
+						'items'    => array(
+							'type'      => 'string',
+							'pattern'   => '^[a-z][a-z0-9_-]{0,63}$',
+							'maxLength' => 64,
+						),
+					),
+				),
+			)
+		);
+	}
+
+	/**
+	 * The ids as a deduped list of slugs, 50 at most.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param mixed $value What was given.
+	 * @return string[]
+	 */
+	public static function sanitize_dismissed( $value ): array {
+		$ids = array();
+		foreach ( is_array( $value ) ? $value : array() as $id ) {
+			if ( is_string( $id ) && 1 === preg_match( '/^[a-z][a-z0-9_-]{0,63}$/', $id ) ) {
+				$ids[ $id ] = true;
+			}
+		}
+		return array_slice( array_keys( $ids ), 0, 50 );
+	}
+
+	/**
+	 * The notices the current user has closed.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return string[]
+	 */
+	public static function dismissed_notices(): array {
+		return self::sanitize_dismissed( get_user_meta( get_current_user_id(), self::DISMISSED_META, true ) );
+	}
+
+	/**
 	 * Register the top-level WordSocket menu and subpages.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return void
 	 */
@@ -81,20 +157,24 @@ class Admin_Page {
 	 * link blue, until the stylesheet caught up. Scripts stay in the render
 	 * callback, where `wordsocket_settings_enqueue` fires.
 	 *
+	 * @since 0.25.0
+	 * @since 0.31.0 Enqueues the bundled components' and DataViews' styles first.
+	 *
 	 * @return void
 	 */
 	public function enqueue_styles() {
-		wp_enqueue_style(
-			'wpsignal-settings',
-			URL . 'build/settings.css',
-			array(),
-			$this->settings_asset()['version']
-		);
+		$version = $this->settings_asset()['version'];
+		// wp-scripts writes the bundled components' and DataViews' styles to style-settings.css.
+		wp_enqueue_style( 'wpsignal-settings-vendor', URL . 'build/style-settings.css', array(), $version );
+		wp_style_add_data( 'wpsignal-settings-vendor', 'rtl', 'replace' );
+		wp_enqueue_style( 'wpsignal-settings', URL . 'build/settings.css', array( 'wpsignal-settings-vendor' ), $version );
 		wp_style_add_data( 'wpsignal-settings', 'rtl', 'replace' );
 	}
 
 	/**
 	 * The settings bundle's generated asset data (dependencies and version).
+	 *
+	 * @since 0.25.0
 	 *
 	 * @return array{dependencies: string[], version: string}
 	 */
@@ -110,6 +190,8 @@ class Admin_Page {
 	 * Menu icon for the top-level WordSocket item. Fill using `#f3f1f1` this is the font color used for
 	 * default dashicons.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return string
 	 */
 	private function get_menu_icon() {
@@ -119,6 +201,8 @@ class Admin_Page {
 
 	/**
 	 * Render the Settings page: mounts the React settings app.
+	 *
+	 * @since 0.31.0 Prints `history` for the replay's provider.
 	 *
 	 * @return void
 	 */
@@ -149,6 +233,8 @@ class Admin_Page {
 		 * with `$in_footer = true` is the right call. A stylesheet enqueued here
 		 * prints in the footer: fine for markup the script renders, too late for
 		 * anything echoed in PHP, which should enqueue on the page's load hook.
+		 *
+		 * @since 0.21.0
 		 */
 		do_action( 'wordsocket_settings_enqueue' );
 
@@ -205,11 +291,25 @@ class Admin_Page {
 					 * Settings tab then waited for data that never came.
 					 */
 					'rtc'           => array(
-						'available' => $this->config->is_wp_sync_available(),
-						'enabled'   => $this->config->is_wp_rtc_enabled(),
+						'available'      => $this->config->is_wp_sync_available(),
+						'enabled'        => $this->config->is_wp_rtc_enabled(),
+						'experimentsUrl' => admin_url( 'admin.php?page=gutenberg-experiments' ),
 					),
 					// Known before the first render, so a link to a developer tab opens it.
 					'developerMode' => $this->config->developer_mode(),
+					// Known before the first render, so a link to the Moments tab opens it.
+					'moments'       => array( 'enabled' => $this->config->moments_enabled() ),
+					// The notices this user closed, so none paints before it is hidden.
+					'dismissed'     => self::dismissed_notices(),
+					// The Moments tab's replay registers its history provider from this before the app mounts.
+					'history'       => array(
+						'enabled'         => $this->config->history_enabled(),
+						'currency'        => WPS::journeys()->currency(),
+						'outcomes'        => WPS::journeys()->outcomes(),
+						'downloadUrl'     => Journeys::download_url(),
+						// A marker an earlier request planted: false on the first page view after a cache flush.
+						'persistentCache' => Journeys::cache_persists(),
+					),
 				),
 				JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
 			) . ';',
@@ -260,6 +360,8 @@ class Admin_Page {
 	 * Server-side skeleton for the settings page.
 	 *
 	 * This is used to show a loading state while the React app is loading.
+	 *
+	 * @since 0.11.0
 	 *
 	 * @return void
 	 */

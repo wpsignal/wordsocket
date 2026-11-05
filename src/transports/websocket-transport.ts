@@ -7,9 +7,18 @@ import {
   WPSTransportStatus,
 } from "./types";
 
-/** Application close code the relay uses for an invalid or expired token. */
+/**
+ * Application close code the relay uses for an invalid or expired token.
+ *
+ * @since 0.20.0
+ */
 export const AUTH_FAILED_CLOSE_CODE = 4001;
 
+/**
+ * The WebSocket transport, with publishing and keepalive.
+ *
+ * @since 0.18.0
+ */
 export class WebSocketTransport implements WPSTransport {
   public readonly name = "ws" as const;
   public readonly canPublish = true;
@@ -77,11 +86,7 @@ export class WebSocketTransport implements WPSTransport {
     this.sendJson({ type: "unsubscribe", channels });
   }
 
-  publish(
-    channel: string,
-    event: string,
-    data: Record<string, unknown>,
-  ): void {
+  publish(channel: string, event: string, data: Record<string, unknown>): void {
     this.sendJson({ type: "message", channel, event, data });
   }
 
@@ -123,8 +128,6 @@ export class WebSocketTransport implements WPSTransport {
     };
   }
 
-
-
   private isOpen(): boolean {
     return this.ws?.readyState === WebSocket.OPEN;
   }
@@ -161,7 +164,11 @@ export class WebSocketTransport implements WPSTransport {
           );
           break;
         case "error":
-          wpsDebug("Server error", { code: message.code, message: message.message }, "warn");
+          wpsDebug(
+            "Server error",
+            { code: message.code, message: message.message },
+            "warn",
+          );
           // A rejected token refresh leaves the socket open but useless:
           // surface it to the client as an authentication close.
           if (message.code === "unauthorized") {

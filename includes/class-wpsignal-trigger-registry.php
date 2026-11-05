@@ -33,6 +33,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Trigger registry.
+ *
+ * @since 0.7.0
  */
 class Trigger_Registry {
 
@@ -60,6 +62,8 @@ class Trigger_Registry {
 	/**
 	 * Constructor.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @param Publisher $publisher Event publisher instance.
 	 * @return void
 	 */
@@ -69,6 +73,8 @@ class Trigger_Registry {
 
 	/**
 	 * Add a trigger and wire its WordPress action hook.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @param Trigger $trigger A configured trigger builder instance.
 	 * @return void
@@ -111,6 +117,8 @@ class Trigger_Registry {
 	 * Called by Custom_Triggers when registering a post-type trigger so the
 	 * built-in save_post handler skips that type (avoiding duplicate publishes).
 	 *
+	 * @since 0.7.0
+	 *
 	 * @param string $post_type Post type slug.
 	 * @return void
 	 */
@@ -127,6 +135,8 @@ class Trigger_Registry {
 	 *     and revisions). Post types with custom triggers are excluded.
 	 *
 	 * Called during WPSignal::boot().
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return void
 	 */
@@ -170,6 +180,8 @@ class Trigger_Registry {
 	/**
 	 * Get post types excluded from the built-in default trigger.
 	 *
+	 * @since 0.7.0
+	 *
 	 * @return string[]
 	 */
 	public function get_excluded_default_post_types() {
@@ -180,6 +192,8 @@ class Trigger_Registry {
 	 * Return all registered triggers.
 	 *
 	 * Useful for inspection, debugging, and the Kitchen Sink triggers table.
+	 *
+	 * @since 0.7.0
 	 *
 	 * @return Trigger[] Array of all registered trigger instances.
 	 */

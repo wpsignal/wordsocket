@@ -213,7 +213,11 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
   private withinSizeLimit(update: Uint8Array): boolean {
     if (update.byteLength <= MAX_UPDATE_SIZE_BYTES) return true;
     if (this.currentStatus.error?.code !== "document-size-limit-exceeded") {
-      debug("update too large to relay", { channel: this.channel, bytes: update.byteLength }, "error");
+      debug(
+        "update too large to relay",
+        { channel: this.channel, bytes: update.byteLength },
+        "error",
+      );
       this.emitStatus({
         status: "disconnected",
         error: new WPSConnectionError(
@@ -315,9 +319,7 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
        * both sides have purged each other.
        */
       awareness.on("update", onAwarenessUpdate);
-      this.unsubscribers.push(() =>
-        awareness.off("update", onAwarenessUpdate),
-      );
+      this.unsubscribers.push(() => awareness.off("update", onAwarenessUpdate));
     }
 
     // Incoming binary frames from peers.
@@ -397,7 +399,10 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
             const localUpdate = encodeAwarenessUpdate(awareness, [
               awareness.clientID,
             ]);
-            wps.publishBinary(this.channel, this.frame(MSG_AWARENESS, localUpdate));
+            wps.publishBinary(
+              this.channel,
+              this.frame(MSG_AWARENESS, localUpdate),
+            );
           }
           debug("inbound awareness applied", {
             channel,
@@ -502,6 +507,8 @@ class WPSignalYjsProvider implements ProviderCreatorResult {
  * Error code used for the SSE-fallback no-op provider. It is one of core's
  * codes (so the editor never crashes on it), and the boot script tells the
  * editor it is handled so core's generic dialog stays closed.
+ *
+ * @since 0.20.0
  */
 export const SSE_FALLBACK_ERROR_CODE: SyncConnectionErrorCode = "unknown-error";
 
@@ -526,6 +533,11 @@ function statusFromState(state: WPSConnectionState): SyncConnectionStatus {
   };
 }
 
+/**
+ * Create the Yjs sync provider for the editor's collaboration options.
+ *
+ * @since 0.7.0
+ */
 export async function wpsignalProviderCreator(
   options: ProviderCreatorOptions,
 ): Promise<ProviderCreatorResult> {
