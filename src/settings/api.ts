@@ -136,14 +136,16 @@ export function getExtensions(): Promise<{
 }
 
 /**
- * The Journeys tab's figures; null with History off.
+ * The Journeys tab's figures, computed again past the server's cache when `fresh`; null with History off.
  *
  * @since 0.31.0
  */
-export function getJourneyVisuals(): Promise<
-  import("./types").JourneyVisuals | null
-> {
-  return apiFetch({ path: "/wpsignal/v1/journeys/visuals" });
+export function getJourneyVisuals(
+  fresh = false,
+): Promise<import("./types").JourneyVisuals | null> {
+  return apiFetch({
+    path: `/wpsignal/v1/journeys/visuals${fresh ? "?fresh=1" : ""}`,
+  });
 }
 
 /**

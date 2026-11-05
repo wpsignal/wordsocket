@@ -1978,10 +1978,11 @@ class Journeys {
 	 *
 	 * @since 0.31.0
 	 *
+	 * @param bool $fresh Whether to compute the answer again, whatever is kept.
 	 * @return array<string, mixed>|null
 	 */
-	public function visuals(): ?array {
-		$cached = get_transient( self::VISUALS_TRANSIENT );
+	public function visuals( bool $fresh = false ): ?array {
+		$cached = $fresh ? false : get_transient( self::VISUALS_TRANSIENT );
 		if ( is_array( $cached ) ) {
 			return $cached;
 		}
@@ -2509,7 +2510,13 @@ class Journeys {
 			'/journeys/visuals',
 			array(
 				'methods'             => 'GET',
-				'callback'            => fn() => rest_ensure_response( $this->visuals() ),
+				'args'                => array(
+					'fresh' => array(
+						'type'    => 'boolean',
+						'default' => false,
+					),
+				),
+				'callback'            => fn( WP_REST_Request $request ) => rest_ensure_response( $this->visuals( (bool) $request->get_param( 'fresh' ) ) ),
 				'permission_callback' => $staff,
 			)
 		);

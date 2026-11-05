@@ -15,6 +15,7 @@ final class JourneysTest extends WordSocketTestCase {
 	private const N2 = '8d2e3f4a-5b6c-4d7e-9f80-1b2c3d4e5f60';
 	private const N3 = '9e3f4a5b-6c7d-4e8f-a091-2c3d4e5f6071';
 	private const N4 = 'af4a5b6c-7d8e-4f90-b1a2-3d4e5f607182';
+	private const N5 = 'b05b6c7d-8e9f-4a01-82b3-4e5f60718293';
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -675,7 +676,34 @@ final class JourneysTest extends WordSocketTestCase {
 			$this->assertSame( 'Left', $visuals['outcomes']['left']['label'] );
 			$this->assertSame( 'Cart', $visuals['ref']['label'] );
 			$this->assertSame( 'Home page', $visuals['kinds']['home'] );
-				$this->assertSame( $visuals, $this->journeys()->visuals(), 'served from the cache' );
+			$this->assertSame( $visuals, $this->journeys()->visuals(), 'served from the cache' );
+			// A journey since: the kept answer does not know it, a fresh one does and is kept in its place.
+			$this->insert(
+				array(
+					'journey_id' => self::N4,
+					'visitor'    => self::V,
+					'journey'    => 'home:1:30',
+					'outcome'    => 'left',
+					'started_at' => $utc( $eleven ),
+				)
+			);
+			$this->assertSame( $visuals['total'], $this->journeys()->visuals()['total'] );
+			$this->assertSame( $visuals['total'] + 1, $this->journeys()->visuals( true )['total'] );
+			$this->assertSame( $visuals['total'] + 1, $this->journeys()->visuals()['total'], 'the fresh answer is the one kept' );
+			$this->as_admin();
+			delete_transient( Journeys::VISUALS_TRANSIENT );
+			list( , $kept ) = $this->rest( 'GET', 'journeys/visuals' );
+			$this->insert(
+				array(
+					'journey_id' => self::N5,
+					'visitor'    => self::V,
+					'journey'    => 'home:1:30',
+					'outcome'    => 'left',
+					'started_at' => $utc( $eleven ),
+				)
+			);
+			list( , $asked ) = $this->rest( 'GET', 'journeys/visuals', array( 'fresh' => true ) );
+			$this->assertSame( $kept['total'] + 1, $asked['total'], 'the route computes again when asked' );
 			delete_transient( Journeys::VISUALS_TRANSIENT );
 		} finally {
 			update_option( 'timezone_string', (string) $tz_before );
