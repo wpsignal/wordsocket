@@ -14,6 +14,7 @@ final class JourneysTest extends WordSocketTestCase {
 	private const N  = '7c1d2e3f-4a5b-4c6d-8e7f-0a1b2c3d4e5f';
 	private const N2 = '8d2e3f4a-5b6c-4d7e-9f80-1b2c3d4e5f60';
 	private const N3 = '9e3f4a5b-6c7d-4e8f-a091-2c3d4e5f6071';
+	private const N4 = 'af4a5b6c-7d8e-4f90-b1a2-3d4e5f607182';
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -60,6 +61,12 @@ final class JourneysTest extends WordSocketTestCase {
 			'leaving'    => $leaving,
 			'ago'        => $ago,
 		);
+	}
+
+	/** Date a row's last report past the gap, so the visitor's next journey finds it unreported. */
+	private function age( string $journey_id ): void {
+		global $wpdb;
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Journeys::table() . ' SET last_seen = %s WHERE journey_id = UNHEX(%s)', gmdate( 'Y-m-d H:i:s', time() - Journeys::GAP_SECONDS - 60 ), Journeys::hex( $journey_id ) ) ); // phpcs:ignore WordPress.DB
 	}
 
 	/** The row as stored, `journey_id` and `visitor` as UUIDs; the journey stays in its stored form. */
@@ -194,10 +201,18 @@ final class JourneysTest extends WordSocketTestCase {
 		do_action( 'wpsignal_visitor_leave', $this->report( 'home:1:100>post:2:100', true, self::N, self::V, 0 ) );
 		$this->assertSame( $admin, (int) $this->row( self::N )['user_id'], 'kept once set' );
 
+		// A journey heard from within the gap may be another live tab's: a new journey leaves it open.
 		do_action( 'wpsignal_visitor_visit', $this->report( 'home:1:100', false, self::N2 ) );
 		do_action( 'wpsignal_visitor_visit', $this->report( 'home:1:100', false, self::N3 ) );
-		$this->assertSame( 'incomplete', $this->row( self::N2 )['outcome'], 'a new visit marks the visitor\'s other open journeys incomplete, since nobody saw them end' );
+		$this->assertSame( 'open', $this->row( self::N2 )['outcome'], 'two tabs, two open journeys' );
 		$this->assertSame( 'open', $this->row( self::N3 )['outcome'] );
+
+		// One unreported for longer than the gap cannot go on, so the next journey marks it.
+		$this->age( self::N2 );
+		do_action( 'wpsignal_visitor_visit', $this->report( 'home:1:100', false, self::N4 ) );
+		$this->assertSame( 'incomplete', $this->row( self::N2 )['outcome'], 'a new visit marks the visitor\'s open journeys past the gap incomplete, since nobody saw them end' );
+		$this->assertSame( 'open', $this->row( self::N3 )['outcome'], 'heard from a moment ago' );
+		$this->assertSame( 'open', $this->row( self::N4 )['outcome'] );
 	}
 
 	public function test_a_late_leave_is_dated_by_how_long_ago_it_happened_and_the_prune_marks_stale_open_journeys_incomplete(): void {
@@ -361,6 +376,7 @@ final class JourneysTest extends WordSocketTestCase {
 				'data'       => array(),
 			)
 		);
+		$this->age( self::N );
 		do_action( 'wpsignal_visitor_visit', $this->report( 'cart:0:100', false, self::N2 ) );
 
 		$this->assertSame( 0, $this->journeys()->end_by_ref( 'cart0001', 'bogus' ), 'an outcome nobody registered is refused' );

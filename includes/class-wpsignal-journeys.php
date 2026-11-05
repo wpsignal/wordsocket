@@ -272,6 +272,14 @@ class Journeys {
 	const STALE_SECONDS = 3600;
 
 	/**
+	 * The longest pause between a journey's arrivals that is still the same visit, in seconds; an open
+	 * journey unreported for longer cannot go on, so a visitor's next journey marks it incomplete.
+	 *
+	 * @since 0.31.0
+	 */
+	const GAP_SECONDS = 1800;
+
+	/**
 	 * How far back the prune looks for open journeys to mark, in seconds (30 days).
 	 *
 	 * @since 0.31.0
@@ -1472,9 +1480,9 @@ class Journeys {
 	/**
 	 * Write a visit or leave report: the first report creates the row, a later one from the same
 	 * visitor that is at least as far along updates it, and a visit that creates a row marks the
-	 * visitor's other open journeys incomplete. A journey an extension ended keeps its ref,
-	 * outcome, value and data; a report's `ago` dates it. Hooked at priority 5, so an extension on the
-	 * default priority reads the written row.
+	 * visitor's other open journeys unreported for GAP_SECONDS incomplete. A journey an extension
+	 * ended keeps its ref, outcome, value and data; a report's `ago` dates it. Hooked at priority 5,
+	 * so an extension on the default priority reads the written row.
 	 *
 	 * @since 0.31.0
 	 *
@@ -1533,9 +1541,10 @@ class Journeys {
 		}
 		$wpdb->query(
 			$wpdb->prepare(
-				'UPDATE ' . self::table() . " SET outcome = 'incomplete' WHERE visitor = UNHEX(%s) AND journey_id <> UNHEX(%s) AND outcome = 'open'",
+				'UPDATE ' . self::table() . " SET outcome = 'incomplete' WHERE visitor = UNHEX(%s) AND journey_id <> UNHEX(%s) AND outcome = 'open' AND last_seen < %s",
 				$visitor,
-				$journey_id
+				$journey_id,
+				self::now( $ago + self::GAP_SECONDS )
 			)
 		);
 	}
