@@ -95,7 +95,6 @@ test.describe("Journeys", () => {
     // The tab draws it.
     await admin.visitAdminPage("admin.php", TAB);
     await expect(page.getByRole("tab", { name: "Journeys" })).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByLabel("Keep a history of Journeys")).toBeChecked();
 
     // The download: a CSV of the last 28 days whose header is the legend's columns, served to this admin.
     const downloadHref = (await page.locator("a[href*='wpsignal_journeys_download']").first().getAttribute("href")) ?? "";
@@ -255,26 +254,65 @@ test.describe("Journeys", () => {
     await visitor.close();
   });
 
-  test("with History off the tab still draws what was kept under a notice, and the replay keeps its provider", async ({ admin, page }) => {
+  test("with History off the Journeys tab is gone, the replay keeps its provider, and the Settings switch brings the tab back", async ({ admin, page }) => {
     wp("option", "update", "wpsignal_history_enabled", "0");
     try {
+      // A link to the tab lands on Connect: the tab is not listed.
       await admin.visitAdminPage("admin.php", TAB);
-      await expect(page.getByLabel("Keep a history of Journeys")).not.toBeChecked();
-      await expect(page.getByText("History is off")).toBeVisible();
-      await expect(page.locator(".wpsignal-visual")).toHaveCount(3, { timeout: 20_000 });
+      await expect(page.getByRole("tab", { name: "Connect" })).toHaveAttribute("aria-selected", "true");
+      await expect(page.getByRole("tab", { name: "Journeys" })).toHaveCount(0);
       await admin.visitAdminPage("admin.php", "page=wordsocket&tab=moments&moment=new");
       await expect(page.getByRole("heading", { name: "New Moment" })).toBeVisible();
       await expect(page.locator(".wpsignal-rule-replay")).toBeVisible({ timeout: 20_000 });
-      // The switch turns it on: the notice goes without a reload.
-      await admin.visitAdminPage("admin.php", TAB);
-      await page.getByLabel("Keep a history of Journeys").check();
+      // The switch, in the Settings tab's Journeys card, lists the tab without a reload.
+      await admin.visitAdminPage("admin.php", "page=wordsocket&tab=settings");
+      const card = page.locator(".wpsignal-collapsible-card", { hasText: "Journeys" });
+      await card.getByRole("button").first().click();
+      const history = card.getByLabel("Enable", { exact: true });
+      await expect(history).not.toBeChecked();
+      await history.check();
       await expect(page.locator(".components-snackbar")).toContainText("Settings saved.");
-      await expect(page.getByText("History is off")).toHaveCount(0);
-      await expect(page.locator(".wpsignal-visual")).toHaveCount(3);
       expect(wp("option", "get", "wpsignal_history_enabled")).toBe("1");
+      await page.getByRole("tab", { name: "Journeys" }).click();
+      await expect(page.locator(".wpsignal-visual")).toHaveCount(3, { timeout: 20_000 });
+      // Download and Delete are cards of the tab's own.
+      await expect(page.locator(".wpsignal-collapsible-card", { hasText: "Download Journeys" })).toBeVisible();
+      await expect(page.locator(".wpsignal-collapsible-card", { hasText: "Delete Journeys" })).toBeVisible();
     } finally {
       wp("option", "update", "wpsignal_history_enabled", "1");
     }
+  });
+
+  test("the refresh button beside the size reads the journeys again, past the server's cache", async ({ admin, page }) => {
+    const table = `${wp("db", "prefix")}wpsignal_journeys`;
+    /** The journeys the size badge counts. */
+    const counted = async () => {
+      const text = (await page.getByText(/Database size:/).textContent()) ?? "";
+      return Number((text.match(/= ([\d,]+) journey/)?.[1] ?? "").replace(/,/g, ""));
+    };
+    // A kept answer of this visit's own, so its minute cannot run out mid-case.
+    try {
+      wp("transient", "delete", "wpsignal_journey_visuals");
+    } catch {
+      // nothing was kept
+    }
+    await admin.visitAdminPage("admin.php", TAB);
+    await expect(page.getByText(/Database size:/)).toBeVisible({ timeout: 20_000 });
+    const before = await counted();
+
+    // A journey the kept answer has not seen: a reload still shows the old count, the button the new one.
+    wp(
+      "db",
+      "query",
+      `INSERT INTO ${table} (journey_id, visitor, journey, steps, outcome, started_at, last_seen) VALUES (UNHEX(REPLACE(UUID(), '-', '')), UNHEX(REPLACE(UUID(), '-', '')), 'h:0:5', 1, 'left', UTC_TIMESTAMP(), UTC_TIMESTAMP())`,
+    );
+    await page.reload();
+    await expect(page.getByText(/Database size:/)).toBeVisible({ timeout: 20_000 });
+    expect(await counted()).toBe(before);
+    await page.getByRole("button", { name: "Refresh the journeys" }).click();
+    // At least the one added: the click is this admin's first interaction, which may begin a journey of its own.
+    await expect.poll(counted, { timeout: 20_000 }).toBeGreaterThan(before);
+    await expect(page.locator(".wpsignal-visual")).toHaveCount(3, { timeout: 20_000 });
   });
 
   test("the object cache notice stays closed once dismissed, through the user's meta", async ({ admin, page }) => {
@@ -307,7 +345,7 @@ test.describe("Journeys", () => {
     }
   });
 
-  test("the retention slider saves once it rests, and the card says what the table takes", async ({ admin, page }) => {
+  test("the retention slider saves once it rests, and the tab says what the table takes", async ({ admin, page }) => {
     let months = "";
     try {
       months = wp("option", "get", "wpsignal_journeys_retention_months");
@@ -317,9 +355,12 @@ test.describe("Journeys", () => {
     wp("option", "update", "wpsignal_journeys_retention_months", "3");
     try {
       await admin.visitAdminPage("admin.php", TAB);
-      // With History on the card opens collapsed.
-      await page.locator(".wpsignal-collapsible-card", { hasText: "Settings" }).getByRole("button").first().click();
       await expect(page.getByText(/Database size:/)).toBeVisible({ timeout: 20_000 });
+      // The slider is in the Settings tab's Journeys card, which opens collapsed.
+      await admin.visitAdminPage("admin.php", "page=wordsocket&tab=settings");
+      const card = page.locator(".wpsignal-collapsible-card", { hasText: "Journeys" });
+      await card.getByRole("button").first().click();
+      await expect(card.getByLabel("Enable", { exact: true })).toBeChecked();
       const slider = page.locator('input[type="range"]');
       await expect(slider).toHaveAttribute("max", "12");
       await expect(slider).toHaveValue("3");

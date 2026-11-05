@@ -1,6 +1,6 @@
 /*
  * Settings tab: one collapsible card per concern, each in its own file, the switches through
- * `useSettingSwitch`.
+ * `useSettingSwitch`; the features first, then the tools.
  */
 
 /**
@@ -14,6 +14,8 @@ import { Stack } from "@wordpress/ui";
 import { TabHeading } from "../TabHeading";
 import { DeveloperToolsCard } from "./DeveloperToolsCard";
 import { CollaborationCard } from "./CollaborationCard";
+import { MomentsCard } from "./MomentsCard";
+import { JourneysCard } from "./JourneysCard";
 
 /**
  * The Settings tab.
@@ -24,7 +26,11 @@ export function TabSettings({ title }: { title: string }) {
   return (
     <Stack direction="column" gap="lg" className="wpsignal-settings-tab">
       <TabHeading title={title} />
-      <Stack direction="row" gap="lg" align="start">
+      <Stack gap="lg" align="start" className="wpsignal-collapsible-cards">
+        <MomentsCard />
+        <JourneysCard />
+      </Stack>
+      <Stack gap="lg" align="start" className="wpsignal-collapsible-cards">
         <DeveloperToolsCard />
         <CollaborationCard />
       </Stack>

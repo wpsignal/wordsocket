@@ -87,6 +87,12 @@ const ALWAYS_ENABLED = ["connection", "extensions"];
 const DEVELOPER_TABS = ["triggers", "explorer"];
 
 /**
+ * Tabs that belong to a feature: listed only while the feature is on (the Settings tab's Moments
+ * and Journeys switches).
+ */
+const FEATURE_TABS = { moments: "momentsEnabled", journeys: "historyEnabled" } as const;
+
+/**
  * The `tab` query parameter, so a tab can be linked to (admin.php?page=wordsocket&tab=extensions).
  */
 function tabFromUrl(names: string[]): string | undefined {
@@ -106,7 +112,8 @@ function rememberTabInUrl(name: string): void {
  *               through the leave guard and a "New" badge marks a tab.
  */
 function TabsSettings() {
-  const { isConnected, fetchStatus, developerMode } = useSettings();
+  const settings = useSettings();
+  const { isConnected, fetchStatus, developerMode } = settings;
   const guard = useLeaveGuard();
   /*
    * Every tab is enabled until the first settings load answers, so a linked tab opens at once; if
@@ -125,9 +132,13 @@ function TabsSettings() {
    */
   const extensionTabs = useExtensionTabs();
   const allTabs: Tab[] = [
-    ...TABS.filter(
-      (tab) => developerMode || !DEVELOPER_TABS.includes(tab.name),
-    ),
+    ...TABS.filter((tab) => {
+      const feature = FEATURE_TABS[tab.name as keyof typeof FEATURE_TABS];
+      return (
+        (developerMode || !DEVELOPER_TABS.includes(tab.name)) &&
+        (!feature || settings[feature])
+      );
+    }),
     ...extensionTabs.map((tab) => ({
       name: tab.name,
       title: tab.title,
@@ -148,7 +159,7 @@ function TabsSettings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [names.join()],
   );
-  /* A tab no longer offered (disconnected, developer mode off, an extension gone) falls back to Connect, URL included. */
+  /* A tab no longer offered (disconnected, developer mode or its feature off, an extension gone) falls back to Connect, URL included. */
   useEffect(() => {
     if (names.includes(selected) && enabled(selected)) return;
     setSelected(TABS[0].name);

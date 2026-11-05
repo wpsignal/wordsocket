@@ -49,6 +49,8 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   }
   // The specs open the Explorer tab, which only developer mode lists.
   wp("option", "update", "wpsignal_developer_mode", "1");
+  // The moments specs need the feature on; its switch has a case of its own in settings.spec.ts.
+  wp("option", "update", "wpsignal_moments_enabled", "1");
 
   /*
    * WordSocket and its stub alone: the specs assert what a bare site does (an

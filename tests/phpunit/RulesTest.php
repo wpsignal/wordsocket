@@ -24,6 +24,8 @@ final class RulesTest extends WordSocketTestCase {
 			$this->saved_options[ $name ] = get_option( $name, '__missing__' );
 			delete_option( $name );
 		}
+		// Moments on, as a site that uses them has it; the switch has a case of its own.
+		update_option( 'wpsignal_moments_enabled', true );
 	}
 
 	protected function tearDown(): void {
@@ -723,5 +725,65 @@ final class RulesTest extends WordSocketTestCase {
 		} finally {
 			remove_action( 'wpsignal_rule_fired', '__return_null' );
 		}
+	}
+
+	public function test_moments_stay_in_wp_admin_until_the_switch_is_on_and_the_switch_tells_every_browser(): void {
+		delete_option( 'wpsignal_moments_enabled' );
+		$this->connect_site();
+		$this->fake_http( static fn() => array( 200, array( 'ok' => true ) ) );
+		$this->as_admin();
+		$this->rules()->save( $this->rules()->validate( array( $this->rule() ) ) );
+
+		// Off, the default: a saved, enabled rule reaches nobody.
+		$this->assertFalse( $this->rules()->live() );
+		$this->assertSame( array(), $this->rules()->enabled() );
+		$this->assertSame( array(), $this->rules()->config()['rules'] );
+		$this->assertSame( array(), $this->rules()->referenced_patterns() );
+		$this->assertSame( array( 'r1' ), array_column( $this->rules()->all(), 'id' ), 'the saved moments are untouched' );
+		list( , $live ) = $this->rest( 'GET', 'rules/live' );
+		$this->assertSame( array(), $live['rules'] );
+		$report         = array(
+			'v'      => self::V,
+			'n'      => self::N,
+			'rule'   => 'r1',
+			'action' => 'show',
+			'step'   => 0,
+			's'      => 1,
+		);
+		list( $status ) = $this->rest( 'POST', 'fired', $report );
+		$this->assertSame( 404, $status, 'a firing of a rule that is not live is refused' );
+		list( , $settings ) = $this->rest( 'GET', 'settings' );
+		$this->assertFalse( $settings['moments_enabled'] );
+
+		// On: the version moves and every browser is told what is live.
+		$this->requests        = array();
+		list( $status, $data ) = $this->rest( 'POST', 'settings', array( 'moments_enabled' => true ) );
+		$this->assertSame( 200, $status, wp_json_encode( $data ) );
+		$this->assertTrue( $data['moments_enabled'] );
+		$this->assertSame( 2, $this->rules()->saved()['version'] );
+		$this->assertSame( 1, $this->rules()->saved()['rules'][0]['rev'], 'no rule is re-armed' );
+		$publishes = array_values( array_filter( $this->requests, static fn( array $r ): bool => str_ends_with( (string) $r['url'], '/publish' ) ) );
+		$this->assertCount( 1, $publishes );
+		$event = $this->open_publish( (string) $publishes[0]['args']['body'] );
+		$this->assertSame( 'rules.updated', $event['event'] );
+		$this->assertSame( 2, $event['data']['version'] );
+		$this->assertSame( array( 'r1' ), array_column( $event['data']['rules'], 'id' ) );
+		list( $status ) = $this->rest( 'POST', 'fired', $report );
+		$this->assertSame( 200, $status );
+
+		// The same answer again, and another setting, tell nobody.
+		$this->requests = array();
+		$this->rest( 'POST', 'settings', array( 'moments_enabled' => true ) );
+		$this->rest( 'POST', 'settings', array( 'developer_mode' => false ) );
+		$this->assertSame( 2, $this->rules()->saved()['version'] );
+		$this->assertCount( 0, array_filter( $this->requests, static fn( array $r ): bool => str_ends_with( (string) $r['url'], '/publish' ) ) );
+
+		// Off again: open tabs are sent an empty set, so they take their moments back.
+		$this->rest( 'POST', 'settings', array( 'moments_enabled' => false ) );
+		$publishes = array_values( array_filter( $this->requests, static fn( array $r ): bool => str_ends_with( (string) $r['url'], '/publish' ) ) );
+		$this->assertCount( 1, $publishes );
+		$event = $this->open_publish( (string) $publishes[0]['args']['body'] );
+		$this->assertSame( 3, $event['data']['version'] );
+		$this->assertSame( array(), $event['data']['rules'] );
 	}
 }

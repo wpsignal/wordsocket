@@ -30,6 +30,7 @@ export interface PostTypeOption {
 export interface SettingsPost {
   yjs_provider_enabled?: boolean;
   developer_mode?: boolean;
+  moments_enabled?: boolean;
   history_enabled?: boolean;
   journeys_retention_months?: number;
 }
@@ -45,7 +46,9 @@ export interface Settings {
   is_connected: boolean;
   yjs_provider_enabled: boolean;
   developer_mode: boolean;
-  /** Journeys are kept on the site (the Journeys tab's switch). */
+  /** Moments reach visitors (the Settings tab's switch). */
+  moments_enabled: boolean;
+  /** Journeys are kept on the site (the Settings tab's switch). */
   history_enabled: boolean;
   /** How many months a journey is kept, 1 to 12. */
   journeys_retention_months: number;

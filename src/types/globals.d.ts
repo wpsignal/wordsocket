@@ -268,6 +268,12 @@ interface WpSignalSettings {
   /** Whether the Triggers and Explorer tabs are shown (the Settings tab's "Developer tools" switch). */
   developerMode?: boolean;
   /**
+   * Whether moments reach visitors (the Settings tab's "Moments" switch).
+   *
+   * @since 0.31.0
+   */
+  moments?: { enabled: boolean };
+  /**
    * The ids of the settings notices this user closed, from their user meta (0.31).
    *
    * @since 0.31.0

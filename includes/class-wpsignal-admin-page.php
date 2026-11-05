@@ -297,6 +297,8 @@ class Admin_Page {
 					),
 					// Known before the first render, so a link to a developer tab opens it.
 					'developerMode' => $this->config->developer_mode(),
+					// Known before the first render, so a link to the Moments tab opens it.
+					'moments'       => array( 'enabled' => $this->config->moments_enabled() ),
 					// The notices this user closed, so none paints before it is hidden.
 					'dismissed'     => self::dismissed_notices(),
 					// The Moments tab's replay registers its history provider from this before the app mounts.

@@ -20,6 +20,7 @@ delete_option( 'wpsignal_custom_triggers' );
 delete_option( 'wpsignal_yjs_provider_enabled' );
 delete_option( 'wpsignal_developer_mode' );
 delete_option( 'wpsignal_rules' );
+delete_option( 'wpsignal_moments_enabled' );
 delete_option( 'wpsignal_history_enabled' );
 delete_option( 'wpsignal_journeys_retention_months' );
 delete_option( 'wpsignal_db_version' );

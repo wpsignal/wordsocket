@@ -1,5 +1,6 @@
 import "./env";
 import { expect, test } from "@wordpress/e2e-test-utils-playwright";
+import { wp } from "./env";
 
 test.describe("WordSocket settings page", () => {
   test("a callback notice shows once and does not survive a reload", async ({ admin, page }) => {
@@ -58,6 +59,36 @@ test.describe("WordSocket settings page", () => {
     await expect(page.locator(".stub-extension-tab")).toContainText("Site connected");
     await page.getByRole("tab", { name: "Extensions" }).click();
     await expect.poll(() => new URL(page.url()).searchParams.get("tab")).toBe("extensions");
+  });
+
+  test("the Moments switch on the Settings tab lists the Moments tab and takes it away", async ({ admin, page }) => {
+    wp("option", "update", "wpsignal_moments_enabled", "0");
+    try {
+      await admin.visitAdminPage("admin.php", "page=wordsocket&tab=settings");
+      await expect(page.getByRole("tab", { name: "Moments" })).toHaveCount(0);
+      const card = page.locator(".wpsignal-collapsible-card", { hasText: "Moments" });
+      await card.getByRole("button").first().click();
+      const toggle = card.getByLabel("Enable", { exact: true });
+      await expect(toggle).not.toBeChecked();
+      await toggle.check();
+      await expect(page.locator(".components-snackbar")).toContainText("Settings saved.");
+      await expect(page.getByRole("tab", { name: "Moments" })).toBeVisible();
+      expect(wp("option", "get", "wpsignal_moments_enabled")).toBe("1");
+      await toggle.uncheck();
+      await expect(page.getByRole("tab", { name: "Moments" })).toHaveCount(0);
+      // A false option reads as empty, or as missing, depending on wp-cli.
+      await expect
+        .poll(() => {
+          try {
+            return wp("option", "get", "wpsignal_moments_enabled");
+          } catch {
+            return "";
+          }
+        })
+        .toBe("");
+    } finally {
+      wp("option", "update", "wpsignal_moments_enabled", "1");
+    }
   });
 
   test("Explorer tab shows a live connection", async ({ admin, page }) => {

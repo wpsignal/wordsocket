@@ -170,11 +170,15 @@ final class AbilitiesTest extends WordSocketTestCase {
 
 		$listed = $this->execute( 'list-moments' );
 		$this->assertContains( $id, array_column( $listed['moments'], 'id' ) );
+		$this->assertFalse( $listed['live'], 'moments are off for the site until the Settings switch is on' );
 		$this->assertSame( array(), array_column( WPS::rules()->enabled(), 'id' ), 'nothing reaches browsers yet' );
 
 		$on = $this->execute( 'enable-moment', array( 'id' => $id, 'enabled' => true ) );
 		$this->assertTrue( $on['enabled'] );
 		$this->assertSame( 2, $on['rev'], 'a switch keeps the revision' );
+		$this->assertSame( array(), array_column( WPS::rules()->enabled(), 'id' ), 'its own switch is not the site\'s' );
+		update_option( 'wpsignal_moments_enabled', true );
+		$this->assertTrue( $this->execute( 'list-moments' )['live'] );
 		$this->assertContains( $id, array_column( WPS::rules()->enabled(), 'id' ) );
 
 		$edited = $this->execute( 'save-moment', array( 'moment' => array( 'id' => $id ) + $this->moment( 'Renamed' ) ) );

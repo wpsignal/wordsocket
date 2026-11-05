@@ -270,7 +270,18 @@ class Config {
 	}
 
 	/**
-	 * Whether journeys are kept on the site (the Journeys tab's switch); off by default.
+	 * Whether moments reach visitors (the Settings tab's switch); off by default.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return bool
+	 */
+	public function moments_enabled(): bool {
+		return (bool) get_option( 'wpsignal_moments_enabled', false );
+	}
+
+	/**
+	 * Whether journeys are kept on the site (the Settings tab's switch); off by default.
 	 *
 	 * @since 0.31.0
 	 *

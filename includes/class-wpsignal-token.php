@@ -155,6 +155,9 @@ class Token {
 						'developer_mode'            => array(
 							'type' => 'boolean',
 						),
+						'moments_enabled'           => array(
+							'type' => 'boolean',
+						),
 						'history_enabled'           => array(
 							'type' => 'boolean',
 						),
@@ -560,6 +563,7 @@ class Token {
 				'is_connected'              => $is_connected,
 				'yjs_provider_enabled'      => $this->config->yjs_provider_enabled(),
 				'developer_mode'            => $this->config->developer_mode(),
+				'moments_enabled'           => $this->config->moments_enabled(),
 				'history_enabled'           => $this->config->history_enabled(),
 				'journeys_retention_months' => $this->config->journeys_retention_months(),
 				'credential_source'         => $this->config->credential_source(),
@@ -571,7 +575,7 @@ class Token {
 	/**
 	 * Save settings.
 	 *
-	 * @since 0.31.0 Saves `history_enabled` and `journeys_retention_months` too.
+	 * @since 0.31.0 Saves `moments_enabled`, `history_enabled` and `journeys_retention_months` too.
 	 *
 	 * @param WP_REST_Request $request The incoming REST request.
 	 * @return WP_REST_Response|WP_Error
@@ -583,6 +587,7 @@ class Token {
 			array(
 				'yjs_provider_enabled'      => true,
 				'developer_mode'            => true,
+				'moments_enabled'           => true,
 				'history_enabled'           => true,
 				'journeys_retention_months' => true,
 			)
@@ -590,17 +595,23 @@ class Token {
 		if ( empty( $fields ) ) {
 			return new WP_Error( 'wpsignal_no_settings', __( 'No settings to save.', 'wordsocket' ), array( 'status' => 400 ) );
 		}
+		$moments = $this->config->moments_enabled();
 		foreach ( $fields as $name => $value ) {
 			$clean = 'journeys_retention_months' === $name
 				? min( Journeys::RETENTION_MAX_MONTHS, max( Journeys::RETENTION_MIN_MONTHS, (int) $value ) )
 				: rest_sanitize_boolean( $value );
 			update_option( 'wpsignal_' . $name, $clean );
 		}
+		// Open browsers take the moments back, or get them, at once.
+		if ( $this->config->moments_enabled() !== $moments ) {
+			WPS::rules()->refresh();
+		}
 
 		return rest_ensure_response(
 			array(
 				'yjs_provider_enabled'      => $this->config->yjs_provider_enabled(),
 				'developer_mode'            => $this->config->developer_mode(),
+				'moments_enabled'           => $this->config->moments_enabled(),
 				'history_enabled'           => $this->config->history_enabled(),
 				'journeys_retention_months' => $this->config->journeys_retention_months(),
 			)

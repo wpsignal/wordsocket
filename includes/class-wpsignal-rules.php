@@ -843,13 +843,27 @@ class Rules {
 	}
 
 	/**
-	 * Enabled saved rules: what browsers receive.
+	 * Whether moments are switched on for the site (the Settings tab's switch).
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return bool
+	 */
+	public function live(): bool {
+		return $this->config->moments_enabled();
+	}
+
+	/**
+	 * Enabled saved rules: what browsers receive, none while moments are off.
 	 *
 	 * @since 0.31.0
 	 *
 	 * @return array
 	 */
 	public function enabled(): array {
+		if ( ! $this->live() ) {
+			return array();
+		}
 		return array_values( array_filter( $this->saved()['rules'], static fn( array $rule ): bool => ! empty( $rule['enabled'] ) ) );
 	}
 
@@ -1293,6 +1307,17 @@ class Rules {
 		if ( ! in_array( (int) $post_id, $this->referenced_patterns(), true ) ) {
 			return;
 		}
+		$this->refresh();
+	}
+
+	/**
+	 * Move the version and tell every open browser what is live now, with no rule re-armed.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return void
+	 */
+	public function refresh(): void {
 		$saved            = $this->saved();
 		$saved['version'] = (int) $saved['version'] + 1;
 		$this->config->save_rules( $saved );

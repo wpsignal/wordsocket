@@ -200,10 +200,11 @@ class Abilities {
 			$shared + array(
 				'label'            => __( 'List moments', 'wordsocket' ),
 				'input_schema'     => self::object_schema( array() ),
-				'description'      => __( 'Every moment the site has, enabled or not, with the keys an inactive extension left unavailable.', 'wordsocket' ),
+				'description'      => __( 'Every moment the site has, enabled or not, with the keys an inactive extension left unavailable, and whether moments are switched on for the site: while they are off, on the Settings tab, no moment reaches a visitor.', 'wordsocket' ),
 				'output_schema'    => self::object_schema(
 					array(
 						'version' => array( 'type' => 'integer' ),
+						'live'    => array( 'type' => 'boolean' ),
 						'moments' => array(
 							'type'  => 'array',
 							'items' => $moment,
@@ -443,6 +444,7 @@ class Abilities {
 		unset( $input );
 		return array(
 			'version' => (int) $this->rules->saved()['version'],
+			'live'    => $this->rules->live(),
 			'moments' => $this->rules->all(),
 		);
 	}

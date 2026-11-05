@@ -542,7 +542,7 @@ class Cli {
 			WP_CLI::error( sprintf( '--months must be between 1 and the retention, %d; older journeys are pruned daily.', $retention ) );
 		}
 		if ( ! WPS::journeys()->enabled() ) {
-			WP_CLI::warning( 'History is off, so the daily prune will delete these rows. Switch it on in the Journeys tab to keep them.' );
+			WP_CLI::warning( 'History is off, so the daily prune will delete these rows. Switch it on in the Settings tab to keep them.' );
 		}
 
 		$catalogue = $this->catalogue();
