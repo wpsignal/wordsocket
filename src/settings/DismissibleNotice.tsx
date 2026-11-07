@@ -18,19 +18,22 @@ import { saveDismissedNotices } from "./api";
 const dismissed = new Set<string>(window.wpsignalSettings?.dismissed ?? []);
 
 /**
- * The notice, gone once closed and not back on the next visit.
+ * The notice, gone once closed and not back on the next visit; `actions` are its buttons, `Notice.ActionButton`s.
  *
  * @since 0.31.0
+ * @since 0.31.0 Takes `actions`.
  */
 export function DismissibleNotice({
   id,
   title,
   intent = "warning",
+  actions,
   children,
 }: {
   id: string;
   title: string;
   intent?: React.ComponentProps<typeof Notice.Root>["intent"];
+  actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const [hidden, setHidden] = useState(() => dismissed.has(id));
@@ -44,6 +47,7 @@ export function DismissibleNotice({
     <Notice.Root intent={intent}>
       <Notice.Title>{title}</Notice.Title>
       <Notice.Description>{children}</Notice.Description>
+      {actions && <Notice.Actions>{actions}</Notice.Actions>}
       <Notice.CloseIconButton onClick={close} />
     </Notice.Root>
   );

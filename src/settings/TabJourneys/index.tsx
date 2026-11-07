@@ -7,7 +7,7 @@
  */
 import { __, _n, sprintf } from "@wordpress/i18n";
 import { useRef, useState } from "@wordpress/element";
-import { Badge, IconButton, Stack } from "@wordpress/ui";
+import { Badge, IconButton, Notice, Stack } from "@wordpress/ui";
 import { update } from "@wordpress/icons";
 
 /**
@@ -18,6 +18,7 @@ import { JourneyTools } from "./JourneyTools";
 import { Visuals } from "./Visuals";
 import { useVisuals } from "./useVisuals";
 import { DismissibleNotice } from "../DismissibleNotice";
+import { probeCache } from "../api";
 
 const MB = 1024 * 1024;
 const DB_USAGE_CONFIG = {
@@ -64,7 +65,17 @@ export function TabJourneys({ title }: { title: string }) {
   if (visuals.data?.storage) held.current = visuals.data.storage;
   const storage = visuals.data?.storage ?? held.current;
   /* As the page's own request found it; unknown counts as present, so nobody is warned on a guess. */
-  const cache = window.wpsignalSettings?.history?.persistentCache ?? true;
+  const [cache, setCache] = useState(
+    window.wpsignalSettings?.history?.persistentCache ?? true,
+  );
+  const [probing, setProbing] = useState(false);
+  const checkAgain = () => {
+    setProbing(true);
+    probeCache()
+      .then((answer) => setCache(answer.persistent))
+      .catch(() => undefined)
+      .finally(() => setProbing(false));
+  };
   const size = storage?.bytes ?? 0;
   const dbBadgeIntent =
     size > DB_USAGE_CONFIG.high.size
@@ -118,9 +129,18 @@ export function TabJourneys({ title }: { title: string }) {
         <DismissibleNotice
           id="object-cache-missing"
           title={__("Object Cache Missing", "wordsocket")}
+          actions={
+            <Notice.ActionButton
+              variant="outline"
+              disabled={probing}
+              onClick={checkAgain}
+            >
+              {__("Check again", "wordsocket")}
+            </Notice.ActionButton>
+          }
         >
           {__(
-            "Your host does not support object caching. This could cause performance degradation when Journeys History is enabled.",
+            "Your host does not support object caching. This could cause performance degradation when Journeys is enabled.",
             "wordsocket",
           )}
         </DismissibleNotice>

@@ -149,6 +149,15 @@ export function getJourneyVisuals(
 }
 
 /**
+ * Whether the object cache held the probe's marker from an earlier request.
+ *
+ * @since 0.31.0
+ */
+export function probeCache(): Promise<{ persistent: boolean }> {
+  return apiFetch({ path: "/wpsignal/v1/cache" });
+}
+
+/**
  * One page of a month's journeys for the network, newest first; null with History off.
  *
  * @since 0.31.0

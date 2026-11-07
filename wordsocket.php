@@ -71,4 +71,5 @@ require_once DIR . 'includes/autoload.php';
 // Boot the plugin.
 WPS::instance()->boot();
 
+register_activation_hook( __FILE__, array( Journeys::class, 'plant_cache_probe' ) );
 register_deactivation_hook( __FILE__, static fn() => wp_clear_scheduled_hook( Journeys::CRON_HOOK ) );

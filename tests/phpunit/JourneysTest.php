@@ -834,6 +834,27 @@ final class JourneysTest extends WordSocketTestCase {
 		$this->assertTrue( Journeys::cache_persists(), 'the next call finds it' );
 	}
 
+	public function test_the_marker_is_planted_ahead_at_activation_and_when_history_turns_on_and_the_staff_route_reads_it(): void {
+		wp_cache_delete( 'cache_probe', 'wpsignal' );
+		Journeys::plant_cache_probe();
+		$this->assertTrue( Journeys::cache_persists(), 'what activation plants, the first look finds' );
+
+		wp_cache_delete( 'cache_probe', 'wpsignal' );
+		update_option( 'wpsignal_history_enabled', false );
+		update_option( 'wpsignal_history_enabled', true );
+		$this->assertTrue( Journeys::cache_persists(), 'History turning on plants it' );
+
+		wp_cache_delete( 'cache_probe', 'wpsignal' );
+		update_option( 'wpsignal_history_enabled', false );
+		$this->assertFalse( Journeys::cache_persists(), 'turning it off plants nothing' );
+
+		$this->as_admin();
+		list( $status, $data ) = $this->rest( 'GET', 'cache' );
+		$this->assertSame( array( 200, true ), array( $status, $data['persistent'] ), 'the route reads the marker the call before left' );
+		wp_set_current_user( 0 );
+		$this->assertSame( 401, $this->rest( 'GET', 'cache' )[0], 'staff only' );
+	}
+
 	public function test_the_settings_routes_carry_the_history_fields(): void {
 		$this->connect_site();
 		$this->fake_http(

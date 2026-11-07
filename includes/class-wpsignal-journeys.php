@@ -407,6 +407,8 @@ class Journeys {
 		add_filter( 'wp_privacy_personal_data_erasers', array( $this, 'register_eraser' ) );
 		add_action( 'admin_init', array( $this, 'privacy_policy' ) );
 		add_action( 'admin_post_' . self::DOWNLOAD_ACTION, array( $this, 'handle_download' ) );
+		add_action( 'update_option_wpsignal_history_enabled', array( self::class, 'on_history_switched' ), 10, 2 );
+		add_action( 'add_option_wpsignal_history_enabled', static fn( string $option, $value ) => self::on_history_switched( false, $value ), 10, 2 );
 	}
 
 	/**
@@ -2432,14 +2434,50 @@ class Journeys {
 	 * @return bool
 	 */
 	public static function cache_persists(): bool {
-		$marker = substr( hash( 'sha256', 'wpsignal-cache-probe' . wp_salt( 'nonce' ) ), 0, 16 );
-		$seen   = wp_cache_get( 'cache_probe', 'wpsignal' );
-		wp_cache_set( 'cache_probe', $marker, 'wpsignal', DAY_IN_SECONDS );
-		return $seen === $marker;
+		$seen = wp_cache_get( 'cache_probe', 'wpsignal' );
+		self::plant_cache_probe();
+		return $seen === self::cache_probe_marker();
 	}
 
 	/**
-	 * Register `GET /wpsignal/v1/journeys` (the replay's feed), `DELETE /wpsignal/v1/journeys` (the purge), `/journeys/visuals` and `/journeys/visuals/journeys` (the Journeys tab).
+	 * Plant the cache probe's marker, so the next request's look at the cache has something to find; run at activation and when History turns on.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return void
+	 */
+	public static function plant_cache_probe(): void {
+		wp_cache_set( 'cache_probe', self::cache_probe_marker(), 'wpsignal', DAY_IN_SECONDS );
+	}
+
+	/**
+	 * Plant the marker when History turns on.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param mixed $old The option before.
+	 * @param mixed $new The option after.
+	 * @return void
+	 */
+	public static function on_history_switched( $old, $new ): void {
+		if ( $new && ! $old ) {
+			self::plant_cache_probe();
+		}
+	}
+
+	/**
+	 * The marker the probe plants, this site's own.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return string
+	 */
+	private static function cache_probe_marker(): string {
+		return substr( hash( 'sha256', 'wpsignal-cache-probe' . wp_salt( 'nonce' ) ), 0, 16 );
+	}
+
+	/**
+	 * Register `GET /wpsignal/v1/journeys` (the replay's feed), `DELETE /wpsignal/v1/journeys` (the purge), `/journeys/visuals` and `/journeys/visuals/journeys` (the Journeys tab) and `GET /wpsignal/v1/cache` (the probe, for the tab's Check again).
 	 *
 	 * @since 0.31.0
 	 *
@@ -2447,6 +2485,19 @@ class Journeys {
 	 */
 	public function register_routes(): void {
 		$staff   = static fn() => current_user_can( 'manage_options' );
+		register_rest_route(
+			'wpsignal/v1',
+			'/cache',
+			array(
+				'methods'             => 'GET',
+				'callback'            => static function () {
+					$response = rest_ensure_response( array( 'persistent' => self::cache_persists() ) );
+					$response->header( 'Cache-Control', 'no-store' );
+					return $response;
+				},
+				'permission_callback' => $staff,
+			)
+		);
 		register_rest_route(
 			'wpsignal/v1',
 			'/journeys',
