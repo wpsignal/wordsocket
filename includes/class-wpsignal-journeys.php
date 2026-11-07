@@ -41,7 +41,14 @@ class Journeys {
 	 *
 	 * @since 0.31.0
 	 */
-	const DB_VERSION = '4';
+	const DB_VERSION = '5';
+
+	/**
+	 * The version below which `install()` drops the table before creating it; from it on, `dbDelta` alters in place.
+	 *
+	 * @since 0.31.0
+	 */
+	const DB_REBUILD_BELOW = '4';
 
 	/**
 	 * The daily prune.
@@ -760,6 +767,7 @@ class Journeys {
 	 * Create or update the table.
 	 *
 	 * @since 0.31.0
+	 * @since 0.31.0 Alters in place from db version 4 on, so an added index keeps the rows.
 	 *
 	 * @return void
 	 */
@@ -771,7 +779,8 @@ class Journeys {
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		$table   = self::table();
 		$collate = $wpdb->get_charset_collate();
-		if ( '' !== $this->config->db_version() ) {
+		$version = $this->config->db_version();
+		if ( '' !== $version && version_compare( $version, self::DB_REBUILD_BELOW, '<' ) ) {
 			$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
 		}
 		dbDelta(
@@ -794,7 +803,8 @@ class Journeys {
 			KEY visitor_started (visitor, started_at),
 			KEY user_id (user_id),
 			KEY ref (ref),
-			KEY started_at (started_at)
+			KEY started_at (started_at),
+			KEY last_seen (last_seen)
 		) {$collate};"
 		);
 		$this->config->save_db_version( self::DB_VERSION );
@@ -2436,7 +2446,7 @@ class Journeys {
 	public static function cache_persists(): bool {
 		$seen = wp_cache_get( 'cache_probe', 'wpsignal' );
 		self::plant_cache_probe();
-		return $seen === self::cache_probe_marker();
+		return self::cache_probe_marker() === $seen;
 	}
 
 	/**
@@ -2455,12 +2465,12 @@ class Journeys {
 	 *
 	 * @since 0.31.0
 	 *
-	 * @param mixed $old The option before.
-	 * @param mixed $new The option after.
+	 * @param mixed $before The option before.
+	 * @param mixed $after  The option after.
 	 * @return void
 	 */
-	public static function on_history_switched( $old, $new ): void {
-		if ( $new && ! $old ) {
+	public static function on_history_switched( $before, $after ): void {
+		if ( $after && ! $before ) {
 			self::plant_cache_probe();
 		}
 	}

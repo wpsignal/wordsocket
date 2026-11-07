@@ -103,7 +103,22 @@ final class JourneysTest extends WordSocketTestCase {
 		$this->assertSame( 'binary(16)', $columns['visitor'] );
 		$this->assertStringStartsWith( 'bigint', $columns['id'] );
 		$indexes = array_unique( array_column( (array) $wpdb->get_results( 'SHOW INDEX FROM ' . Journeys::table(), ARRAY_A ), 'Key_name' ) ); // phpcs:ignore WordPress.DB
-		$this->assertEqualsCanonicalizing( array( 'PRIMARY', 'journey_id', 'visitor_started', 'user_id', 'ref', 'started_at' ), array_values( $indexes ), 'no index on outcome, none on visitor alone' );
+		$this->assertEqualsCanonicalizing( array( 'PRIMARY', 'journey_id', 'visitor_started', 'user_id', 'ref', 'started_at', 'last_seen' ), array_values( $indexes ), 'no index on outcome, none on visitor alone' );
+	}
+
+	public function test_a_version_from_four_on_adds_what_is_missing_without_dropping_the_rows(): void {
+		global $wpdb;
+		$table = Journeys::table();
+		$this->insert( array( 'journey_id' => self::N, 'visitor' => self::V, 'journey' => 'home:0:5' ) );
+		$wpdb->query( "ALTER TABLE {$table} DROP INDEX last_seen" ); // phpcs:ignore WordPress.DB
+		WPS::instance()->config()->save_db_version( Journeys::DB_REBUILD_BELOW );
+
+		$this->journeys()->install();
+
+		$indexes = array_column( (array) $wpdb->get_results( "SHOW INDEX FROM {$table}", ARRAY_A ), 'Key_name' ); // phpcs:ignore WordPress.DB
+		$this->assertContains( 'last_seen', $indexes, 'the index is added in place' );
+		$this->assertNotNull( $this->row( self::N ), 'the rows stay' );
+		$this->assertSame( Journeys::DB_VERSION, WPS::instance()->config()->db_version() );
 	}
 
 	public function test_ids_are_stored_as_bytes_and_kinds_as_codes_that_read_back_as_names(): void {
