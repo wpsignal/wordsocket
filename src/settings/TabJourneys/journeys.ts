@@ -213,6 +213,8 @@ export interface NetworkFilters {
   min: number;
   /** The fewest pages a journey must have opened to be drawn. */
   pages: number;
+  /** Whether the filters are touched. */
+  touched: boolean;
 }
 
 /**
@@ -223,6 +225,7 @@ export const DEFAULT_FILTERS: NetworkFilters = {
   through: "",
   min: 1,
   pages: 1,
+  touched: false,
 };
 
 /** The transitions a journey makes, keyed by step position, as the network draws them. */

@@ -505,9 +505,9 @@ export function Network({
       gap="lg"
       className={pager.loading ? "is-loading" : undefined}
     >
-      <Collapsible.Root>
+      <Collapsible.Root defaultOpen={filters.touched}>
         <Collapsible.Trigger
-          style={{ display: 'flex', gap: 'sm' }}
+          style={{ display: "flex", gap: "sm" }}
           render={<Button variant="outline" size="small" tone="neutral" />}
         >
           <Icon icon={settings} />
@@ -574,7 +574,7 @@ export function Network({
                 onFilters({ ...filters, min: Number(value) || 1 })
               }
             />
-          
+
             <RadioGroupControl
               className="wpsignal-chart__radios"
               label={__("Pages viewed", "wordsocket")}

@@ -63,11 +63,23 @@ function VisualCard({
 
 /** The network's filters from the URL (`&outcome=left&through=product&min=2&pages=2`). */
 function filtersFromUrl(): NetworkFilters {
+  const min = readUrlParam("min");
+  const pages = readUrlParam("pages");
+  const outcome = readUrlParam("outcome");
+  const through = readUrlParam("through");
+  let touched = false;
+
+  // if any value is not null,
+  if (min || pages || outcome || through) {
+    touched = true;
+  }
+  
   return {
-    outcome: (readUrlParam("outcome") ?? "") as Outcome | "",
-    through: readUrlParam("through") ?? "",
-    min: Number(readUrlParam("min")) || DEFAULT_FILTERS.min,
-    pages: Number(readUrlParam("pages")) || DEFAULT_FILTERS.pages,
+    outcome: outcome as Outcome | "",
+    through: through ?? "",
+    min: Number(min) || DEFAULT_FILTERS.min,
+    pages: Number(pages) || DEFAULT_FILTERS.pages,
+    touched,
   };
 }
 
