@@ -22,15 +22,15 @@ import { DismissibleNotice } from "../DismissibleNotice";
 const MB = 1024 * 1024;
 const DB_USAGE_CONFIG = {
   high: {
-    size: 800 * MB,
+    size: 750 * MB,
     msg: __("You need to delete some journeys to avoid performance issues!", "wordsocket"),
   },
   medium: {
-    size: 650 * MB,
+    size: 500 * MB,
     msg: __("Your Journeys are reaching the recommended limit!", "wordsocket"),
   },
   low: {
-    size: 500 * MB,
+    size: 250 * MB,
     msg: "",
   },
 };
