@@ -203,6 +203,8 @@ Moments are off until you switch them on (Settings tab, the Moments card). A mom
 * New for extensions: a firing report says how far into its step the moment fired, so a store can place it exactly on the journey, and the same route reports what the visitor did with the prompt: came back to the tab, dismissed it, or clicked something inside it.
 * Fixed: a crawler rendering a page (Bing, Google, link previews, page-speed tools) no longer opens a connection, counts as a visitor or triggers a moment.
 * Fixed: a link to an extension's settings tab (`&tab=shopsocket`) opens that tab every time; it used to land on Connect more often than not.
+* New: Style prompts, a button on the Settings tab's Moments card. Set the background, text and border colours, the corner radius, padding, font size, shadow, the close button and the motion for every prompt, and again per prompt type (modal, banner, bar, toast, panel), from your theme's own colours, spacing and font sizes, with a preview beside the controls.
+* Fixed: a site's script minifier (WP-Optimize and the like) could merge WordSocket's page config, including a logged-in user's token and nonce, into one cached file served to every visitor, after which no visitor could connect. The config is now printed as a data block minifiers leave alone, and a REST nonce the server refuses is renewed on the spot.
 * Fixed: the trigger builder's file now refuses direct access, the one error WordPress's Plugin Check reported.
 
 = 0.30.0 =
@@ -399,7 +401,7 @@ Moments are off until you switch them on (Settings tab, the Moments card). A mom
 == Upgrade Notice ==
 
 = 0.31.0 =
-See changelog for details.
+Moments and Journeys, both off until you switch them on under Settings, with a Style prompts dialog on the Moments card. Also fixes a visitor's connection failing on sites whose minifier merged WordSocket's page config into a cached file. Update WordSocket before ShopSocket 0.8.
 
 = 0.29.1 =
 Fixes the "Connect with WPSignal" button on the Connect tab, which led to "The link you followed has expired" in 0.29.0. Update if you still need to connect a site; connected sites are unaffected.
