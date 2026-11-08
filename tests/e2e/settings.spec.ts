@@ -91,6 +91,58 @@ test.describe("WordSocket settings page", () => {
     }
   });
 
+  test("Style prompts saves a style from the Moments card and the front end prints it", async ({ admin, page }) => {
+    wp("option", "delete", "wpsignal_prompt_style");
+    try {
+      await admin.visitAdminPage("admin.php", "page=wordsocket&tab=settings");
+      const card = page.locator(".wpsignal-collapsible-card", { hasText: "Moments" });
+      await card.getByRole("button").first().click();
+      await card.getByRole("button", { name: "Open Style Editor" }).click();
+      const dialog = page.getByRole("dialog", { name: "Style prompts" });
+      await expect(dialog).toBeVisible();
+      // The theme's variables are on the page, so a preset built from them resolves in the sample as on the front end.
+      expect(await page.evaluate(() => document.getElementById("wpsignal-settings-inline-css")?.textContent ?? "")).toContain("--wp--preset--spacing--");
+      for (const tab of ["All prompts", "Modal", "Banner", "Bar", "Toast", "Panel"]) {
+        await expect(dialog.getByRole("tab", { name: tab })).toBeVisible();
+      }
+      // All prompts: no shadow. The sample follows at once.
+      const sample = dialog.locator(".wpsignal-prompt-sample");
+      await dialog.getByRole("checkbox", { name: "Shadow" }).uncheck();
+      await expect(sample).toHaveCSS("box-shadow", "none");
+      // Modal: its own width, added from the panel's menu.
+      await dialog.getByRole("tab", { name: "Modal" }).click();
+      const modalPanel = dialog.getByRole("tabpanel");
+      await modalPanel.getByRole("button", { name: "Modal options" }).click();
+      await page.getByRole("menuitemcheckbox", { name: "Width" }).click();
+      await page.keyboard.press("Escape");
+      await expect(modalPanel.getByRole("slider", { name: "Width (px)" })).toBeVisible();
+      await dialog.getByRole("button", { name: "Save styles" }).click();
+      await expect(page.locator(".components-snackbar")).toContainText("Prompt styles saved.");
+      await expect(dialog).toHaveCount(0);
+      const saved = JSON.parse(wp("option", "get", "wpsignal_prompt_style", "--format=json")) as Record<string, Record<string, unknown>>;
+      expect(saved.all).toEqual({ shadow: false });
+      expect(saved.modal).toEqual({ padding: "50", width: 480 });
+      // The dialog's preview link carries the open tab's presentation.
+      await card.getByRole("button", { name: "Open Style Editor" }).click();
+      await dialog.getByRole("tab", { name: "Toast" }).click();
+      const link = dialog.getByRole("link", { name: "Preview on site" });
+      expect(await link.getAttribute("href")).toMatch(/\/\?wordsocket-preview=toast$/);
+      // The front end prints both scopes as custom properties after the client stylesheet.
+      await page.goto("/");
+      const css = await page.evaluate(() => document.getElementById("wpsignal-inline-css")?.textContent ?? "");
+      expect(css).toContain("#wordsocket-prompts{--wordsocket-prompt-shadow:none;}");
+      expect(css).toContain(".wordsocket-prompt--modal{--wordsocket-prompt-padding:var(--wp--preset--spacing--50, ");
+      expect(css).toContain("--wordsocket-prompt-width:480px;");
+      // The preview: the parameter shows a sample in that presentation, and so does the API.
+      await page.goto("/?wordsocket-preview=toast");
+      await expect(page.locator(".wordsocket-prompt--toast")).toContainText("Still there?");
+      expect(await page.evaluate(() => window.WPS!.recovery.preview("panel"))).toBe(true);
+      await expect(page.locator(".wordsocket-prompt--panel")).toBeVisible();
+    } finally {
+      wp("option", "delete", "wpsignal_prompt_style");
+    }
+  });
+
   test("Explorer tab shows a live connection", async ({ admin, page }) => {
     await admin.visitAdminPage("admin.php", "page=wordsocket");
     await page.getByRole("tab", { name: "Explorer" }).click();

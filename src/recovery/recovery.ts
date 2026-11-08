@@ -85,6 +85,12 @@ export interface Recovery {
     presentation: string,
     options?: ShowOptions,
   ): boolean;
+  /**
+   * Show the page's sample text in a presentation, `modal` by default; false outside debug mode, where none is printed.
+   *
+   * @since 0.31.0
+   */
+  preview(presentation?: string): boolean;
   presentation(key: string, mount: PresentationMount): void;
   flashTitle(text: string): TitleFlash;
   badge(): Promise<boolean>;
@@ -167,6 +173,11 @@ export function createRecovery(attention: Attention): Recovery {
         .map((shownBy) => shownBy.rule)
         .filter((key): key is string => typeof key === "string");
       return Array.from(new Set(keys));
+    },
+    preview(presentation = "modal") {
+      const config = window.wpSignalConfig;
+      const text = config?.isDebug ? config.preview?.text : undefined;
+      return text ? this.show({ text }, presentation) : false;
     },
     close(rule) {
       Array.from(open.entries())

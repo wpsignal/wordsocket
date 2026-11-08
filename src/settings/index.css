@@ -789,7 +789,7 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
 }
 
 /* The filter row: every control shares the width evenly, wrapping when there is no room. */
-.wpsignal-visual .wpsignal-chart__filters {
+.wpsignal-chart__filters {
   margin-top: var(--wpds-dimension-gap-lg);
   > *:not(.wpsignal-chart__radios) {
     flex: 1 1 160px;
@@ -797,6 +797,73 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
   }
 }
 
+/* A disclosure (Details): open, the summary joins the panel below it and shows its open icon. */
+.wpsignal-details {
+  &[open] {
+    .wpsignal-details__summary {
+      background-color: var(--wpds-color-bg-surface-neutral);
+      border-top: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+      border-left: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+      border-right: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+
+      .wpsignal-details__icon {
+
+        &:has(+ .wpsignal-details__icon-open) {
+          display: none;
+        }
+
+        &.wpsignal-details__icon-open {
+          display: block;
+        }
+      }
+    }
+  }
+}
+
+/* A disclosure (Details): the summary row as a small neutral button, the panel spanning the card. */
+.wpsignal-details__summary {
+  background-color: transparent;
+  border-top: 1px solid transparent;
+  border-right: 1px solid transparent;
+  border-left: 1px solid transparent;
+  margin-bottom: -1px;
+  display: flex;
+  align-items: center;
+  gap: var(--wpds-dimension-gap-xs);
+  width: fit-content;
+  cursor: pointer;
+  list-style: none;
+  position: relative;
+  z-index: 1;
+  padding: var(--wpds-dimension-padding-sm);
+  font-size: var(--wpds-typography-font-size-sm);
+  color: var(--wpds-color-foreground-content-neutral);
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+
+  &:focus-visible {
+    outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+    outline-offset: 2px;
+    border-radius: var(--wpds-border-radius-sm);
+  }
+
+  .wpsignal-details__icon-open {
+    display: none;
+  }
+}
+
+.wpsignal-details__panel {
+  background-color: var(--wpds-color-bg-surface-neutral);
+  border-top: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+  border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+
+  &.full-bleed {
+    margin: 0 calc(var(--wp-ui-card-padding) * -1);
+    padding: var(--wp-ui-card-padding);
+  }
+}
 /* The pages radio group: its legend above a row of options; the control sets the column direction inline. */
 .wpsignal-chart__radios {
   flex-basis: 100%;
@@ -1212,4 +1279,60 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
 .wpsignal-collapsible-card-content > div {
   border-top: 1px dashed var(--wpds-color-stroke-surface-neutral, #dbdbdb);
   padding-top: var(--wp-ui-card-padding);
+}
+
+/* The Style prompts dialog: the fields beside a sample drawn from them. */
+.wpsignal-prompt-style-dialog {
+  z-index: 1;
+}
+
+.wpsignal-prompt-style-preview {
+  margin-inline-end: auto;
+}
+
+.wpsignal-prompt-style-color.components-button {
+  width: 100%;
+  justify-content: flex-start;
+  gap: var(--wpds-dimension-gap-sm);
+  padding-inline: var(--wpds-dimension-gap-sm);
+}
+
+.wpsignal-prompt-style-color__label {
+  margin-inline-end: auto;
+}
+
+.wpsignal-prompt-style-color__popover {
+  padding: var(--wpds-dimension-gap-lg);
+  width: 280px;
+}
+
+.wpsignal-prompt-style-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--wpds-dimension-gap-2xl);
+  padding-top: var(--wpds-dimension-gap-lg);
+}
+
+@media (max-width: 782px) {
+  .wpsignal-prompt-style-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.wpsignal-prompt-sample-wrap {
+  position: sticky;
+  top: 0;
+  align-self: start;
+}
+
+.wpsignal-prompt-sample {
+  position: relative;
+  width: 100%;
+  border-radius: var(--wordsocket-prompt-radius);
+  transform: none;
+  opacity: 1;
+}
+
+.wpsignal-prompt-sample .wordsocket-prompt__close {
+  pointer-events: none;
 }

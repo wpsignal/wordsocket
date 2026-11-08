@@ -358,6 +358,76 @@ class Config {
 		update_option( 'wpsignal_rules', $saved, true );
 	}
 
+	/**
+	 * The saved prompt styles (0.31), keyed by scope, or null until something is saved.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return array<string, mixed>|null
+	 */
+	public function prompt_style(): ?array {
+		$saved = get_option( 'wpsignal_prompt_style', null );
+		return is_array( $saved ) ? $saved : null;
+	}
+
+	/**
+	 * Write the prompt styles option.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param array<string, array<string, mixed>> $styles The styles, keyed by scope.
+	 * @return void
+	 */
+	public function save_prompt_style( array $styles ): void {
+		update_option( 'wpsignal_prompt_style', $styles, true );
+	}
+
+	/**
+	 * The rendered prompt style CSS kept from the last render, or null when none is kept.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return string|null
+	 */
+	public function prompt_style_css(): ?string {
+		$css = get_option( 'wpsignal_prompt_style_css', null );
+		return is_string( $css ) ? $css : null;
+	}
+
+	/**
+	 * Keep the rendered prompt style CSS; autoloaded, since every page with the client prints it.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @param string $css The CSS.
+	 * @return void
+	 */
+	public function save_prompt_style_css( string $css ): void {
+		update_option( 'wpsignal_prompt_style_css', $css, true );
+	}
+
+	/**
+	 * Forget the rendered prompt style CSS, so the next page renders it again.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return void
+	 */
+	public function forget_prompt_style_css(): void {
+		delete_option( 'wpsignal_prompt_style_css' );
+	}
+
+	/**
+	 * Whether the site is in debug mode: `WP_ENVIRONMENT_TYPE` set to something other than production.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return bool
+	 */
+	public static function is_debug(): bool {
+		return defined( 'WP_ENVIRONMENT_TYPE' ) && 'production' !== WP_ENVIRONMENT_TYPE;
+	}
+
 
 	/**
 	 * Check whether the WordPress sync engine (real-time collaboration) is

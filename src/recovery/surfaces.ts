@@ -84,6 +84,39 @@ function closeButton(
   return button;
 }
 
+/** The longest transition on an element, in milliseconds; 0 when it has none or motion is reduced. */
+function transitionMs(el: HTMLElement): number {
+  return Math.max(
+    0,
+    ...getComputedStyle(el)
+      .transitionDuration.split(",")
+      .map((value) => {
+        const n = parseFloat(value);
+        return Number.isNaN(n) ? 0 : value.trim().endsWith("ms") ? n : n * 1000;
+      }),
+  );
+}
+
+/** Remove an element once its closing transition has run, at once when it has none. */
+function removeAfterTransition(el: HTMLElement): void {
+  const ms = transitionMs(el);
+  if (ms === 0) {
+    el.remove();
+    return;
+  }
+  const done = () => {
+    clearTimeout(fallback);
+    el.removeEventListener("transitionend", onEnd);
+    el.remove();
+  };
+  /* Only the element's own transition ends the close; one inside its content bubbles up too. */
+  const onEnd = (event: TransitionEvent) => {
+    if (event.target === el) done();
+  };
+  const fallback = setTimeout(done, ms + 50);
+  el.addEventListener("transitionend", onEnd);
+}
+
 /** A box with the content slot and a close button, shared by every built-in but the dialog. */
 function box(
   kind: string,
@@ -101,7 +134,9 @@ function box(
     open(node) {
       body.replaceChildren(node);
       root.appendChild(el);
-      requestAnimationFrame(() => el.classList.add("is-open"));
+      /* A layout read computes the closed state first, so the open one is a transition from it. */
+      void el.offsetWidth;
+      el.classList.add("is-open");
       if (
         kind === "toast" &&
         !el.querySelector("form, input, textarea, select")
@@ -120,7 +155,7 @@ function box(
     close() {
       clearTimeout(timer);
       el.classList.remove("is-open");
-      el.remove();
+      removeAfterTransition(el);
     },
   };
 }

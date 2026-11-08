@@ -1,7 +1,8 @@
 /*
  * The prompts WPS.recovery shows. Themes override the custom properties on
- * :root; everything is scoped under .wordsocket-prompt so a theme's own
- * dialog or notice styles are not touched.
+ * :root, the Style prompts settings print theirs on the layer and on each
+ * presentation's class; everything is scoped under .wordsocket-prompt so a
+ * theme's own dialog or notice styles are not touched.
  */
 :root {
   --wordsocket-prompt-bg: #fff;
@@ -10,8 +11,14 @@
   --wordsocket-prompt-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
   --wordsocket-prompt-radius: 8px;
   --wordsocket-prompt-font: inherit;
+  --wordsocket-prompt-font-size: 15px;
+  --wordsocket-prompt-padding: var(--wp--preset--spacing--40, 16px);
+  --wordsocket-prompt-close: block;
+  --wordsocket-prompt-close-room: 28px;
+  --wordsocket-prompt-overlay: rgb(0 0 0 / 0.4);
   --wordsocket-prompt-z: 100000;
   --wordsocket-prompt-motion: 240ms;
+  --wordsocket-prompt-slide: 1;
 }
 
 #wordsocket-prompts {
@@ -26,7 +33,7 @@
   color: var(--wordsocket-prompt-fg);
   border: 1px solid var(--wordsocket-prompt-border);
   box-shadow: var(--wordsocket-prompt-shadow);
-  font-size: 15px;
+  font-size: var(--wordsocket-prompt-font-size);
   line-height: 1.5;
 }
 
@@ -36,7 +43,10 @@
 }
 
 .wordsocket-prompt__body {
-  padding: 16px 44px 16px 20px;
+  padding: var(--wordsocket-prompt-padding);
+  padding-right: calc(
+    var(--wordsocket-prompt-padding) + var(--wordsocket-prompt-close-room)
+  );
 }
 
 .wordsocket-prompt__body > :first-child {
@@ -50,9 +60,12 @@
 .wordsocket-prompt__text {
   white-space: pre-line;
   margin: 0;
+  font-size: var(--wordsocket-prompt-font-size);
+  line-height: 1.5;
 }
 
 .wordsocket-prompt__close {
+  display: var(--wordsocket-prompt-close);
   position: absolute;
   top: 8px;
   right: 8px;
@@ -100,7 +113,7 @@
   left: 0;
   right: 0;
   border-width: 0 0 1px;
-  transform: translateY(-100%);
+  transform: translateY(calc(-100% * var(--wordsocket-prompt-slide)));
 }
 
 .wordsocket-prompt--bar {
@@ -108,7 +121,7 @@
   left: 0;
   right: 0;
   border-width: 1px 0 0;
-  transform: translateY(100%);
+  transform: translateY(calc(100% * var(--wordsocket-prompt-slide)));
 }
 
 .wordsocket-prompt--toast {
@@ -116,25 +129,23 @@
   bottom: 16px;
   max-width: min(360px, calc(100vw - 32px));
   border-radius: var(--wordsocket-prompt-radius);
-  transform: translateY(12px);
+  transform: translateY(calc(12px * var(--wordsocket-prompt-slide)));
 }
 
 .wordsocket-prompt--panel {
+  --wordsocket-prompt-width: 400px;
   top: 0;
   right: 0;
   bottom: 0;
-  width: min(400px, 100vw);
+  width: min(var(--wordsocket-prompt-width), 100vw);
   overflow: auto;
   border-width: 0 0 0 1px;
-  transform: translateX(100%);
-}
-
-.wordsocket-prompt--panel .wordsocket-prompt__body {
-  padding: 24px 44px 24px 24px;
+  transform: translateX(calc(100% * var(--wordsocket-prompt-slide)));
 }
 
 .wordsocket-prompt--modal {
-  width: min(480px, calc(100vw - 32px));
+  --wordsocket-prompt-width: 480px;
+  width: min(var(--wordsocket-prompt-width), calc(100vw - 32px));
   max-width: none;
   padding: 0;
   border-radius: var(--wordsocket-prompt-radius);
@@ -144,11 +155,7 @@
 }
 
 .wordsocket-prompt--modal::backdrop {
-  background: rgb(0 0 0 / 0.4);
-}
-
-.wordsocket-prompt--modal .wordsocket-prompt__body {
-  padding: 24px 44px 24px 24px;
+  background: var(--wordsocket-prompt-overlay, rgb(0 0 0 / 0.4));
 }
 
 body.wordsocket-prompt-open {

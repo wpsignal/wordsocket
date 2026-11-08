@@ -168,6 +168,8 @@ class Admin_Page {
 		wp_enqueue_style( 'wpsignal-settings-vendor', URL . 'build/style-settings.css', array(), $version );
 		wp_style_add_data( 'wpsignal-settings-vendor', 'rtl', 'replace' );
 		wp_enqueue_style( 'wpsignal-settings', URL . 'build/settings.css', array( 'wpsignal-settings-vendor' ), $version );
+		// The theme's variables, for the Style prompts sample; a theme's preset may be built from its custom properties.
+		wp_add_inline_style( 'wpsignal-settings', WPS::prompt_style()->theme_variables() );
 		wp_style_add_data( 'wpsignal-settings', 'rtl', 'replace' );
 	}
 
@@ -301,6 +303,8 @@ class Admin_Page {
 					'moments'       => array( 'enabled' => $this->config->moments_enabled() ),
 					// The notices this user closed, so none paints before it is hidden.
 					'dismissed'     => self::dismissed_notices(),
+					// The Moments card's Style prompts dialog: the saved styles, the fields and the theme's presets.
+					'promptStyle'   => WPS::prompt_style()->config(),
 					// The Moments tab's replay registers its history provider from this before the app mounts.
 					'history'       => array(
 						'enabled'         => $this->config->history_enabled(),

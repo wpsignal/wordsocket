@@ -164,6 +164,15 @@ class WPS {
 	private $journeys_instance;
 
 	/**
+	 * The prompt style store.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @var Prompt_Style
+	 */
+	private $prompt_style_instance;
+
+	/**
 	 * Get the singleton instance.
 	 *
 	 * @since 0.7.0
@@ -207,6 +216,8 @@ class WPS {
 		add_action( 'init', array( $this->rules_instance, 'register_defaults' ), 5 );
 		$this->journeys_instance = new Journeys( $this->config_instance );
 		$this->journeys_instance->init();
+		$this->prompt_style_instance = new Prompt_Style( $this->config_instance );
+		$this->prompt_style_instance->init();
 		$this->abilities_instance = new Abilities( $this->rules_instance, $this->journeys_instance, $this->publisher_instance );
 		$this->abilities_instance->init();
 		Cli::register();
@@ -253,6 +264,7 @@ class WPS {
 		add_action( 'rest_api_init', array( $this->presence_instance, 'register_routes' ) );
 		add_action( 'rest_api_init', array( $this->rules_instance, 'register_routes' ) );
 		add_action( 'rest_api_init', array( $this->journeys_instance, 'register_routes' ) );
+		add_action( 'rest_api_init', array( $this->prompt_style_instance, 'register_routes' ) );
 		// A synced pattern a live moment shows was edited or removed: browsers must fetch it again.
 		add_action( 'save_post_wp_block', array( $this->rules_instance, 'on_pattern_changed' ), 10, 2 );
 		add_action( 'deleted_post', array( $this->rules_instance, 'on_pattern_changed' ), 10, 2 );
@@ -386,6 +398,17 @@ class WPS {
 	 */
 	public static function journeys() {
 		return self::instance()->journeys_instance;
+	}
+
+	/**
+	 * The prompt style store.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return Prompt_Style
+	 */
+	public static function prompt_style() {
+		return self::instance()->prompt_style_instance;
 	}
 
 	/**

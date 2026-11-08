@@ -6,7 +6,7 @@ interface WpSignalEndpoints {
   sse: string;
 }
 
-/** Localized by class-wpsignal-client.php */
+/** Printed by class-wpsignal-client.php as the `#wpsignal-config` JSON block and read into `window.wpSignalConfig` by the client. */
 interface WpSignalConfig {
   /** WordPress version. */
   wpVersion: number;
@@ -26,6 +26,18 @@ interface WpSignalConfig {
   restUrl: string;
   /** WordPress REST nonce. Printed for logged-in visitors only: a cached guest page must carry none. */
   nonce?: string;
+  /**
+   * `admin-ajax.php`, where `action=rest-nonce` renews a refused nonce.
+   *
+   * @since 0.31.0
+   */
+  ajaxUrl?: string;
+  /**
+   * Printed in debug mode for a user who may style the prompts: `?wordsocket-preview=<presentation>` shows a sample with this text.
+   *
+   * @since 0.31.0
+   */
+  preview?: { text: string };
   /** WPSignal server URL. */
   baseUrl: string;
   /** Relay endpoints from PHP. Absent only on a page cached before 0.25 (see `relayEndpoints`). */
@@ -242,6 +254,67 @@ interface WpSignalPresenceConfig {
 }
 
 /** Localized by class-wpsignal-admin-page.php (Settings React app) */
+/**
+ * A scope the prompt styles are set for: every prompt, or one presentation.
+ *
+ * @since 0.31.0
+ */
+type PromptStyleScope = "all" | "modal" | "banner" | "bar" | "toast" | "panel";
+
+/**
+ * One scope's style: colours as a hex or a preset slug, sizes as pixels or a preset slug.
+ *
+ * @since 0.31.0
+ */
+interface PromptStyleValues {
+  background?: string;
+  text?: string;
+  border?: string;
+  radius?: number;
+  padding?: number | string;
+  fontSize?: number | string;
+  shadow?: boolean;
+  close?: boolean;
+  motion?: "slide" | "fade" | "none";
+  width?: number;
+  overlay?: string;
+}
+
+/**
+ * A theme preset the pickers offer.
+ *
+ * @since 0.31.0
+ */
+interface PromptStylePreset {
+  slug: string;
+  name: string;
+  color?: string;
+  size?: string;
+}
+
+/**
+ * What PHP prints for the Style prompts dialog: the saved styles, the fields, the theme's presets.
+ *
+ * @since 0.31.0
+ */
+interface WpSignalPromptStyle {
+  styles: Record<PromptStyleScope, PromptStyleValues>;
+  fields: Record<
+    keyof PromptStyleValues,
+    { type: string; scopes: PromptStyleScope[]; min?: number; max?: number }
+  >;
+  presets: {
+    palette: PromptStylePreset[];
+    spacingSizes: PromptStylePreset[];
+    fontSizes: PromptStylePreset[];
+  };
+  /** The text a sample prompt shows, in the dialog and on the site. */
+  sampleText: string;
+  url: string;
+  /** The front page with the preview parameter, its value empty, for the dialog to append the presentation; null outside debug mode. */
+  preview: string | null;
+}
+
 interface WpSignalSettings {
   /** URL for the connection endpoint. */
   connectUrl: string;
@@ -279,6 +352,12 @@ interface WpSignalSettings {
    * @since 0.31.0
    */
   dismissed?: string[];
+  /**
+   * The prompt styles the Moments card's dialog edits (0.31).
+   *
+   * @since 0.31.0
+   */
+  promptStyle?: WpSignalPromptStyle;
   /** Journey history: whether journeys are kept, the currency their values are in, and the registered outcomes (0.31). */
   history?: {
     enabled: boolean;
@@ -463,6 +542,12 @@ interface WPSRecoveryApi {
   ): boolean;
   /** Register a presentation for extensions to show prompts in. */
   presentation(key: string, mount: WPSPresentationMount): void;
+  /**
+   * Show a sample prompt in a presentation, `modal` by default, to see its style on the page; false outside debug mode.
+   *
+   * @since 0.31.0
+   */
+  preview(presentation?: string): boolean;
   /** Alternate the tab title with `text` while the tab is hidden; restored on return. */
   flashTitle(text: string): { stop(): void };
   /** Put a dot on the favicon; false when the page has none or it is cross-origin. */
