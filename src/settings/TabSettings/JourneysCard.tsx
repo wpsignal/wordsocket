@@ -23,8 +23,10 @@ import CollapsibleCard from "../CollapsibleCard";
 
 const MONTHS_MIN = 1;
 const MONTHS_MAX = 12;
-/** The months the retention slider labels. */
-const MONTH_MARKS = [1, 3, 6, 9, 12].map((value) => ({
+/** Where the slider's track starts, a quarter before the first mark; a drag below MONTHS_MIN snaps back to it. */
+const TRACK_MIN = 0;
+/** The months the retention slider labels: the quarter years, which divide the track evenly. */
+const MONTH_MARKS = [3, 6, 9, 12].map((value) => ({
   value,
   label: String(value),
 }));
@@ -88,12 +90,14 @@ export function JourneysCard() {
           <RangeControl
             label={__("Retention (months)", "wordsocket")}
             help={sprintf(__("After %d months, journeys are deleted.", "wordsocket"), draft)}
-            min={MONTHS_MIN}
+            min={TRACK_MIN}
             max={MONTHS_MAX}
             step={1}
             marks={MONTH_MARKS}
             value={draft}
-            onChange={(months) => setDraft(months ?? MONTHS_MIN)}
+            onChange={(months) =>
+              setDraft(Math.max(MONTHS_MIN, months ?? MONTHS_MIN))
+            }
             renderTooltipContent={(months) =>
               sprintf(
                 /* translators: %d: months */
