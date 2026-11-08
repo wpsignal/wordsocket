@@ -62,6 +62,22 @@ class Client {
 	private $rules;
 
 	/**
+	 * The id of the JSON block that carries the client's config.
+	 *
+	 * @since 0.31.0
+	 */
+	const CONFIG_ID = 'wpsignal-config';
+
+	/**
+	 * The config `enqueue()` built and `print_config()` has yet to print.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @var array<string, mixed>|null
+	 */
+	private $pending = null;
+
+	/**
 	 * Constructor.
 	 *
 	 * @since 0.7.0
@@ -86,12 +102,16 @@ class Client {
 	 * Called during WPSignal::boot().
 	 *
 	 * @since 0.7.0
+	 * @since 0.31.0 Prints the client's config as a JSON block in the head.
 	 *
 	 * @return void
 	 */
 	public function init() {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
+		// After `wp_enqueue_scripts` at 1, before the head scripts at 9.
+		add_action( 'wp_head', array( $this, 'print_config' ), 2 );
+		add_action( 'admin_head', array( $this, 'print_config' ) );
 		add_action( 'enqueue_block_editor_assets', array( $this, 'enqueue_yjs_provider' ) );
 	}
 
@@ -100,9 +120,11 @@ class Client {
 	 *
 	 * Only enqueues when the user is logged in and the site is fully connected
 	 * (base_url, site_key, and site_secret all set).
-	 * The script is loaded in the footer with no dependencies.
+	 * The script is loaded in the footer with no dependencies; its config is
+	 * held for `print_config()`.
 	 *
 	 * @since 0.7.0
+	 * @since 0.31.0 Holds the config for `print_config()` instead of printing an inline script.
 	 *
 	 * @return void
 	 */
@@ -167,13 +189,18 @@ class Client {
 			'isWpRtcAvailable' => $this->config->is_wp_sync_available(),
 			'isWpRtcEnabled'   => $this->config->is_wp_rtc_enabled(),
 			'restUrl'          => rest_url( 'wpsignal/v1/token' ),
-			'isDebug'          => ( defined( 'WP_ENVIRONMENT_TYPE' ) && WP_ENVIRONMENT_TYPE !== 'production' ),
+			'ajaxUrl'          => admin_url( 'admin-ajax.php' ),
+			'isDebug'          => Config::is_debug(),
 			'presence'         => $this->presence->config(),
 			'siteName'         => get_bloginfo( 'name' ),
 			'version'          => VERSION,
 		);
 		if ( $this->rules ) {
 			$localize['rules'] = $this->rules->config();
+		}
+		// `?wordsocket-preview=<presentation>` shows a sample prompt to whoever may style them, in debug mode.
+		if ( Prompt_Style::can_preview() ) {
+			$localize['preview'] = array( 'text' => Prompt_Style::sample_text() );
 		}
 
 		/*
@@ -216,7 +243,28 @@ class Client {
 			$localize['encryptionKey'] = base64_encode( $enc_key );
 		}
 
-		wp_add_inline_script( 'wpsignal', 'window.wpSignalConfig = ' . wp_json_encode( $localize ) . ';', 'before' );
+		$this->pending = $localize;
+	}
+
+	/**
+	 * Print the config `enqueue()` built as a `<script type="application/json">` block, once.
+	 *
+	 * @since 0.31.0
+	 *
+	 * @return void
+	 */
+	public function print_config() {
+		if ( null === $this->pending ) {
+			return;
+		}
+		wp_print_inline_script_tag(
+			(string) wp_json_encode( $this->pending, JSON_HEX_TAG | JSON_HEX_AMP ),
+			array(
+				'type' => 'application/json',
+				'id'   => self::CONFIG_ID,
+			)
+		);
+		$this->pending = null;
 	}
 
 	/**

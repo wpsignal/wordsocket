@@ -195,6 +195,33 @@ final class PublisherTest extends WordSocketTestCase {
 		wp_dequeue_script( 'wpsignal' );
 	}
 
+	public function test_the_client_config_is_a_json_block_in_the_head_and_not_an_inline_script(): void {
+		$this->connect_site();
+		$this->as_admin();
+		$client = new \WPSignal\Client( WPS::instance()->config(), WPS::instance()->token() );
+
+		wp_dequeue_script( 'wpsignal' );
+		$client->enqueue();
+		$this->assertEmpty( wp_scripts()->get_data( 'wpsignal', 'before' ), 'nothing a minifier could merge into the script file' );
+
+		ob_start();
+		$client->print_config();
+		$html = (string) ob_get_clean();
+		$this->assertSame( 1, preg_match( '#<script (?=[^>]*type="application/json")(?=[^>]*id="wpsignal-config")[^>]*>(.*)</script>#s', $html, $m ), 'one JSON block' );
+		$config = json_decode( trim( $m[1] ), true );
+		$this->assertIsArray( $config );
+		$this->assertArrayHasKey( 'token', $config );
+		$this->assertArrayHasKey( 'restUrl', $config );
+		$this->assertArrayHasKey( 'nonce', $config, 'a logged-in visitor gets the REST nonce' );
+		$this->assertStringEndsWith( 'admin-ajax.php', (string) $config['ajaxUrl'], 'where a refused nonce is renewed' );
+		$this->assertStringNotContainsString( '<', $m[1], 'no tag can end the block early' );
+
+		ob_start();
+		$client->print_config();
+		$this->assertSame( '', ob_get_clean(), 'printed once' );
+		wp_dequeue_script( 'wpsignal' );
+	}
+
 	public function test_publish_without_registration_returns_not_configured(): void {
 		delete_option( 'wpsignal_site_key' );
 		delete_option( 'wpsignal_site_secret' );

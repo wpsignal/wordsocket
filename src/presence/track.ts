@@ -128,7 +128,6 @@ export interface PresenceTracker {
 export function createTracker(
   client: PresenceClient,
   config: WpSignalPresenceConfig | undefined,
-  nonce: string | undefined,
   channel: string | null,
   options: TrackOptions = {},
 ): PresenceTracker {
@@ -196,7 +195,7 @@ export function createTracker(
       journey: j,
       ...(Object.keys(state).length ? { data: state } : {}),
     };
-    return sendReport(url, body, nonce, keepalive);
+    return sendReport(url, body, keepalive);
   };
   /* The leave for a journey that ended, dropped from the outbox once WordPress has it. */
   const farewell = ({ n, journey: j }: EndedJourney) => {
@@ -329,17 +328,13 @@ export function createTracker(
     const url = config.leaveUrl;
     setTimeout(() => {
       outbox.due().forEach((due) => {
-        void sendReport(
-          url,
-          {
-            v,
-            n: due.n,
-            journey: due.journey,
-            ...(due.data ? { data: due.data } : {}),
-            ago: due.ago,
-          },
-          nonce,
-        ).then((answer) => {
+        void sendReport(url, {
+          v,
+          n: due.n,
+          journey: due.journey,
+          ...(due.data ? { data: due.data } : {}),
+          ago: due.ago,
+        }).then((answer) => {
           if (answer) outbox.drop(due.n);
         });
       });

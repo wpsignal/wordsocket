@@ -1,8 +1,9 @@
 /*
- * The visit and leave reports a tracked visitor sends WordPress, through `fetch` with `keepalive`
- * so a logged-in visitor keeps the REST nonce. Best effort: a crash sends nothing, which is what
- * relay presence is for.
+ * The visit and leave reports a tracked visitor sends WordPress, through `wpPost` with `keepalive`.
+ * Best effort: a crash sends nothing, which is what relay presence is for.
  */
+
+import { wpPost } from "../utils/rest";
 
 /**
  * A visit or leave report as sent to WordPress.
@@ -36,26 +37,15 @@ export type ReportAnswer = Record<string, unknown>;
  * Send a report and resolve to what WordPress answered, or null when it did not (offline, refused,
  * an unloading page); a leave's answer is never read.
  *
- * @since 0.31.0 Returns the answer.
+ * @since 0.31.0 Returns the answer, and sends the nonce the client holds rather than one passed in.
  */
 export async function sendReport(
   url: string,
   report: PresenceReport,
-  nonce?: string,
   keepalive = false,
 ): Promise<ReportAnswer | null> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (nonce) headers["X-WP-Nonce"] = nonce;
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      keepalive,
-      credentials: "same-origin",
-      headers,
-      body: JSON.stringify(report),
-    });
+    const res = await wpPost(url, report, keepalive);
     if (!res.ok) return null;
     const answer: unknown = await res.json();
     return answer && typeof answer === "object"

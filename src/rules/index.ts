@@ -21,7 +21,7 @@ import {
   type RuleContext,
 } from "./registry";
 import { validateRules } from "./schema";
-import { restUrl } from "../utils/rest-url";
+import { restUrl, wpPost } from "../utils/rest";
 import { stored } from "../utils/storage";
 import type { Rule } from "./types";
 import {
@@ -127,16 +127,9 @@ export function createRulesApi(
     if (!firing.kind || firing.kind === "fired")
       registry.fireHandlers.forEach((fn) => fn(firing, ctx));
     if (!seed?.firedUrl || !page) return;
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (config.nonce) headers["X-WP-Nonce"] = config.nonce;
-    void fetch(seed.firedUrl, {
-      method: "POST",
-      credentials: "same-origin",
-      keepalive: true,
-      headers,
-      body: JSON.stringify({
+    void wpPost(
+      seed.firedUrl,
+      {
         v: visitorId(),
         n: page.journey.id(),
         rule: firing.rule,
@@ -144,8 +137,9 @@ export function createRulesApi(
         step: firing.step,
         s: firing.s ?? 0,
         kind: firing.kind ?? "fired",
-      }),
-    }).catch(() => undefined);
+      },
+      true,
+    ).catch(() => undefined);
   };
 
   const engine = createEngine({

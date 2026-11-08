@@ -1,11 +1,32 @@
 import "./env";
 import { expect, test } from "@wordpress/e2e-test-utils-playwright";
 import type { Page } from "@playwright/test";
+import { wp } from "./env";
 
 declare global {
   interface Window {
     __wpsEvents: Array<{ channel: string; data: Record<string, unknown> }>;
   }
+}
+
+/*
+ * The client assigns `window.wpSignalConfig` from the page's JSON block before it starts; trap that
+ * assignment and hand the client an adjusted config.
+ */
+async function trapConfig(page: Page, adjust: (value: Record<string, unknown>) => Record<string, unknown>) {
+  await page.addInitScript((source: string) => {
+    const change = new Function("value", `return (${source})(value);`) as (
+      value: Record<string, unknown>,
+    ) => Record<string, unknown>;
+    let stored: Record<string, unknown> | undefined;
+    Object.defineProperty(window, "wpSignalConfig", {
+      configurable: true,
+      get: () => stored,
+      set: (value: Record<string, unknown>) => {
+        stored = change(value);
+      },
+    });
+  }, adjust.toString());
 }
 
 async function waitForConnection(page: Page, transport: "ws" | "sse") {
@@ -106,20 +127,7 @@ test.describe("Realtime client", () => {
   });
 
   test("falls back to SSE when WebSocket is disabled, and events still arrive with their channel", async ({ page, requestUtils }) => {
-    /*
-     * wpSignalConfig is localized by PHP before the client script runs; trap
-     * the assignment and flip forceSSE before the client reads it.
-     */
-    await page.addInitScript(() => {
-      let stored: Record<string, unknown> | undefined;
-      Object.defineProperty(window, "wpSignalConfig", {
-        configurable: true,
-        get: () => stored,
-        set: (value: Record<string, unknown>) => {
-          stored = { ...value, forceSSE: true };
-        },
-      });
-    });
+    await trapConfig(page, (value) => ({ ...value, forceSSE: true }));
     await page.goto("/");
     await waitForConnection(page, "sse");
 
@@ -185,15 +193,8 @@ test.describe("Realtime client", () => {
      * the recovery step is the token refresh, so the first token is given a short
      * life to bring it forward.
      */
+    await trapConfig(page, (value) => ({ ...value, exp: Math.floor(Date.now() / 1000) + 15 }));
     await page.addInitScript(() => {
-      let stored: Record<string, unknown> | undefined;
-      Object.defineProperty(window, "wpSignalConfig", {
-        configurable: true,
-        get: () => stored,
-        set: (value: Record<string, unknown>) => {
-          stored = { ...value, exp: Math.floor(Date.now() / 1000) + 15 };
-        },
-      });
       const RealWebSocket = window.WebSocket;
       class RefusingWebSocket extends EventTarget {
         static readonly CONNECTING = 0;
@@ -228,6 +229,71 @@ test.describe("Realtime client", () => {
     await waitForConnection(page, "ws");
     const state = await page.evaluate(() => window.WPS!.state);
     expect(state.error).toBeUndefined();
+  });
+
+  test("renews a stale nonce through admin-ajax and connects with the visitor's own grants", async ({ page }) => {
+    /*
+     * A page served from a cache carries a nonce that is not this visitor's, and no token worth
+     * using. Core refuses the nonce with 403 rest_cookie_invalid_nonce; the client asks admin-ajax
+     * for a fresh one and tries again.
+     */
+    await trapConfig(page, ({ token: _token, ...rest }) => ({ ...rest, nonce: "0123456789" }));
+    const renewals: string[] = [];
+    page.on("request", (req) => {
+      if (req.url().includes("admin-ajax.php") && req.url().includes("action=rest-nonce")) renewals.push(req.url());
+    });
+    const tokenRequests: number[] = [];
+    page.on("response", (res) => {
+      if (res.url().includes("/wpsignal/v1/token")) tokenRequests.push(res.status());
+    });
+    await page.goto("/");
+    await waitForConnection(page, "ws");
+    expect(tokenRequests).toEqual([403, 200]);
+    expect(renewals).toHaveLength(1);
+    const state = await page.evaluate(() => window.WPS!.state);
+    expect(state.failures).toBe(0);
+    // The retry ran as the visitor, not as a guest: only a guest token is kept for the next page.
+    expect(await page.evaluate(() => window.sessionStorage.getItem("wordsocket-token"))).toBeNull();
+
+    // The next page prints the same refused nonce; the tab holds the renewed one and is not refused again.
+    await page.goto("/?p=1");
+    await waitForConnection(page, "ws");
+    expect(tokenRequests).toEqual([403, 200, 200]);
+    expect(renewals).toHaveLength(1);
+  });
+
+  test("a prompt enters and leaves with the motion its style says", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    const styles = (motion: string) => JSON.stringify({ all: {}, modal: {}, banner: { motion }, bar: {}, toast: {}, panel: {} });
+    const sample = async (motion: string) => {
+      wp("option", "update", "wpsignal_prompt_style", styles(motion), "--format=json");
+      await page.goto("/");
+      await page.waitForFunction(() => !!window.WPS);
+      return page.evaluate(async () => {
+        window.WPS!.recovery.preview("banner");
+        const el = document.querySelector(".wordsocket-prompt--banner") as HTMLElement;
+        await new Promise((r) => setTimeout(r, 60));
+        const cs = getComputedStyle(el);
+        const early = { opacity: Number(cs.opacity), moved: cs.transform !== "none" && cs.transform !== "matrix(1, 0, 0, 1, 0, 0)" };
+        window.WPS!.recovery.close();
+        const lingers = !!document.querySelector(".wordsocket-prompt--banner");
+        await new Promise((r) => setTimeout(r, 400));
+        return { ...early, lingers, gone: !document.querySelector(".wordsocket-prompt--banner") };
+      });
+    };
+    try {
+      const slide = await sample("slide");
+      expect(slide.opacity).toBeLessThan(1);
+      expect(slide.moved).toBe(true);
+      expect(slide).toMatchObject({ lingers: true, gone: true });
+      const fade = await sample("fade");
+      expect(fade.opacity).toBeLessThan(1);
+      expect(fade.moved).toBe(false);
+      const none = await sample("none");
+      expect(none).toMatchObject({ opacity: 1, moved: false, lingers: false, gone: true });
+    } finally {
+      wp("option", "delete", "wpsignal_prompt_style");
+    }
   });
 
   test("anonymous visitors get no token unless the site opts in", async ({ browser, baseURL }) => {

@@ -3,6 +3,7 @@
  * exposing the public `window.WPS` API. Enqueue with `'wpsignal'` as a script dependency.
  */
 
+import { readPrintedConfig } from "./utils/printed-config";
 import { wpsDebug } from "./utils";
 import { onChannel, uuid, visitorId, isCrawler } from "./utils/identity";
 import { createTracker } from "./presence/track";
@@ -14,6 +15,13 @@ import { Backoff } from "./utils/backoff";
 import { isRecord, stored } from "./utils/storage";
 import { createDecryptor, type Decryptor } from "./utils/crypto";
 import { relayEndpoints } from "./utils/relay";
+import {
+  currentNonce,
+  holdNonce,
+  onNonceRenewed,
+  printedNonceRefused,
+  wpPost,
+} from "./utils/rest";
 import WPSClientDebug from "./utils/client-debug";
 import WPSignalEvent from "./event";
 import { SseTransport, WebSocketTransport } from "./transports";
@@ -24,10 +32,6 @@ import type {
   WPSTransportName,
   WPSTransportStatus,
 } from "./transports";
-
-if (window.wpSignalConfig?.isDebug) {
-  window.wpsDebug ??= wpsDebug;
-}
 
 /**
  * Application close codes sent by the relay when it refuses or ends a
@@ -118,6 +122,12 @@ export class WPSignalClient implements WPSApi {
    * simply have expired while the tab slept. A second 4001 is terminal.
    */
   private remintedAfterAuthFailure = false;
+
+  /** Whether the open connection carries the token the page printed rather than one this tab minted. */
+  private onPrintedToken = false;
+
+  /** Whether a token refresh is under way. */
+  private refreshing = false;
   /** Set once a terminal error stops all automatic retries. */
   private halted = false;
   /** Pending "connection is established" check, see STABLE_CONNECTION_MS. */
@@ -148,13 +158,7 @@ export class WPSignalClient implements WPSApi {
   readonly presence: WPSPresenceApi = {
     track: (channel, options) => {
       this.trackers += 1;
-      return createTracker(
-        this,
-        this.printed.presence,
-        this.printed.nonce,
-        channel,
-        options,
-      );
+      return createTracker(this, this.printed.presence, channel, options);
     },
   };
 
@@ -186,6 +190,11 @@ export class WPSignalClient implements WPSApi {
 
   constructor(config: WpSignalConfig) {
     this.printed = config;
+    holdNonce(config.nonce, config.ajaxUrl);
+    /* A renewed nonce means the page was not this visitor's, so neither was a token it printed. */
+    onNonceRenewed(() => {
+      if (this.onPrintedToken) this.refreshToken();
+    });
     this.config = Object.freeze({
       version: config.version ?? "",
       isDebug: !!config.isDebug,
@@ -445,6 +454,21 @@ export class WPSignalClient implements WPSApi {
     } else {
       this.init();
     }
+    this.previewFromUrl();
+  }
+
+  /** Show the sample prompt `?wordsocket-preview=<presentation>` asks for, on a page that prints the sample text. */
+  private previewFromUrl(): void {
+    const presentation = new URLSearchParams(window.location.search).get(
+      "wordsocket-preview",
+    );
+    if (!presentation || !this.printed.preview) return;
+    const show = () => this.recovery.preview(presentation);
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", show, { once: true });
+    } else {
+      show();
+    }
   }
 
   /** Reconnect when the tab becomes visible or the network comes back online. */
@@ -567,18 +591,24 @@ export class WPSignalClient implements WPSApi {
     delete this.printed.channels;
     delete this.printed.exp;
     /*
-     * A logged-in page prints a fresh token. A guest page may come from a page cache with the token
-     * minted when it was cached, so the token this tab fetched earlier comes first, then a printed
-     * one that has not expired, then the route.
+     * A logged-in page prints a fresh token, used while the nonce it printed is the one held. A guest
+     * page may come from a page cache with the token minted when it was cached, so the token this
+     * tab fetched earlier comes first, then a printed one that has not expired, then the route.
      */
-    const remembered = this.printed.nonce ? null : tokenStore.read();
+    const nonce = currentNonce();
+    const remembered = nonce ? null : tokenStore.read();
+    /* A page whose nonce this tab saw refused was not this visitor's, so neither is the token it prints. */
+    const printedFresh = printed && printed.exp > now && !printedNonceRefused();
     let tokenPromise: Promise<TokenData>;
-    if (this.printed.nonce && printed) {
+    this.onPrintedToken = false;
+    if (nonce && nonce === this.printed.nonce && printedFresh) {
       tokenPromise = Promise.resolve(printed);
+      this.onPrintedToken = true;
     } else if (remembered && remembered.exp - now > TOKEN_REUSE_MARGIN_S) {
       tokenPromise = Promise.resolve(remembered);
-    } else if (printed && printed.exp > now) {
+    } else if (!nonce && printedFresh) {
       tokenPromise = Promise.resolve(printed);
+      this.onPrintedToken = true;
     } else {
       tokenPromise = this.fetchToken();
     }
@@ -870,30 +900,21 @@ export class WPSignalClient implements WPSApi {
     this.emitState();
   }
 
-  /*
-   * Mint a fresh token, channel list, and expiry from the REST endpoint. The
-   * nonce is only printed for logged-in visitors.
-   */
+  /* Mint a fresh token, channel list, and expiry from the REST endpoint, with the nonce the client holds. */
   private async fetchToken(): Promise<TokenData> {
-    const res = await fetch(this.printed.restUrl, {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {
-        "Content-Type": "application/json",
-        ...(this.printed.nonce ? { "X-WP-Nonce": this.printed.nonce } : {}),
-      },
-    });
+    const res = await wpPost(this.printed.restUrl);
     if (!res.ok) {
       throw new TokenRequestError(res.status);
     }
     const data = (await res.json()) as TokenData;
+    this.onPrintedToken = false;
     this.rememberToken(data);
     return data;
   }
 
   /** Keep a guest token for this tab's next page; a logged-in page prints its own. */
   private rememberToken(data: TokenData): void {
-    if (!this.printed.nonce) tokenStore.write(data);
+    if (!currentNonce()) tokenStore.write(data);
   }
 
   /**
@@ -931,35 +952,43 @@ export class WPSignalClient implements WPSApi {
     const ttl = (exp - Math.floor(Date.now() / 1000)) * 1000;
     const refreshAt = Math.max(ttl * 0.8, 10000);
 
-    this.refreshTimer = setTimeout(() => {
-      wpsDebug("Refreshing token...");
-      this.fetchToken()
-        .then((data) => {
-          /*
-           * A WebSocket takes the new token in place; SSE cannot, so the refresh reconnects and
-           * prefers WebSocket, which brings presence and publishing back after the outage.
-           */
-          if (!this.activeTransport?.refreshAuth(data.token)) {
+    this.refreshTimer = setTimeout(() => this.refreshToken(), refreshAt);
+  }
+
+  /** Mint a token now and hand it to the open transport, or reconnect with it; one refresh at a time. */
+  private refreshToken(): void {
+    if (this.refreshing) return;
+    this.refreshing = true;
+    wpsDebug("Refreshing token...");
+    this.fetchToken()
+      .then((data) => {
+        /*
+         * A WebSocket takes the new token in place; SSE cannot, so the refresh reconnects and
+         * prefers WebSocket, which brings presence and publishing back after the outage.
+         */
+        if (!this.activeTransport?.refreshAuth(data.token)) {
+          this.reInit();
+        }
+        this.scheduleRefresh(data.exp);
+      })
+      .catch((err: unknown) => {
+        wpsDebug("Token refresh failed", err, "warn");
+        if (isAuthStatus(err)) {
+          this.halt("authentication-failed", "Token refresh was refused");
+          return;
+        }
+        // Keep the current socket while it lasts; try to refresh again later.
+        this.scheduleRetry(
+          () => {
             this.reInit();
-          }
-          this.scheduleRefresh(data.exp);
-        })
-        .catch((err: unknown) => {
-          wpsDebug("Token refresh failed", err, "warn");
-          if (isAuthStatus(err)) {
-            this.halt("authentication-failed", "Token refresh was refused");
-            return;
-          }
-          // Keep the current socket while it lasts; try to refresh again later.
-          this.scheduleRetry(
-            () => {
-              this.reInit();
-            },
-            "unknown-error",
-            messageOf(err),
-          );
-        });
-    }, refreshAt);
+          },
+          "unknown-error",
+          messageOf(err),
+        );
+      })
+      .finally(() => {
+        this.refreshing = false;
+      });
   }
 
   /**
@@ -1046,7 +1075,12 @@ export class WPSignalClient implements WPSApi {
   }
 }
 
+const printedConfig = readPrintedConfig();
+if (printedConfig) window.wpSignalConfig = printedConfig;
 const config = window.wpSignalConfig;
+if (config?.isDebug) {
+  window.wpsDebug ??= wpsDebug;
+}
 if (config?.baseUrl && config?.restUrl) {
   const client = new WPSignalClient(config);
   window.WPS = client;
