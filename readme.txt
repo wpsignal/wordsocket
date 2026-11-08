@@ -3,7 +3,7 @@ Contributors: wpsignal, jaredrethman
 Tags: realtime, websocket, server-sent events, events, wordsocket
 Requires at least: 6.7
 Tested up to: 7.1
-Stable tag: 0.29.1
+Stable tag: 0.31.0
 Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -397,6 +397,9 @@ Moments are off until you switch them on (Settings tab, the Moments card). A mom
 * Initial release.
 
 == Upgrade Notice ==
+
+= 0.31.0 =
+See changelog for details.
 
 = 0.29.1 =
 Fixes the "Connect with WPSignal" button on the Connect tab, which led to "The link you followed has expired" in 0.29.0. Update if you still need to connect a site; connected sites are unaffected.
