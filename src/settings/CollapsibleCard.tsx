@@ -51,7 +51,7 @@ export default function CollapsibleCard({
         .join(" ")}
       defaultOpen={defaultOpen}
     >
-      <WpCollapsibleCard.Header>
+      <WpCollapsibleCard.Header className="wpsignal-collapsible-card-header">
         <Stack
           direction="row"
           gap="lg"
@@ -70,7 +70,7 @@ export default function CollapsibleCard({
           )}
         </Stack>
       </WpCollapsibleCard.Header>
-      <WpCollapsibleCard.Content>{children}</WpCollapsibleCard.Content>
+      <WpCollapsibleCard.Content className="wpsignal-collapsible-card-content">{children}</WpCollapsibleCard.Content>
     </WpCollapsibleCard.Root>
   );
 }

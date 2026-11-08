@@ -804,10 +804,6 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
     flex-direction: row !important;
     flex-wrap: wrap;
     gap: var(--wpds-dimension-gap-lg, 16px) !important;
-
-    > :first-child {
-      flex-basis: 100%;
-    }
   }
 }
 
@@ -1211,4 +1207,9 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
       width: 100%;
     }
   }
+}
+
+.wpsignal-collapsible-card-content > div {
+  border-top: 1px dashed var(--wpds-color-stroke-surface-neutral, #dbdbdb);
+  padding-top: var(--wp-ui-card-padding);
 }

@@ -54,9 +54,7 @@ function VisualCard({
       icon={<Icon icon={chartBar} />}
       defaultOpen={defaultOpen}
     >
-      <Stack direction="column" gap="md">
-        {children}
-      </Stack>
+      {children}
     </CollapsibleCard>
   );
 }
@@ -73,7 +71,7 @@ function filtersFromUrl(): NetworkFilters {
   if (min || pages || outcome || through) {
     touched = true;
   }
-  
+
   return {
     outcome: outcome as Outcome | "",
     through: through ?? "",
