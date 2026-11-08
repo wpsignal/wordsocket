@@ -18,9 +18,6 @@ import {
   useState,
 } from "@wordpress/element";
 import {
-  Button,
-  Collapsible,
-  Icon,
   IconButton,
   RadioGroupControl,
   Stack,
@@ -30,6 +27,8 @@ import {
   chevronDown,
   chevronLeft,
   chevronRight,
+  chevronUp,
+  close,
   filter,
   funnel,
   settings,
@@ -38,6 +37,7 @@ import {
 /**
  * Internal dependencies.
  */
+import Details from "../Details";
 import { Choice } from "../TabRules/ValueControl";
 import type { JourneyVisuals } from "../types";
 import {
@@ -503,17 +503,16 @@ export function Network({
     <Stack
       direction="column"
       gap="lg"
-      className={pager.loading ? "is-loading" : undefined}
+      className={`pager.loading ? "is-loading" : undefined`}
     >
-      <Collapsible.Root defaultOpen={filters.touched}>
-        <Collapsible.Trigger
-          style={{ display: "flex", gap: "sm" }}
-          render={<Button variant="outline" size="small" tone="neutral" />}
-        >
-          <Icon icon={settings} />
-          {__("Filters", "wordsocket")}
-        </Collapsible.Trigger>
-        <Collapsible.Panel>
+      <Details
+        fullBleed
+        summary={__("Filters", "wordsocket")}
+        icon={settings}
+        iconOpen={chevronUp}
+        defaultOpen={filters.touched}
+        className="wpsignal-network__filters"
+      >
           <Stack
             direction="row"
             gap="sm"
@@ -594,8 +593,7 @@ export function Network({
               }))}
             />
           </Stack>
-        </Collapsible.Panel>
-      </Collapsible.Root>
+      </Details>
 
       <Count shown={shown.length} listed={journeys.length} pager={pager} />
       {shown.length === 0 ? (
