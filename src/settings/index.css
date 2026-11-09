@@ -1283,7 +1283,7 @@ body.is-dragging-components-draggable .wpsignal-rule-move__grip {
 
 /* The Style prompts dialog: the fields beside a sample drawn from them. */
 .wpsignal-prompt-style-dialog {
-  z-index: 1;
+  z-index: 10;
 }
 
 .wpsignal-prompt-style-preview {
