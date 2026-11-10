@@ -188,6 +188,14 @@ Moments are off until you switch them on (Settings tab, the Moments card). A mom
 
 == Changelog ==
 
+= 0.32.0 =
+* Fixed: a shopper's journey no longer shows as left and back again around a checkout redirect, a reload: the page reads navigation from the browser's Navigation API, marks its presence as navigating, and the next page writes its visit at once
+* Fixed: a long read on one page no longer starts a new journey on the next click; the 30-minute gap counts from the last time the tab was seen
+* Fixed: a journey past 50 steps now gets its leave, a return after the gap dates the old journey's leave, and a cached page coming back never overwrites a newer journey
+* New for extensions: a trigger's channel may be a callable resolved from the hook's arguments, `->channel( fn( $id, $post ) => 'blog:' . $post->post_parent, 'blog:{id}' )`, with the label the Triggers tab lists it under, so one trigger publishes to a channel per post
+* New for extensions: `WPS.onReconnect( handler )` fires each time the connection comes back after the page's first one, the moment to fetch what the page may have missed. `Client::API_VERSION` is 6
+* Changed: the Extensions tab's "Coming soon" card for the live blog extension is PostSocket under the slug `postsocket`
+
 = 0.31.0 =
 * New: on WordPress 6.9 and later, WordSocket registers abilities (the Abilities API) so an AI agent or the MCP adapter can describe, list, save, switch and delete moments, publish an event and read the journeys the site keeps, with the same checks as the settings page
 * New: the Journeys tab downloads the last days of journeys as CSV or JSON, the JSON with a legend of every field, for a spreadsheet or an AI assistant without a connector
