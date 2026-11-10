@@ -69,9 +69,9 @@ test.describe("Journeys", () => {
     });
     await arrive(shop, "/");
     await shop.waitForTimeout(1500);
+    // A link click is a navigation the page announces; a typed URL would be a leave and a healing visit.
     const link = shop.locator("article a[href], .entry-title a, h2 a").first();
-    const href = await link.getAttribute("href");
-    await shop.goto(href ?? "/?s=a");
+    await Promise.all([shop.waitForNavigation(), link.click()]);
     await waitForState(shop, { connected: true, transport: "ws" });
     await shop.waitForTimeout(1500);
     const journeyId = await shop.evaluate(() => {
@@ -187,13 +187,13 @@ test.describe("Journeys", () => {
     expect((await held()).n).toBe(first);
     expect(reports, "a return within the gap writes nothing and starts nothing").toHaveLength(2);
 
-    // A reload of the same page stays on the ended journey.
+    // A reload of the same page stays on the ended journey, and writes its visit at once (0.32: the page before could not tell a reload from a close).
     await shop.reload();
     await waitForState(shop, { connected: true, transport: "ws" });
     await engage(shop);
     await shop.waitForTimeout(500);
     expect((await held()).n).toBe(first);
-    expect(reports.filter((r) => r.kind === "visit")).toHaveLength(2);
+    expect(reports.filter((r) => r.kind === "visit")).toHaveLength(3);
     const leavesBefore = reports.filter((r) => r.kind === "leave" && r.n === first).length;
 
     // A link to another page: a new journey begins there, and the ended one gets its leave.
@@ -333,7 +333,8 @@ test.describe("Journeys", () => {
       // The probe asks twice; a site with a persistent cache never shows the notice.
       const shown = await notice.waitFor({ state: "visible", timeout: 5_000 }).then(() => true, () => false);
       test.skip(!shown, "the E2E site has a persistent object cache, so there is nothing to dismiss");
-      await notice.locator("xpath=ancestor::*[@role='alert' or @role='status' or contains(@class, 'notice')][1]").getByRole("button").first().click();
+      // The notice's own close, not the "Check again" button that sits before it.
+      await notice.locator("xpath=ancestor::*[@role='alert' or @role='status' or contains(@class, 'notice')][1]").getByRole("button", { name: /dismiss|close/i }).first().click();
       await expect(notice).toHaveCount(0);
       expect(wp("user", "meta", "get", user, "wpsignal_dismissed_notices", "--format=json")).toContain("object-cache-missing");
       await page.reload();

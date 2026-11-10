@@ -31,6 +31,8 @@ import { stored } from "../utils/storage";
  */
 export const WRITE_INTERVAL_MS = 60_000;
 const WRITTEN_KEY = "wordsocket-written";
+/** How long an away waits before its visit, so a tab close's own visibility change writes none. */
+const AWAY_VISIT_MS = 1000;
 
 /** The last visit written from this tab: the journey id and when. */
 interface Written {
@@ -124,6 +126,9 @@ export interface PresenceTracker {
  *               visitor's first interaction, an outbox in `localStorage` reports the end of a
  *               journey the browser never got to, and a visit is written on a change of state
  *               rather than on every page.
+ * @since 0.32.0 Navigation comes from the navigation watch, the heartbeat keeps the gap from
+ *               passing on a visible tab, an away's visit waits a second, a leave sent by the page
+ *               before makes the next visit due, and a return after the gap dates the old leave.
  */
 export function createTracker(
   client: PresenceClient,
@@ -160,7 +165,9 @@ export function createTracker(
   const beat = () => {
     hold();
     heartbeat ??= setInterval(() => {
-      if (!document.hidden) hold();
+      if (document.hidden) return;
+      journey.touch();
+      hold();
     }, OUTBOX_HEARTBEAT_MS);
   };
   const handlers = new Set<(journey: string, journeyId: string) => void>();
@@ -187,6 +194,7 @@ export function createTracker(
     n: string,
     j: string,
     keepalive: boolean,
+    ago?: number,
   ): Promise<ReportAnswer | null> => {
     if (!url || !reporting()) return Promise.resolve(null);
     const body = {
@@ -194,12 +202,13 @@ export function createTracker(
       n,
       journey: j,
       ...(Object.keys(state).length ? { data: state } : {}),
+      ...(ago ? { ago } : {}),
     };
     return sendReport(url, body, keepalive);
   };
   /* The leave for a journey that ended, dropped from the outbox once WordPress has it. */
-  const farewell = ({ n, journey: j }: EndedJourney) => {
-    void send(config?.leaveUrl, n, j, false).then((answer) => {
+  const farewell = ({ n, journey: j, ago }: EndedJourney) => {
+    void send(config?.leaveUrl, n, j, false, ago).then((answer) => {
       if (answer) outbox.drop(n);
     });
   };
@@ -243,13 +252,14 @@ export function createTracker(
   };
 
   /*
-   * Whether this step is worth a write now: the journey's first, a kind that always writes, or the
-   * interval since the last write up.
+   * Whether this step is worth a write now: the journey's first, a kind that always writes, the
+   * interval since the last write up, or a leave sent for this journey by the page before (`at` 0).
    */
   const due = (): boolean => {
     const last = written.read();
     return (
       last.n !== journey.id() ||
+      last.at === 0 ||
       writeKinds.has(page.kind) ||
       Date.now() - last.at >= WRITE_INTERVAL_MS
     );
@@ -280,8 +290,14 @@ export function createTracker(
     settle();
     beat();
   }
+  /* The visit an away sends, after AWAY_VISIT_MS, unless a close comes first. */
+  let awayVisit: ReturnType<typeof setTimeout> | null = null;
   const off = page.onChange((event) => {
     if (stopped) return;
+    if (event.type !== "away" && awayVisit !== null) {
+      clearTimeout(awayVisit);
+      awayVisit = null;
+    }
     switch (event.type) {
       case "step":
         if (event.ended) farewell(event.ended);
@@ -291,8 +307,12 @@ export function createTracker(
         break;
       case "away":
         announce();
-        visit();
         hold();
+        /* A close fires the same change first; the visit waits long enough to tell them apart. */
+        awayVisit = setTimeout(() => {
+          awayVisit = null;
+          if (!stopped) visit();
+        }, AWAY_VISIT_MS);
         break;
       case "back":
         /*
@@ -310,6 +330,8 @@ export function createTracker(
         hold(event.closed ?? journey.current());
         /* The next page's visit carries this step; the leave is for a tab that closes or goes elsewhere. */
         if (event.navigating) break;
+        /* The leave goes out: a next page on this journey (a reload, a Back) writes its visit at once. */
+        if (reporting()) written.write({ n: journey.id(), at: 0 });
         send(
           config?.leaveUrl,
           journey.id(),

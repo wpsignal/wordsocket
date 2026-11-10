@@ -4,6 +4,7 @@
  * per page, so there is one `sessionStorage` writer per tab.
  */
 
+import { watchNavigation } from "../utils/navigation";
 import { createJourney, type EndedJourney, type Journey } from "./journey";
 
 /**
@@ -30,16 +31,13 @@ export interface JourneyEvent {
   /** On `close`: the journey with its last step closed. */
   closed?: string;
   /**
-   * On `close`: a same-site link or form just navigated this tab, so the next page's visit carries
-   * the step.
+   * On `close`: this tab is navigating within the site, so the next page's visit carries the step.
    *
    * @since 0.31.0
+   * @since 0.32.0 Read from the Navigation API, a click or submit heuristic without it.
    */
   navigating?: boolean;
 }
-
-/** How long after a same-site click or submit the `pagehide` that follows is taken as its result. */
-const NAVIGATION_MS = 5000;
 
 /** The events that say a person is here; a `pointermove` counts once the pointer has travelled. */
 const ENGAGEMENT_EVENTS = [
@@ -81,17 +79,6 @@ function watchEngagement(onEngaged: () => void): void {
   window.addEventListener("pointermove", moved, options);
 }
 
-/** Whether a URL points at this site. */
-function sameSite(href: string): boolean {
-  try {
-    return (
-      new URL(href, window.location.href).origin === window.location.origin
-    );
-  } catch {
-    return false;
-  }
-}
-
 /**
  * The journey as this page advances it.
  *
@@ -122,6 +109,7 @@ let instance: PageJourney | null = null;
  *               a journey an extension ended carries it as `ended`, the visibility change an
  *               unloading document fires is not an `away`, and a journey under way goes on only
  *               once this tab holds its lock.
+ * @since 0.32.0 Navigation is read from the navigation watch.
  */
 export function pageJourney(): PageJourney {
   if (instance) return instance;
@@ -155,32 +143,7 @@ export function pageJourney(): PageJourney {
     else awaitEngagement();
   });
 
-  /* The last same-site link click or form submit this tab saw, 0 when none. */
-  let navigatedAt = 0;
-  document.addEventListener("click", (event) => {
-    if (
-      event.defaultPrevented ||
-      event.button !== 0 ||
-      event.metaKey ||
-      event.ctrlKey ||
-      event.shiftKey ||
-      event.altKey
-    )
-      return;
-    const link = (event.target as Element | null)?.closest?.("a[href]");
-    if (!(link instanceof HTMLAnchorElement) || link.hasAttribute("download"))
-      return;
-    const target = link.getAttribute("target");
-    if (target && target !== "_self") return;
-    if (sameSite(link.href)) navigatedAt = Date.now();
-  });
-  document.addEventListener("submit", (event) => {
-    const form = event.target;
-    if (event.defaultPrevented || !(form instanceof HTMLFormElement)) return;
-    const target = form.getAttribute("target");
-    if (target && target !== "_self") return;
-    if (sameSite(form.action || window.location.href)) navigatedAt = Date.now();
-  });
+  const navigation = watchNavigation();
 
   document.addEventListener("visibilitychange", () => {
     if (unloaded) return;
@@ -203,13 +166,12 @@ export function pageJourney(): PageJourney {
     emit({
       type: "close",
       closed: journey.close(),
-      navigating: Date.now() - navigatedAt < NAVIGATION_MS,
+      navigating: navigation.navigating(),
     });
   });
   window.addEventListener("pageshow", (event) => {
     if (!event.persisted) return;
     unloaded = false;
-    navigatedAt = 0;
     if (!started) return;
     /* The restored page takes its lock again; a tab that took the journey meanwhile keeps it. */
     void journey.claim().then(() => {

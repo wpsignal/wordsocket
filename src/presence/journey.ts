@@ -36,9 +36,11 @@ export const AWAY = "away";
  */
 export const SEPARATOR = ">";
 /**
- * Longest pause between arrivals that is still the same visit.
+ * Longest pause since the tab was last seen (an arrival, a visible heartbeat, the start of an away)
+ * that is still the same visit.
  *
  * @since 0.30.0
+ * @since 0.32.0 Counted from the last time the tab was seen, not the last arrival.
  */
 export const JOURNEY_GAP_MS = 30 * 60_000;
 /**
@@ -78,6 +80,13 @@ interface Stored {
 export interface EndedJourney {
   n: string;
   journey: string;
+  /**
+   * How many seconds ago the journey ended, when it ended earlier than it is reported: a return after
+   * the gap, where it ended as the away reached the gap.
+   *
+   * @since 0.32.0
+   */
+  ago?: number;
 }
 
 /**
@@ -88,7 +97,11 @@ export interface EndedJourney {
 export interface Journey {
   /** This journey's id, a version 4 UUID. */
   id(): string;
-  /** The journey with the open step's elapsed time included. */
+  /**
+   * The journey with the open step's elapsed time included.
+   *
+   * @since 0.32.0 Within MAX_STEPS with the open step, as a leave counts it.
+   */
   current(): string;
   /** Close the open step, store, and return the journey. For `pagehide`. */
   close(): string;
@@ -107,11 +120,19 @@ export interface Journey {
    * @since 0.31.0 Takes the page, since an ended journey goes on only on its own page.
    */
   continuing(kind: string, id: number): boolean;
+  /**
+   * The tab is visible and the visitor still here: the gap counts from now.
+   *
+   * @since 0.32.0
+   */
+  touch(): void;
   /** The tab was hidden: close the page step, open `away`. */
   away(): void;
   /**
    * The tab is visible again: close `away` and reopen the page step, returning the old journey when
    * the away outlasted the gap.
+   *
+   * @since 0.32.0 The gap counts from the start of the away; the ended journey carries `ago`.
    */
   back(): EndedJourney | null;
   /**
@@ -126,6 +147,7 @@ export interface Journey {
    * it, this tab inherited a copy of its storage, so a new journey begins and false is resolved.
    *
    * @since 0.31.0
+   * @since 0.32.0 Adopts the stored record first, so a restored page takes what a later page wrote.
    */
   claim(): Promise<boolean>;
   /**
@@ -200,26 +222,31 @@ export function createJourney(
   const stored = load(store);
   let n = stored?.n ?? uuid();
   let closed = stored ? parse(stored.j) : [];
-  // The last arrival: a page opened or a hidden tab returned to.
+  // When the tab was last seen: an arrival, a visible heartbeat, or the start of an away.
   let at = stored?.at ?? now();
   let open: OpenStep | null = null;
   let page: { kind: string; id: number } | null = null;
   /* The page an extension's end was heard on, `kind:id`; null while the journey is live. */
   let endedOn: string | null = stored?.e ?? null;
 
-  /*
-   * The stored record is the one source for the last arrival.
-   */
-  const lastArrival = () => load(store)?.at ?? at;
+  // The stored record is the one source for when the tab was last seen.
+  const lastSeen = () => load(store)?.at ?? at;
+  // Stamp the tab as seen at `ts` and store it.
+  const seen = (ts: number = now()) => {
+    at = ts;
+    commit(at);
+  };
+  // The newest MAX_STEPS of a step list.
+  const cap = (steps: string[]) => steps.slice(-MAX_STEPS);
 
-  const commit = (arrival: number = lastArrival()) => {
+  const commit = (seenAt: number = lastSeen()) => {
     try {
       store?.setItem(
         JOURNEY_KEY,
         JSON.stringify({
           n,
           j: closed.join(SEPARATOR),
-          at: arrival,
+          at: seenAt,
           ...(endedOn !== null ? { e: endedOn } : {}),
         } satisfies Stored),
       );
@@ -231,14 +258,12 @@ export function createJourney(
   // Close the open step into the list, keeping the newest MAX_STEPS.
   const finish = () => {
     if (!open) return;
-    closed.push(format(open.kind, open.id, now() - open.since));
-    if (closed.length > MAX_STEPS)
-      closed = closed.slice(closed.length - MAX_STEPS);
+    closed = cap([...closed, format(open.kind, open.id, now() - open.since)]);
     open = null;
     commit();
   };
 
-  const gapPassed = () => now() - lastArrival() > JOURNEY_GAP_MS;
+  const gapPassed = () => now() - lastSeen() > JOURNEY_GAP_MS;
   /* Whether this page is another than the one an extension's end was heard on. */
   const leaves = (kind: string, id: number) =>
     endedOn !== null && endedOn !== `${kind}:${id}`;
@@ -273,6 +298,8 @@ export function createJourney(
             return undefined;
           }
           resolve(true);
+          // Released before the grant came: let it go at once.
+          if (held !== id) return undefined;
           return new Promise<void>((done) => {
             letGo = done;
           });
@@ -283,15 +310,15 @@ export function createJourney(
 
   const arrive = (kind: string, id: number, since?: number) => {
     page = { kind, id };
-    at = now();
+    seen();
     open = { kind, id, since: since ?? at };
-    commit(at);
     if (held !== n) void hold(n);
   };
 
+  // The journey with the open step, within MAX_STEPS, so a visit and the leave after it count alike.
   const current = () => {
     const steps = open
-      ? [...closed, format(open.kind, open.id, now() - open.since)]
+      ? cap([...closed, format(open.kind, open.id, now() - open.since)])
       : closed;
     return steps.join(SEPARATOR);
   };
@@ -324,24 +351,34 @@ export function createJourney(
     continuing(kind, id) {
       return closed.length > 0 && !leaves(kind, id) && !gapPassed();
     },
+    touch() {
+      if (!open || open.kind === AWAY) return;
+      seen();
+    },
     away() {
       if (!open || open.kind === AWAY) return;
       finish();
       open = { kind: AWAY, id: 0, since: now() };
+      seen(open.since);
     },
     back() {
       if (open?.kind !== AWAY || !page) return null;
       if (!gapPassed()) {
         finish();
         open = { ...page, since: now() };
-        at = open.since;
-        commit(at);
+        seen(open.since);
         return null;
       }
       // Away longer than the gap: the old visit ended when the away reached it.
       const ended: EndedJourney = {
         n,
-        journey: [...closed, format(AWAY, 0, JOURNEY_GAP_MS)].join(SEPARATOR),
+        journey: cap([...closed, format(AWAY, 0, JOURNEY_GAP_MS)]).join(
+          SEPARATOR,
+        ),
+        ago: Math.max(
+          0,
+          Math.round((now() - open.since - JOURNEY_GAP_MS) / 1000),
+        ),
       };
       renew();
       arrive(page.kind, page.id);
@@ -353,11 +390,19 @@ export function createJourney(
       commit();
     },
     async claim() {
+      // The stored record is this tab's truth: a restored page takes what a later page wrote.
+      const fresh = load(store);
+      if (fresh && (fresh.n !== n || fresh.j !== closed.join(SEPARATOR))) {
+        n = fresh.n;
+        closed = parse(fresh.j);
+        endedOn = fresh.e ?? null;
+        at = fresh.at;
+        open = null;
+      }
       if (await hold(n)) return true;
       // Another live tab owns this journey: this tab begins its own.
       renew();
-      at = now();
-      commit(at);
+      seen();
       void hold(n);
       return false;
     },

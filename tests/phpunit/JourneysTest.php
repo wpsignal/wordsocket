@@ -92,6 +92,12 @@ final class JourneysTest extends WordSocketTestCase {
 		return WPS::journeys();
 	}
 
+	/** Make `wpsignal_journey_record` answer with one record for the rest of the test. */
+	private function record( array $record ): void {
+		remove_all_filters( 'wpsignal_journey_record' );
+		add_filter( 'wpsignal_journey_record', static fn(): array => $record );
+	}
+
 	public function test_the_table_exists_and_is_versioned(): void {
 		global $wpdb;
 		$this->assertSame( Journeys::DB_VERSION, WPS::instance()->config()->db_version() );
@@ -109,7 +115,13 @@ final class JourneysTest extends WordSocketTestCase {
 	public function test_a_version_from_four_on_adds_what_is_missing_without_dropping_the_rows(): void {
 		global $wpdb;
 		$table = Journeys::table();
-		$this->insert( array( 'journey_id' => self::N, 'visitor' => self::V, 'journey' => 'home:0:5' ) );
+		$this->insert(
+			array(
+				'journey_id' => self::N,
+				'visitor'    => self::V,
+				'journey'    => 'home:0:5',
+			)
+		);
 		$wpdb->query( "ALTER TABLE {$table} DROP INDEX last_seen" ); // phpcs:ignore WordPress.DB
 		WPS::instance()->config()->save_db_version( Journeys::DB_REBUILD_BELOW );
 
@@ -132,7 +144,14 @@ final class JourneysTest extends WordSocketTestCase {
 		);
 		$term = wp_insert_term( 'Codec fixture ' . wp_generate_password( 6, false ), 'category' );
 		$term = is_array( $term ) ? (int) $term['term_id'] : 0;
-		add_filter( 'wpsignal_kind_codes', static fn( array $codes ): array => $codes + array( 'wps_thing' => 'wt', 'wps_clash' => 'h', 'wps_short' => 'q' ) );
+		add_filter(
+			'wpsignal_kind_codes',
+			static fn( array $codes ): array => $codes + array(
+				'wps_thing' => 'wt',
+				'wps_clash' => 'h',
+				'wps_short' => 'q',
+			)
+		);
 		try {
 			$journey = "home:1:10>post:{$post}:20>category:{$term}:30>post_archive:0:5>wps_thing:3:1>wps_clash:0:1>wps_short:0:1>admin:0:2>away:0:4";
 			do_action( 'wpsignal_visitor_visit', $this->report( $journey, false ) );
@@ -151,7 +170,15 @@ final class JourneysTest extends WordSocketTestCase {
 			$this->assertSame( 'tag', Journeys::taxonomy_kind( 'post_tag' ) );
 			$this->assertSame( '', Journeys::hex( 'not-a-uuid' ) );
 			$this->assertSame( self::N, Journeys::uuid( strtoupper( Journeys::hex( self::N ) ) ) );
-			$this->assertFalse( Journeys::insert_row( array( 'journey_id' => 'nope', 'visitor' => self::V ) ), 'an id that is not a UUID is refused' );
+			$this->assertFalse(
+				Journeys::insert_row(
+					array(
+						'journey_id' => 'nope',
+						'visitor'    => self::V,
+					)
+				),
+				'an id that is not a UUID is refused'
+			);
 		} finally {
 			remove_all_filters( 'wpsignal_kind_codes' );
 			wp_delete_post( $post, true );
@@ -168,14 +195,11 @@ final class JourneysTest extends WordSocketTestCase {
 	}
 
 	public function test_reports_write_the_journey_with_the_extensions_record_and_a_shorter_report_never_shortens_it(): void {
-		add_filter(
-			'wpsignal_journey_record',
-			static fn( array $record, array $report ): array => array(
+		$this->record(
+			array(
 				'ref'   => 'cart0001',
 				'value' => 12.5,
-			),
-			10,
-			2
+			)
 		);
 		do_action( 'wpsignal_visitor_visit', $this->report( 'home:1:1200>post:5:300', false ) );
 		$row = $this->row( self::N );
@@ -186,10 +210,26 @@ final class JourneysTest extends WordSocketTestCase {
 		$this->assertNull( $row['user_id'], 'a guest' );
 
 		// The leave of the first page lands after the visit of the second: it never shortens the journey.
+		$this->record(
+			array(
+				'ref'   => 'cart0002',
+				'value' => 1.0,
+				'data'  => array( 'stale' => true ),
+			)
+		);
 		do_action( 'wpsignal_visitor_leave', $this->report( 'home:1:1500', true ) );
 		$row = $this->row( self::N );
 		$this->assertSame( $this->stored( 'home:1:1200>post:5:300' ), $row['journey'] );
 		$this->assertSame( 'open', $row['outcome'], 'a leave that is behind changes nothing' );
+		$this->assertSame( 'cart0001', $row['ref'], 'nor the ref' );
+		$this->assertSame( 12.5, (float) $row['value'], 'nor the value' );
+		$this->assertNull( $row['data'], 'nor the data' );
+		$this->record(
+			array(
+				'ref'   => 'cart0001',
+				'value' => 12.5,
+			)
+		);
 
 		// A leave at least as far along closes it.
 		do_action( 'wpsignal_visitor_leave', $this->report( 'home:1:1200>post:5:9000', true ) );
@@ -479,10 +519,44 @@ final class JourneysTest extends WordSocketTestCase {
 		$this->assertSame( array(), $records[0]['firings'] );
 		$this->assertMatchesRegularExpression( '/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+00:00$/', $records[0]['started_at'] );
 		$this->assertSame( 2, Journeys::query_count( array( 'ref' => 'qry-ref' ) ) );
-		$this->assertSame( array( self::N ), array_column( Journeys::query( array( 'ref' => 'qry-ref', 'outcome' => 'left' ) ), 'journey_id' ) );
+		$this->assertSame(
+			array( self::N ),
+			array_column(
+				Journeys::query(
+					array(
+						'ref'     => 'qry-ref',
+						'outcome' => 'left',
+					)
+				),
+				'journey_id'
+			)
+		);
 		$this->assertSame( array( self::N2 ), array_column( Journeys::query( array( 'visitor' => self::V2 ) ), 'journey_id' ) );
-		$this->assertSame( array( self::N2 ), array_column( Journeys::query( array( 'ref' => 'qry-ref', 'limit' => 1 ) ), 'journey_id' ) );
-		$this->assertSame( array( self::N ), array_column( Journeys::query( array( 'ref' => 'qry-ref', 'exclude_visitor_prefix' => substr( self::V2, 0, 9 ) ) ), 'journey_id' ), 'a visitor prefix leaves those rows out' );
+		$this->assertSame(
+			array( self::N2 ),
+			array_column(
+				Journeys::query(
+					array(
+						'ref'   => 'qry-ref',
+						'limit' => 1,
+					)
+				),
+				'journey_id'
+			)
+		);
+		$this->assertSame(
+			array( self::N ),
+			array_column(
+				Journeys::query(
+					array(
+						'ref'                    => 'qry-ref',
+						'exclude_visitor_prefix' => substr( self::V2, 0, 9 ),
+					)
+				),
+				'journey_id'
+			),
+			'a visitor prefix leaves those rows out'
+		);
 		$this->assertInstanceOf( WP_Error::class, Journeys::query( array( 'exclude_visitor_prefix' => 'seed' ) ), 'a prefix must be hex digits' );
 		$rows = Journeys::query_rows( array( 'ref' => 'qry-ref' ) );
 		$this->assertSame( 'h:1:4>s:0:9', $rows[1]['journey'], 'a row keeps the stored kind codes' );

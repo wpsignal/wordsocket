@@ -1491,12 +1491,11 @@ class Journeys {
 
 	/**
 	 * Write a visit or leave report: the first report creates the row, a later one from the same
-	 * visitor that is at least as far along updates it, and a visit that creates a row marks the
-	 * visitor's other open journeys unreported for GAP_SECONDS incomplete. A journey an extension
-	 * ended keeps its ref, outcome, value and data; a report's `ago` dates it. Hooked at priority 5,
-	 * so an extension on the default priority reads the written row.
+	 * visitor that is at least as far along updates it, and a journey's first report marks the
+	 * visitor's other open journeys unreported for GAP_SECONDS incomplete. Hooked at priority 5.
 	 *
 	 * @since 0.31.0
+	 * @since 0.32.0 A report behind the row leaves its ref, value and data alone.
 	 *
 	 * @param array $report `{ visitor, journey_id, journey, steps, user_id, data, leaving, ago }`.
 	 * @return void
@@ -1519,15 +1518,15 @@ class Journeys {
 		$owned   = 'visitor = VALUES(visitor)';
 		$ahead   = $owned . ' AND VALUES(steps) >= steps';
 		$final   = "outcome NOT IN ('" . implode( "', '", self::NOT_FINAL ) . "')";
+		// An extension's record column: taken from a report at least as far along, on a row not yet final.
+		$record_col = static fn( string $col ): string => "{$col} = IF({$ahead} AND VALUES({$col}) IS NOT NULL AND NOT ({$final}), VALUES({$col}), {$col})";
 		$wpdb->query(
 			$wpdb->prepare(
 				'INSERT INTO ' . self::table() . " (journey_id, visitor, user_id, ref, journey, steps, outcome, value, data, started_at, last_seen)
 				VALUES (UNHEX(%s), UNHEX(%s), IF(%d > 0, %d, NULL), NULLIF(%s, ''), %s, %d, %s, IF(%d = 1, %f, NULL), NULLIF(%s, ''), %s, %s)
 				ON DUPLICATE KEY UPDATE
 					user_id = IF(" . $owned . ' AND VALUES(user_id) IS NOT NULL, VALUES(user_id), user_id),
-					ref = IF(' . $owned . ' AND VALUES(ref) IS NOT NULL AND NOT (' . $final . '), VALUES(ref), ref),
-					value = IF(' . $owned . ' AND VALUES(value) IS NOT NULL AND NOT (' . $final . '), VALUES(value), value),
-					data = IF(' . $owned . ' AND VALUES(data) IS NOT NULL AND NOT (' . $final . '), VALUES(data), data),
+					' . implode( ', ', array_map( $record_col, array( 'ref', 'value', 'data' ) ) ) . ',
 					last_seen = IF(' . $ahead . ', VALUES(last_seen), last_seen),
 					journey = IF(' . $ahead . ', VALUES(journey), journey),
 					outcome = IF(' . $final . ' OR NOT (' . $ahead . '), outcome, VALUES(outcome)),
@@ -2494,7 +2493,7 @@ class Journeys {
 	 * @return void
 	 */
 	public function register_routes(): void {
-		$staff   = static fn() => current_user_can( 'manage_options' );
+		$staff = static fn() => current_user_can( 'manage_options' );
 		register_rest_route(
 			'wpsignal/v1',
 			'/cache',
