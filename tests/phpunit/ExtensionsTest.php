@@ -154,7 +154,7 @@ final class ExtensionsTest extends WordSocketTestCase {
 
 		// A wp-admin path goes through admin_url(), so a subdirectory install gets the right link.
 		$this->assertSame( admin_url( 'plugin-install.php?s=ShopSocket&tab=search&type=term' ), $links['shopsocket'] );
-		$this->assertSame( 'https://wpsignal.io/extensions/postsocket', $links['wordsocket-liveblog'] );
+		$this->assertSame( 'https://wpsignal.io/extensions/postsocket', $links['postsocket'] );
 	}
 
 	public function test_plugin_files_prefer_a_registered_file_over_the_slug_directory(): void {
@@ -184,13 +184,13 @@ final class ExtensionsTest extends WordSocketTestCase {
 			array(
 				$ours                                 => array( 'Name' => 'WordSocket' ),
 				'shopsocket/shopsocket.php'           => array( 'Name' => 'ShopSocket' ),
-				'wordsocket-chat/wordsocket-chat.php' => array(
-					'Name'            => 'ChatSocket',
+				'postsocket/postsocket.php'           => array(
+					'Name'            => 'PostSocket',
 					'RequiresPlugins' => 'wordsocket',
 				),
-				'wordsocket-liveblog/wordsocket-liveblog.php' => array(
-					'Name'            => 'WordSocket Live Blog',
-					'RequiresPlugins' => 'woocommerce, wordsocket',
+				'wordsocket-chat/wordsocket-chat.php' => array(
+					'Name'            => 'WordSocket Chat',
+					'RequiresPlugins' => 'wordsocket',
 				),
 				'woocommerce/woocommerce.php'         => array( 'Name' => 'WooCommerce' ),
 			)
@@ -198,15 +198,15 @@ final class ExtensionsTest extends WordSocketTestCase {
 
 		$this->assertSame( 'WordSocket', $rows[ $ours ]['Name'], 'the parent row keeps its name' );
 		$this->assertSame( 'WordSocket: ShopSocket', $rows['shopsocket/shopsocket.php']['Name'] );
-		$this->assertSame( 'WordSocket: ChatSocket', $rows['wordsocket-chat/wordsocket-chat.php']['Name'], 'a catalogued extension nests while it is inactive' );
-		$this->assertSame( 'WordSocket Live Blog', $rows['wordsocket-liveblog/wordsocket-liveblog.php']['Name'], 'a name that already leads with WordSocket is left alone' );
+		$this->assertSame( 'WordSocket: PostSocket', $rows['postsocket/postsocket.php']['Name'], 'a catalogued extension nests while it is inactive' );
+		$this->assertSame( 'WordSocket Chat', $rows['wordsocket-chat/wordsocket-chat.php']['Name'], 'a name that already leads with WordSocket is left alone' );
 		$this->assertSame( 'WooCommerce', $rows['woocommerce/woocommerce.php']['Name'], 'plugins outside the family are untouched' );
 
 		// The point of the rename: the list table sorts these names with strcasecmp.
 		$names = array_column( $rows, 'Name' );
 		usort( $names, 'strcasecmp' );
 		$this->assertSame(
-			array( 'WooCommerce', 'WordSocket', 'WordSocket Live Blog', 'WordSocket: ChatSocket', 'WordSocket: ShopSocket' ),
+			array( 'WooCommerce', 'WordSocket', 'WordSocket Chat', 'WordSocket: PostSocket', 'WordSocket: ShopSocket' ),
 			$names
 		);
 	}

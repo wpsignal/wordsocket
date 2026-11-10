@@ -101,7 +101,7 @@ class Trigger_Registry {
 				$data = $trigger->build_data( $args );
 
 				$publisher->publish(
-					$trigger->get_channel(),
+					$trigger->get_channel( $args ),
 					$trigger->get_event(),
 					$data
 				);

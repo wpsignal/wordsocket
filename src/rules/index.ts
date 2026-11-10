@@ -39,7 +39,7 @@ export interface RulesClient {
     event: string,
     handler: (data: Record<string, unknown>, channel: string) => void,
   ): () => void;
-  onConnectionChange(handler: (connected: boolean) => void): () => void;
+  onReconnect(handler: () => void): () => void;
 }
 
 /**
@@ -177,9 +177,8 @@ export function createRulesApi(
    * A tab that was down during a save missed its frame, so every reconnect (not the first connect:
    * the seed is as fresh as the page) asks the live route once and applies by the same version check.
    */
-  let connects = 0;
-  client.onConnectionChange((connected) => {
-    if (!connected || ++connects < 2 || !seed?.liveUrl) return;
+  client.onReconnect(() => {
+    if (!seed?.liveUrl) return;
     void fetch(restUrl(seed.liveUrl, "", { v: String(engine.version) }), {
       credentials: "same-origin",
     })

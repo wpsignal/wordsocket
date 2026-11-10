@@ -257,7 +257,7 @@ class Admin_Page {
 					'hook'      => $trigger->get_hook(),
 					'priority'  => $trigger->get_priority(),
 					'args'      => $trigger->get_accepted_args(),
-					'channel'   => $trigger->get_channel(),
+					'channel'   => $trigger->get_channel_label(),
 					'condition' => $trigger->has_condition(),
 				);
 			},

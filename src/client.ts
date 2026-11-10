@@ -15,6 +15,7 @@ import { Backoff } from "./utils/backoff";
 import { isRecord, stored } from "./utils/storage";
 import { createDecryptor, type Decryptor } from "./utils/crypto";
 import { relayEndpoints } from "./utils/relay";
+import { watchNavigation } from "./utils/navigation";
 import {
   currentNonce,
   holdNonce,
@@ -106,6 +107,9 @@ export class WPSignalClient implements WPSApi {
   private readonly messageHandlers = new Set<WPSMessageHandler>();
   private readonly eventHandlers = new Map<string, Set<WPSEventHandler>>();
   private readonly connectionHandlers = new Set<(c: boolean) => void>();
+  private readonly reconnectHandlers = new Set<() => void>();
+  /** Whether a connection has been announced on this page, so the next one is a reconnect. */
+  private hasConnected = false;
   private readonly stateHandlers = new Set<(s: WPSConnectionState) => void>();
   private readonly binaryHandlers = new Set<WPSBinaryHandler>();
 
@@ -399,6 +403,19 @@ export class WPSignalClient implements WPSApi {
   }
 
   /**
+   * Register a handler that fires each time the connection comes back after a disconnect, the moment
+   * to fetch what the page may have missed. Returns an unsubscribe function.
+   *
+   * @since 0.32.0
+   */
+  onReconnect(handler: () => void): () => void {
+    this.reconnectHandlers.add(handler);
+    return () => {
+      this.reconnectHandlers.delete(handler);
+    };
+  }
+
+  /**
    * Initialise the client: obtain a token and open a transport connection.
    *
    * @since 0.31.0 Returns before connecting for a crawler.
@@ -471,10 +488,30 @@ export class WPSignalClient implements WPSApi {
     }
   }
 
-  /** Reconnect when the tab becomes visible or the network comes back online. */
+  /**
+   * Send every held presence again, with `g: 1` while the page is navigating within the site, the
+   * mark a subscriber holds a member on until the next page's socket joins, and clean again when the
+   * navigation is called off; the held state itself stays unmarked, so a reconnect sends it clean.
+   *
+   * @since 0.32.0
+   */
+  private markNavigating(navigating: boolean): void {
+    if (!this.activeTransport?.getStatus().connected) return;
+    this.desiredPresence.forEach((state, channel) => {
+      this.activeTransport?.setPresence(
+        channel,
+        navigating ? { ...state, g: 1 } : state,
+      );
+    });
+  }
+
+  /** Reconnect when the tab becomes visible or the network comes back online, and mark presence while navigating. */
   private attachVisibilityListeners(): void {
     if (this.visibilityListenerAttached) return;
     this.visibilityListenerAttached = true;
+    watchNavigation().onNavigate((navigating) =>
+      this.markNavigating(navigating),
+    );
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") {
         this.handleReconnect();
@@ -854,6 +891,10 @@ export class WPSignalClient implements WPSApi {
     }
     this.connectionHandlers.forEach((fn) => fn(value));
     this.emitState();
+    if (value) {
+      if (this.hasConnected) this.reconnectHandlers.forEach((fn) => fn());
+      this.hasConnected = true;
+    }
   }
 
   private emitState(): void {

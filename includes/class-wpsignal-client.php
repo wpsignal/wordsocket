@@ -26,12 +26,13 @@ class Client {
 	 * - 3 (0.28): `window.wordsocket.registerTab()`, a settings tab per extension.
 	 * - 4 (0.30): `WPS.presence.track()`, visitor journeys over presence.
 	 * - 5 (0.31): `WPS.attention` and `WPS.recovery`, the surfaces behind rules.
+	 * - 6 (0.32): `WPS.onReconnect()`.
 	 *
 	 * @since 0.23.0
 	 *
 	 * @var int
 	 */
-	const API_VERSION = 5;
+	const API_VERSION = 6;
 
 	/**
 	 * Configuration accessor.

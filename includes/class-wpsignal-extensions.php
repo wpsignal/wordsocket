@@ -51,19 +51,19 @@ class Extensions {
 	 * @var array<string, array{title: string, description: string, url: string, available: bool}>
 	 */
 	const CATALOGUE = array(
-		'shopsocket'          => array(
+		'shopsocket'      => array(
 			'title'       => 'ShopSocket',
 			'description' => 'A live orders board for your team and live stock on product pages.',
 			'url'         => 'plugin-install.php?s=ShopSocket&tab=search&type=term',
 			'available'   => true,
 		),
-		'wordsocket-liveblog' => array(
+		'postsocket'      => array(
 			'title'       => 'PostSocket',
-			'description' => 'Live coverage that updates in every reader\'s browser as you publish.',
+			'description' => 'Live blogs and articles that update in every reader\'s browser as you publish.',
 			'url'         => 'https://wpsignal.io/extensions/postsocket',
 			'available'   => false,
 		),
-		'wordsocket-chat'     => array(
+		'wordsocket-chat' => array(
 			'title'       => 'ChatSocket',
 			'description' => 'Realtime messaging between your site\'s users.',
 			'url'         => 'https://wpsignal.io/extensions/chatsocket',

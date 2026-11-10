@@ -622,6 +622,13 @@ interface WPSApi {
   onConnectionChange(handler: (connected: boolean) => void): () => void;
   /** Register a callback receiving the full connection state (error, retry countdown, failure count). Returns unsubscribe fn. */
   onStateChange(handler: (state: WPSConnectionState) => void): () => void;
+  /**
+   * Register a callback for every connection after a disconnect, the moment to fetch what the page
+   * may have missed. Returns unsubscribe fn.
+   *
+   * @since 0.32.0
+   */
+  onReconnect(handler: () => void): () => void;
   /** The current connection state, as delivered to onStateChange. */
   readonly state: WPSConnectionState;
   /**

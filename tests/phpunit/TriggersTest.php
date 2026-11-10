@@ -57,6 +57,33 @@ final class TriggersTest extends WordSocketTestCase {
 		$this->assertContains( 'order.paid', $registered );
 	}
 
+	public function test_a_callable_channel_is_resolved_from_the_hook_arguments(): void {
+		$hook    = 'wordsocket_test_' . uniqid();
+		$trigger = WPS::trigger( 'entry.updated' )
+			->on( $hook, 10, 2 )
+			->channel( static fn( $id, $parent ) => 'blog:' . $parent, 'blog:{id}' )
+			->data( static fn( $id ) => array( 'id' => $id ) );
+		$trigger->register();
+
+		do_action( $hook, 5, 42 );
+		$events = array_values( $this->published() );
+		$this->assertCount( 1, $events );
+		$this->assertSame( 'blog:42', $events[0]['channel'] );
+		$this->assertSame( 'blog:{id}', $trigger->get_channel_label(), 'the Triggers tab lists the label' );
+
+		$plain = WPS::trigger( 'x' )->channel( 'date' );
+		$this->assertSame( 'date', $plain->get_channel( array() ), 'a channel named like a PHP function is a name' );
+		$this->assertSame( 'date', $plain->get_channel_label() );
+
+		// A callable's result is a channel of the site's own, or the default.
+		$foreign = WPS::trigger( 'y' )->channel( static fn( $room ) => $room );
+		$this->assertSame( 'events', $foreign->get_channel( array( 'tenant:abc:wp:site:def:events' ) ), 'another tenant\'s channel is refused' );
+		$this->assertSame( 'events', $foreign->get_channel( array( 'wps:connections' ) ), 'the relay\'s namespace is refused' );
+		$this->assertSame( 'events', $foreign->get_channel( array( get_post( 1 ) ) ), 'an object is not a channel' );
+		$this->assertSame( 'events', $foreign->get_channel( array( '' ) ) );
+		$this->assertSame( 'blog:42', $foreign->get_channel( array( 'blog:42' ) ) );
+	}
+
 	public function test_publishing_a_post_fires_the_built_in_post_updated_trigger(): void {
 		$id = wp_insert_post(
 			array(

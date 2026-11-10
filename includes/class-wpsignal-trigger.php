@@ -92,11 +92,18 @@ class Trigger {
 	private $accepted_args = 1;
 
 	/**
-	 * Channel name to publish on. Default "events".
+	 * Channel name to publish on, or a callable resolving it from the hook arguments. Default "events".
+	 *
+	 * @var string|callable
+	 */
+	private $channel_name = 'events';
+
+	/**
+	 * Label a callable channel is listed under.
 	 *
 	 * @var string
 	 */
-	private $channel_name = 'events';
+	private $channel_label = '';
 
 	/**
 	 * Callback that builds the event data payload.
@@ -157,15 +164,19 @@ class Trigger {
 	 * @usage: set the channel to publish on:
 	 * ```php
 	 *     ->channel( 'orders' )
+	 *     ->channel( fn( $post_id, $post ) => 'blog:' . $post->post_parent, 'blog:{id}' )
 	 * ```
 	 *
 	 * @since 0.7.0
+	 * @since 0.32.0 Accepts a callable receiving the hook arguments, with a label for the Triggers tab.
 	 *
-	 * @param string $channel Channel name.
+	 * @param string|callable $channel Channel name, or a callable returning one from the hook arguments.
+	 * @param string          $label   Optional. How a callable channel is listed. Default the event name.
 	 * @return $this
 	 */
-	public function channel( $channel ) {
-		$this->channel_name = $channel;
+	public function channel( $channel, $label = '' ) {
+		$this->channel_name  = $channel;
+		$this->channel_label = $label;
 		return $this;
 	}
 
@@ -281,14 +292,61 @@ class Trigger {
 	}
 
 	/**
-	 * Get the channel name.
+	 * Get the channel name, resolving a callable channel from the hook arguments.
 	 *
 	 * @since 0.7.0
+	 * @since 0.32.0 Takes the hook arguments for a callable channel, whose result must be a channel name of the site's own.
 	 *
+	 * @param array $args Hook arguments passed by WordPress.
 	 * @return string Channel name (default "events").
 	 */
-	public function get_channel() {
-		return $this->channel_name;
+	public function get_channel( array $args ) {
+		if ( ! $this->has_dynamic_channel() ) {
+			return $this->channel_name;
+		}
+		$channel = call_user_func_array( $this->channel_name, $args );
+		return self::is_channel_name( $channel ) ? $channel : 'events';
+	}
+
+	/**
+	 * Whether a value is a channel name a site may publish on: a short string of word characters, dots, colons and dashes under no reserved namespace.
+	 *
+	 * @since 0.32.0
+	 *
+	 * @param mixed $channel The value.
+	 * @return bool
+	 */
+	public static function is_channel_name( $channel ): bool {
+		if ( ! is_string( $channel ) || ! preg_match( '/^[A-Za-z0-9_.:-]{1,200}$/', $channel ) ) {
+			return false;
+		}
+		$first = strtolower( strtok( $channel, ':' ) );
+		return 'tenant' !== $first && 'wps' !== $first;
+	}
+
+	/**
+	 * Whether the channel is a callable rather than a name.
+	 *
+	 * @since 0.32.0
+	 *
+	 * @return bool
+	 */
+	public function has_dynamic_channel() {
+		return ! is_string( $this->channel_name ) && is_callable( $this->channel_name );
+	}
+
+	/**
+	 * Get the channel as the Triggers tab lists it: the name, or a callable channel's label.
+	 *
+	 * @since 0.32.0
+	 *
+	 * @return string
+	 */
+	public function get_channel_label() {
+		if ( ! $this->has_dynamic_channel() ) {
+			return $this->channel_name;
+		}
+		return '' !== $this->channel_label ? $this->channel_label : $this->event;
 	}
 
 	/**
